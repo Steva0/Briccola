@@ -1,0 +1,38 @@
+<resources>
+    <string name="app_name">LagunaNav</string>
+    <string name="navigation_drawer_open">Apri menu navigazione</string>
+    <string name="navigation_drawer_close">Chiudi menu navigazione</string>
+
+    <string name="menu_map">Mappa</string>
+    <string name="menu_weather">Meteo</string>
+    <string name="menu_settings">Impostazioni</string>
+    <string name="menu_devtools">Strumenti Dev</string>
+    <string name="menu_about">Crediti e Licenza</string>
+    <string name="menu_donate">Dona al progetto</string>
+
+    <string name="settings_boat_profile">Profilo Barca</string>
+    <string name="settings_draft_label">Pescaggio (metri)</string>
+    <string name="settings_license_label">Patente Nautica</string>
+    <string name="settings_equipment_label">Dotazioni di Sicurezza</string>
+    <string name="settings_map_options">Mappa e Navigazione</string>
+
+    <string name="license_none">Senza Patente (Entro 6mg / 11km)</string>
+    <string name="license_12">Entro 12 Miglia (22 km)</string>
+    <string name="license_unlimited">Senza Limiti (Oltre 22 km)</string>
+
+    <string name="equip_1">Entro 1 Miglio (1.8 km)</string>
+    <string name="equip_3">Entro 3 Miglia (5.5 km)</string>
+    <string name="equip_6">Entro 6 Miglia (11.1 km)</string>
+    <string name="equip_12">Entro 12 Miglia (22.2 km)</string>
+    <string name="equip_50">Entro 50 Miglia (92.6 km)</string>
+    <string name="equip_unlimited">Oltre 50 Miglia (Senza Limiti)</string>
+
+    <string name="about_title">Crediti e Licenza</string>
+    <string name="about_description">LagunaNav è un progetto gratuito creato per la navigazione sicura nella Laguna di Venezia.\n\nQuesto software è distribuito sotto la licenza PolyForm Noncommercial License 1.0.0.</string>
+    <string name="credits_title">Riconoscimenti</string>
+    <string name="credits_osm">Dati cartografici © OpenStreetMap contributors</string>
+    <string name="credits_openfreemap">Tile della mappa forniti da OpenFreeMap</string>
+    <string name="credits_maplibre">Motore cartografico: MapLibre GL Native</string>
+    <string name="license_details">PolyForm Noncommercial License 1.0.0\n\nThe software is provided under this license, which allows you to use, modify, and share the software, but you may not use it for commercial purposes.\n\n1. Grant of Rights\nSubject to the terms and conditions of this license, the contributor grants you a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to use, reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute the software.\n\n2. Commercial Use Restriction\nYou may not make the software available to others for a fee.\n\n3. No Warranty\nThe software is provided \"as is\", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.</string>
+    <string name="donate_placeholder">Schermata donazioni in arrivo.\nGrazie per il tuo supporto!</string>
+</resources>

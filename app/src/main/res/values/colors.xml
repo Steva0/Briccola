@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Marine Palette -->
+    <color name="marine_blue_dark">#003366</color>
+    <color name="marine_blue">#006699</color>
+    <color name="marine_blue_light">#33AADD</color>
+    <color name="lagoon_teal">#20B2AA</color>
+    <color name="sea_white">#F0F8FF</color>
+
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Theme Colors -->
+    <color name="primaryColor">@color/marine_blue</color>
+    <color name="primaryDarkColor">@color/marine_blue_dark</color>
+    <color name="secondaryColor">@color/lagoon_teal</color>
+</resources>

@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <org.maplibre.android.maps.MapView
+        android:id="@+id/mapViewDev"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <ImageView
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_gravity="center"
+        android:src="@android:drawable/ic_menu_add"
+        app:tint="#FF00FF" />
+
+    <!-- Pannello HUD Dev -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="12dp"
+        app:cardBackgroundColor="#DD222222"
+        app:cardCornerRadius="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <Spinner
+                android:id="@+id/spinner_dev_mode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:backgroundTint="@color/white" />
+
+            <TextView
+                android:id="@+id/tv_dev_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="MODALITÀ DEBUG"
+                android:textColor="#FF00FF"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_dev_depth"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Profondità: --"
+                android:textColor="@color/white"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tv_dev_routing"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Inizio: No | Fine: No"
+                android:textColor="@color/sea_white"
+                android:textSize="12sp" />
+
+            <CheckBox
+                android:id="@+id/cb_show_islands"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Evidenzia Isole (Sconnessi)"
+                android:textColor="@color/white"
+                android:textSize="10sp" />
+
+            <LinearLayout
+                android:id="@+id/layout_island_nav"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone">
+                <Button
+                    android:id="@+id/btn_prev_island"
+                    android:layout_width="0dp"
+                    android:layout_height="32dp"
+                    android:layout_weight="1"
+                    android:text="&lt;"
+                    android:textSize="10sp" />
+                <TextView
+                    android:id="@+id/tv_island_index"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="8dp"
+                    android:text="0 / 0"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <Button
+                    android:id="@+id/btn_next_island"
+                    android:layout_width="0dp"
+                    android:layout_height="32dp"
+                    android:layout_weight="1"
+                    android:text="&gt;"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <CheckBox
+                android:id="@+id/cb_show_zones"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Debug Zone (Mare/Laguna)"
+                android:textColor="@color/white"
+                android:textSize="10sp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Gruppi di Pulsanti -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_margin="16dp"
+        android:orientation="horizontal">
+
+        <!-- Gruppo Percorso -->
+        <LinearLayout
+            android:id="@+id/group_route"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/btn_set_start"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="Inizio"
+                app:backgroundTint="@color/lagoon_teal" />
+            <Button
+                android:id="@+id/btn_set_end"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="Fine"
+                app:backgroundTint="#FF0000" />
+        </LinearLayout>
+
+        <!-- Gruppo Tips -->
+        <Button
+            android:id="@+id/btn_test_tips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:text="Test Tips"
+            android:visibility="gone"
+            app:backgroundTint="#800080" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_clear_all"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@android:drawable/ic_menu_delete"
+            app:backgroundTint="@color/marine_blue"
+            app:fabSize="mini"
+            app:tint="@color/white" />
+    </LinearLayout>
+
+</FrameLayout>
