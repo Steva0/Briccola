@@ -65,12 +65,20 @@ class SettingsFragment : Fragment() {
 
     private fun loadSettings() {
         val prefs = requireContext().getSharedPreferences("laguna_prefs", Context.MODE_PRIVATE)
-        
+
         val draft = prefs.getFloat("boat_draft", 0.5f)
         binding.sliderDraft.value = draft
         binding.tvDraftValue.text = String.format(Locale.getDefault(), "%.1f m", draft)
 
-        // Nota: i restanti settings verranno implementati con salvataggio automatico
+        binding.switchNightMode.isChecked = prefs.getBoolean("night_mode", false)
+        binding.switchNightMode.setOnCheckedChangeListener { _, isChecked ->
+            saveSetting("night_mode", isChecked)
+        }
+
+        binding.switchOfflineOnly.isChecked = prefs.getBoolean("offline_only", false)
+        binding.switchOfflineOnly.setOnCheckedChangeListener { _, isChecked ->
+            saveSetting("offline_only", isChecked)
+        }
     }
 
     private fun saveSetting(key: String, value: Any) {

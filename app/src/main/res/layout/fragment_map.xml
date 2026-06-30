@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- HUD Overlay for Depth and Coordinates -->
+    <!-- HUD: profondità, coordinate, velocità GPS vs limite -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cv_hud"
         android:layout_width="wrap_content"
@@ -42,15 +42,38 @@
                 android:text="Lat: --, Lon: --"
                 android:textColor="@color/sea_white"
                 android:textSize="12sp" />
+
+            <!-- Velocità GPS | limite canale. Visibile solo con GPS attivo. -->
+            <TextView
+                android:id="@+id/tv_hud_speed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/sea_white"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Crosshair in the center -->
+    <!-- Mirino al centro -->
     <ImageView
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_gravity="center"
         android:src="@android:drawable/ic_menu_add"
         app:tint="@color/marine_blue_dark" />
+
+    <!-- FAB Man OverBoard: salva la posizione GPS corrente come pin -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_mob"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:contentDescription="Segna posizione"
+        android:src="@android:drawable/ic_menu_mylocation"
+        app:backgroundTint="#CC003366"
+        app:tint="@color/white" />
 
 </FrameLayout>

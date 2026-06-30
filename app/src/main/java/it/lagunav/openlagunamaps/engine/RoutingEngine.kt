@@ -591,6 +591,13 @@ class RoutingEngine(private val context: Context) {
     // QUERY DI SUPPORTO (usate da UI / HUD, indipendenti dal routing)
     // =================================================================
 
+    /** Restituisce il limite di velocità in nodi sull'arco di canale più vicino al punto, null se non impostato. */
+    fun getMaxSpeedKnotsAt(p: LatLng): Double? {
+        val snap = snapToNearestEdge(p) ?: return null
+        if (snap.edge.speedKmh <= 0) return null
+        return snap.edge.speedKmh / 1.852
+    }
+
     fun getFixedDepthAt(p: LatLng): Float? = fixedDepthAreas.find { containsPoint(it.polygon, p) }?.depth
     fun isPointInNoGo(p: LatLng): Boolean = noGoAreas.any { containsPoint(it.polygon, p) }
     fun isInsideProject(p: LatLng): Boolean = projectBoundary?.let { containsPoint(it, p) } ?: true
