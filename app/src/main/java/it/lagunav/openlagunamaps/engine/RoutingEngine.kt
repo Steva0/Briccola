@@ -173,14 +173,39 @@ class RoutingEngine(private val context: Context) {
 
     fun findRoute(start: LatLng, end: LatLng, minDepth: Double = 0.5): List<LatLng>? {
         lastRoutingError = ""
-        val sSea = isAtSea(start)
-        val eSea = isAtSea(end)
+        val safeStart = escapeFromNoGo(start)
+        val safeEnd = escapeFromNoGo(end)
+        val sSea = isAtSea(safeStart)
+        val eSea = isAtSea(safeEnd)
 
         return when {
-            !sSea && !eSea -> solveLagunaToLaguna(start, end, minDepth)
-            sSea && eSea -> solveSeaToSea(start, end)
-            else -> solveMixed(start, end, minDepth)
+            !sSea && !eSea -> solveLagunaToLaguna(safeStart, safeEnd, minDepth)
+            sSea && eSea -> solveSeaToSea(safeStart, safeEnd)
+            else -> solveMixed(safeStart, safeEnd, minDepth)
         }
+    }
+
+    /**
+     * Se il punto cade dentro una zona no-go, lo sposta sul punto del bordo
+     * più vicino e poi lo offset leggermente verso l'esterno.
+     * Se è già in acqua libera, ritorna il punto invariato.
+     */
+    private fun escapeFromNoGo(p: LatLng): LatLng {
+        val area = noGoAreas.find { containsPoint(it.polygon, p) } ?: return p
+        var minDist = Double.MAX_VALUE
+        var closest = p
+        val poly = area.polygon
+        for (i in 0 until poly.size - 1) {
+            val pt = closestPointOnSegment(p, poly[i], poly[i + 1])
+            val d = haversine(p.latitude, p.longitude, pt.latitude, pt.longitude)
+            if (d < minDist) { minDist = d; closest = pt }
+        }
+        val dLat = closest.latitude - p.latitude
+        val dLon = closest.longitude - p.longitude
+        val len = sqrt(dLat * dLat + dLon * dLon)
+        if (len == 0.0) return LatLng(closest.latitude + 0.0002, closest.longitude + 0.0002)
+        val offset = 0.0002 // ~20 m
+        return LatLng(closest.latitude + (dLat / len) * offset, closest.longitude + (dLon / len) * offset)
     }
 
     // =================================================================
