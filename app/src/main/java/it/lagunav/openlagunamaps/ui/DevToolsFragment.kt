@@ -245,14 +245,14 @@ class DevToolsFragment : Fragment() {
             val source = GeoJsonSource("laguna-source-dev", geoJsonData)
             style.addSource(source)
 
-            style.addLayer(LineLayer("obstacles-outline-dev", "laguna-source-dev").withFilter(any(eq(get("nav:area"), "no_go"), eq(get("nav:obstacle"), "rock"), eq(get("nav:obstade"), "rock"))).withProperties(lineColor("#FF0000"), lineWidth(3f)))
-            style.addLayer(LineLayer("gates-layer-dev", "laguna-source-dev").withFilter(eq(get("nav:gate"), "sea")).withProperties(lineColor("#00FF00"), lineWidth(4f)))
-            style.addLayer(LineLayer("bypass-sea-layer-dev", "laguna-source-dev").withFilter(eq(get("nav:bypass"), "sea")).withProperties(lineColor("#FFA500"), lineWidth(3f)))
-            style.addLayer(LineLayer("bypass-rock-layer-dev", "laguna-source-dev").withFilter(eq(get("nav:bypass"), "rock")).withProperties(lineColor("#800080"), lineWidth(3f)))
+            style.addLayer(LineLayer("obstacles-outline-dev", "laguna-source-dev").withFilter(any(eq(get("special:nav:area"), "no_go"), eq(get("special:nav:obstacle"), "rock"), eq(get("special:nav:obstade"), "rock"))).withProperties(lineColor("#FF0000"), lineWidth(3f)))
+            style.addLayer(LineLayer("gates-layer-dev", "laguna-source-dev").withFilter(eq(get("special:nav:gate"), "sea")).withProperties(lineColor("#00FF00"), lineWidth(4f)))
+            style.addLayer(LineLayer("bypass-sea-layer-dev", "laguna-source-dev").withFilter(eq(get("special:nav:bypass"), "sea")).withProperties(lineColor("#FFA500"), lineWidth(3f)))
+            style.addLayer(LineLayer("bypass-rock-layer-dev", "laguna-source-dev").withFilter(eq(get("special:nav:bypass"), "rock")).withProperties(lineColor("#800080"), lineWidth(3f)))
             style.addLayer(LineLayer("canals-layer-dev", "laguna-source-dev").withFilter(eq(get("waterway"), "canal")).withProperties(lineColor("#FF00FF"), lineWidth(2f), lineOpacity(0.7f)))
-            style.addLayer(LineLayer("mare-marker-dev", "laguna-source-dev").withFilter(eq(get("mare"), "yes")).withProperties(lineColor("#0000FF"), lineWidth(2f), lineDasharray(arrayOf(2f, 2f))))
-            style.addLayer(LineLayer("laguna-marker-dev", "laguna-source-dev").withFilter(eq(get("laguna"), "yes")).withProperties(lineColor("#FFFF00"), lineWidth(2f), lineDasharray(arrayOf(2f, 2f))))
-            style.addLayer(LineLayer("project-boundary-dev", "laguna-source-dev").withFilter(eq(get("nav:boundary"), "project")).withProperties(lineColor("#FFFF00"), lineWidth(4f), lineOpacity(0.6f)))
+            style.addLayer(LineLayer("mare-marker-dev", "laguna-source-dev").withFilter(eq(get("special:mare"), "yes")).withProperties(lineColor("#0000FF"), lineWidth(2f), lineDasharray(arrayOf(2f, 2f))))
+            style.addLayer(LineLayer("laguna-marker-dev", "laguna-source-dev").withFilter(eq(get("special:laguna"), "yes")).withProperties(lineColor("#FFFF00"), lineWidth(2f), lineDasharray(arrayOf(2f, 2f))))
+            style.addLayer(LineLayer("project-boundary-dev", "laguna-source-dev").withFilter(eq(get("special:nav:boundary"), "project")).withProperties(lineColor("#FFFF00"), lineWidth(4f), lineOpacity(0.6f)))
             style.addLayer(CircleLayer("briccole-layer-dev", "laguna-source-dev").withFilter(eq(geometryType(), literal("Point"))).withProperties(circleColor("#FFFF00"), circleRadius(3f)))
         } catch (e: Exception) { e.printStackTrace() }
     }
