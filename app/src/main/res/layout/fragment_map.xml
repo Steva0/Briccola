@@ -9,13 +9,144 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- HUD: profondità, coordinate, velocità GPS vs limite -->
+    <!-- Barra di ricerca (visibile quando non è in corso una navigazione) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_search"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_margin="12dp"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="6dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp">
+
+            <EditText
+                android:id="@+id/et_search"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="Cerca canale o luogo..."
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:maxLines="1"
+                android:textSize="15sp" />
+
+            <ImageButton
+                android:id="@+id/btn_search"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Cerca"
+                android:src="@android:drawable/ic_menu_search" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Risultato di ricerca (appare sotto la barra di ricerca) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_search_result"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="80dp"
+        android:visibility="gone"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="6dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tv_search_result_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textSize="13sp" />
+
+            <Button
+                android:id="@+id/btn_navigate_to"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Naviga qui"
+                android:textSize="12sp"
+                app:backgroundTint="@color/marine_blue" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Banner di navigazione (visibile quando una rotta e' attiva) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_nav_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_margin="12dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="#CC003366"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="6dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:gravity="center_vertical">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_nav_instruction"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:text="-- m" />
+
+                <TextView
+                    android:id="@+id/tv_nav_detail"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/sea_white"
+                    android:textSize="12sp"
+                    android:text="Calcolo in corso..." />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btn_cancel_route"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Annulla navigazione"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                app:tint="@color/white" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- HUD: profondita', coordinate, velocita' -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cv_hud"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="16dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="80dp"
         app:cardBackgroundColor="#CC003366"
         app:cardCornerRadius="8dp"
         app:cardElevation="4dp">
@@ -24,15 +155,15 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="12dp">
+            android:padding="10dp">
 
             <TextView
                 android:id="@+id/tv_hud_depth"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Profondità: -- m"
+                android:text="Profondita': -- m"
                 android:textColor="@color/white"
-                android:textSize="20sp"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -41,30 +172,58 @@
                 android:layout_height="wrap_content"
                 android:text="Lat: --, Lon: --"
                 android:textColor="@color/sea_white"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
 
-            <!-- Velocità GPS | limite canale. Visibile solo con GPS attivo. -->
             <TextView
                 android:id="@+id/tv_hud_speed"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:textColor="@color/sea_white"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:visibility="gone" />
-
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Mirino al centro -->
+    <!-- Mirino (nascosto in navigazione attiva) -->
     <ImageView
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:id="@+id/iv_crosshair"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
         android:layout_gravity="center"
         android:src="@android:drawable/ic_menu_add"
         app:tint="@color/marine_blue_dark" />
 
-    <!-- FAB Man OverBoard: salva la posizione GPS corrente come pin -->
+    <!-- FAB Follow mode + Course Up (bottom-left) -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="16dp"
+        android:orientation="vertical">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_course_up"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:contentDescription="Course Up"
+            android:src="@android:drawable/ic_menu_compass"
+            app:backgroundTint="#88003366"
+            app:fabSize="mini"
+            app:tint="@color/white" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_follow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="Segui posizione"
+            android:src="@android:drawable/ic_menu_mylocation"
+            app:backgroundTint="#CC003366"
+            app:tint="@color/white" />
+    </LinearLayout>
+
+    <!-- FAB MOB (bottom-right) -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_mob"
         android:layout_width="wrap_content"

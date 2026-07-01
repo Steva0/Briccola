@@ -52,6 +52,8 @@ dependencies {
     
     // Serialization (per caricare il grafo JSON)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+    // Coroutines (per network calls Nominatim in background)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     // Testing
     testImplementation(libs.junit)
