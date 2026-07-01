@@ -171,12 +171,17 @@ class DevToolsFragment : Fragment() {
         val start  = simAbStart ?: run { binding.tvAbResult.text = "Segna prima il punto A"; return }
         val end    = simAbEnd   ?: run { binding.tvAbResult.text = "Segna prima il punto B"; return }
         binding.tvAbResult.text = "Calcolo in corso..."
+        binding.tvAbResult.setTextColor(android.graphics.Color.parseColor("#AAAAAA"))
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val route = withContext(Dispatchers.Default) { engine.findRoute(start, end) }
+            val route = withContext(Dispatchers.Default) {
+                // Calcola da A a B — non dalla posizione della barca
+                engine.findRoute(start, end)
+            }
             if (route == null) {
                 binding.tvAbResult.text = "Nessun percorso: ${engine.lastRoutingError}"
                 binding.tvAbResult.setTextColor(android.graphics.Color.parseColor("#FF4444"))
+                childMap?.showPreviewRoute(null)
             } else {
                 val distKm = engine.calculateTotalDistance(route) / 1000.0
                 val etaMin = engine.calculateEstimatedTimeMinutes(route)
@@ -184,8 +189,8 @@ class DevToolsFragment : Fragment() {
                 val zoneB  = if (engine.isAtSea(end))   "MARE" else "LAGUNA"
                 binding.tvAbResult.text = "A [$zoneA] → B [$zoneB]\n%.2f km | %d min | %d punti".format(distKm, etaMin, route.size)
                 binding.tvAbResult.setTextColor(android.graphics.Color.parseColor("#88FF88"))
-                // Disegna il percorso A→B sul MapFragment embedded
-                childMap?.setDestinationAndRoute(end)
+                // Mostra come preview visivo (linea verde tratteggiata) — non avvia la navigazione
+                childMap?.showPreviewRoute(route)
             }
         }
     }

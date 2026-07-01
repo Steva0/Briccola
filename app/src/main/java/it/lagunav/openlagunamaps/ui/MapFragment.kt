@@ -82,6 +82,37 @@ class MapFragment : Fragment() {
     /** Centro attuale della camera — usato da DevTools per impostare la destinazione al volo. */
     fun cameraCenter(): LatLng? = mapLibre?.cameraPosition?.target
 
+    /**
+     * Mostra un percorso come preview visivo (linea verde tratteggiata) senza avviare navigazione.
+     * Usato da DevTools "Simula A→B". Passa null per rimuovere il preview.
+     */
+    fun showPreviewRoute(route: List<LatLng>?) {
+        val geoJson = if (route != null && route.size >= 2) {
+            val coords = JsonArray().also { arr -> route.forEach { p -> arr.add(JsonArray().apply { add(p.longitude); add(p.latitude) }) } }
+            val feat   = JsonObject().apply {
+                addProperty("type","Feature"); add("properties", JsonObject())
+                add("geometry", JsonObject().apply { addProperty("type","LineString"); add("coordinates", coords) })
+            }
+            JsonObject().apply { addProperty("type","FeatureCollection"); add("features", JsonArray().apply { add(feat) }) }.toString()
+        } else emptyFc()
+
+        mapLibre?.getStyle { style ->
+            val existing = style.getSource(SOURCE_PREVIEW) as? GeoJsonSource
+            if (existing != null) {
+                existing.setGeoJson(geoJson)
+            } else {
+                style.addSource(GeoJsonSource(SOURCE_PREVIEW, geoJson))
+                style.addLayer(LineLayer(LAYER_PREVIEW, SOURCE_PREVIEW).withProperties(
+                    lineColor("#00CC44"),
+                    lineWidth(4f),
+                    lineOpacity(0.85f),
+                    lineDasharray(arrayOf(8f, 4f)),
+                    lineCap(Property.LINE_CAP_ROUND)
+                ))
+            }
+        }
+    }
+
     /** Ultima posizione GPS/sim ricevuta — accessibile da DevToolsFragment. */
     var lastGpsLocation: Location? = null
         private set
@@ -96,6 +127,8 @@ class MapFragment : Fragment() {
     private var mapLibre: MapLibreMap? = null
 
     private var gnssProvider: PositionProvider? = null
+    private val SOURCE_PREVIEW = "preview-route-source"
+    private val LAYER_PREVIEW  = "preview-route-layer"
 
     // Dead-reckoning per camera fluida a 30fps
     private var drFixTime  = 0L
@@ -507,13 +540,27 @@ class MapFragment : Fragment() {
         if (currentWaypointIdx >= route.size) return
 
         val prevIdx = currentWaypointIdx
+
+        // 1. Avanzamento standard: waypoint successivo entro 25m
         while (currentWaypointIdx < route.size - 1 &&
                haversineLocal(pos, route[currentWaypointIdx]) < WAYPOINT_ADVANCE_M) {
             currentWaypointIdx++
         }
+
+        // 2. Snap al waypoint più vicino tra i prossimi 80 (gestisce "prendo larga e rientro"):
+        //    se ci siamo ricongiunto al percorso più avanti, segna come percorso tutto il tratto
+        //    che abbiamo saltato anche se non ci siamo passati sequenzialmente.
+        val lookAheadLimit = minOf(currentWaypointIdx + 80, route.size - 1)
+        var bestFwdIdx  = currentWaypointIdx
+        var bestFwdDist = haversineLocal(pos, route[currentWaypointIdx])
+        for (i in currentWaypointIdx + 1..lookAheadLimit) {
+            val d = haversineLocal(pos, route[i])
+            if (d < bestFwdDist && d < 150.0) { bestFwdDist = d; bestFwdIdx = i }
+        }
+        if (bestFwdIdx > currentWaypointIdx) currentWaypointIdx = bestFwdIdx
+
         if (currentWaypointIdx >= route.size - 1) { onRouteFinished(); return }
 
-        // Aggiorna split percorso solo quando avanziamo di waypoint
         if (currentWaypointIdx != prevIdx) {
             mapLibre?.getStyle { style -> drawRouteSplit(style, route, currentWaypointIdx) }
         }
@@ -739,6 +786,8 @@ class MapFragment : Fragment() {
         binding.mapView.onResume()
         startPositionTracking()
         startCameraLoop()
+        // Riavvia il controllo percorso ottimale se c'è una navigazione attiva
+        if (activeRoute != null && destination != null) startBgReroute()
     }
 
     override fun onPause() {
