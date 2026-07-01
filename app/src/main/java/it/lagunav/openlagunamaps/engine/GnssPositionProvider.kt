@@ -4,6 +4,8 @@ import android.content.Context
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 
 /**
@@ -25,46 +27,60 @@ class GnssPositionProvider(private val context: Context) : PositionProvider {
     private val listeners = mutableListOf<LocationListener>()
     private var gotGpsFix = false
 
+    // Le chiamate a LocationManager (get/isProviderEnabled/request/removeUpdates) sono IPC verso
+    // il servizio di sistema: possono bloccare per decine di ms. Farle sul thread principale
+    // causa uno scatto visibile ogni volta che si avvia/ferma il tracking (es. cambio schermata
+    // o toggle "posizione reale" in Dev Tools) — le eseguiamo quindi su un thread dedicato.
+    // I fix continuano ad arrivare sul thread principale (vedi callbackLooper sotto), quindi
+    // onFix() può toccare la UI/mappa come prima.
+    private val setupThread = HandlerThread("GnssSetup").apply { start() }
+    private val setupHandler = Handler(setupThread.looper)
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     override fun start(onFix: (Location) -> Unit) {
         gotGpsFix = false
-        val looper = Looper.getMainLooper()
+        val callbackLooper = Looper.getMainLooper()
+        setupHandler.post {
+            try {
+                // 1. Passive: posizioni cacheate da altre app (istantaneo, 0 batteria)
+                lm.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
+                    ?.takeIf { it.accuracy < 1000f }?.let { loc -> mainHandler.post { onFix(loc) } }
 
-        try {
-            // 1. Passive: posizioni cacheate da altre app (istantaneo, 0 batteria)
-            lm.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
-                ?.takeIf { it.accuracy < 1000f }?.let { onFix(it) }
+                // 2. Last known GPS/rete: feedback immediato anche se stale
+                lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)?.let { loc -> mainHandler.post { onFix(loc) } }
+                lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                    ?.takeIf { it.accuracy < 500f }?.let { loc -> mainHandler.post { onFix(loc) } }
 
-            // 2. Last known GPS/rete: feedback immediato anche se stale
-            lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)?.let { onFix(it) }
-            lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                ?.takeIf { it.accuracy < 500f }?.let { onFix(it) }
+                // 3. Rete: fix rapido mentre il GPS si scalda (minTime=0 per il primo fix)
+                if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                    val netL = LocationListener { loc -> if (!gotGpsFix) onFix(loc) }
+                    listeners.add(netL)
+                    lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, netL, callbackLooper)
+                }
 
-            // 3. Rete: fix rapido mentre il GPS si scalda (minTime=0 per il primo fix)
-            if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                val netL = LocationListener { loc -> if (!gotGpsFix) onFix(loc) }
-                listeners.add(netL)
-                lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, netL, looper)
-            }
+                // 4. GPS: preciso, una volta agganciato prende il sopravvento sulla rete
+                if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                    val gpsL = LocationListener { loc -> gotGpsFix = true; onFix(loc) }
+                    listeners.add(gpsL)
+                    lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, gpsL, callbackLooper)
+                }
 
-            // 4. GPS: preciso, una volta agganciato prende il sopravvento sulla rete
-            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                val gpsL = LocationListener { loc -> gotGpsFix = true; onFix(loc) }
-                listeners.add(gpsL)
-                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, gpsL, looper)
-            }
-
-            // Passive aggiornato (bassa frequenza, zero consumo batteria)
-            if (lm.isProviderEnabled(LocationManager.PASSIVE_PROVIDER)) {
-                val passL = LocationListener { loc -> if (!gotGpsFix) onFix(loc) }
-                listeners.add(passL)
-                lm.requestLocationUpdates(LocationManager.PASSIVE_PROVIDER, 2000L, 0f, passL, looper)
-            }
-        } catch (_: SecurityException) {}
+                // Passive aggiornato (bassa frequenza, zero consumo batteria)
+                if (lm.isProviderEnabled(LocationManager.PASSIVE_PROVIDER)) {
+                    val passL = LocationListener { loc -> if (!gotGpsFix) onFix(loc) }
+                    listeners.add(passL)
+                    lm.requestLocationUpdates(LocationManager.PASSIVE_PROVIDER, 2000L, 0f, passL, callbackLooper)
+                }
+            } catch (_: SecurityException) {}
+        }
     }
 
     override fun stop() {
-        listeners.forEach { lm.removeUpdates(it) }
-        listeners.clear()
-        gotGpsFix = false
+        setupHandler.post {
+            listeners.forEach { lm.removeUpdates(it) }
+            listeners.clear()
+            gotGpsFix = false
+        }
+        setupThread.quitSafely()  // termina il thread di supporto dopo aver processato il cleanup sopra
     }
 }

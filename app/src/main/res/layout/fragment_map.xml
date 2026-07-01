@@ -9,6 +9,21 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Etichetta versione/build: serve solo per verificare a colpo d'occhio che l'app
+         installata sia l'ultima build compilata. Aggiornata a ogni modifica. -->
+    <TextView
+        android:id="@+id/tv_build_tag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="4dp"
+        android:alpha="0.55"
+        android:background="#66000000"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="2dp"
+        android:textColor="@color/white"
+        android:textSize="9sp" />
+
     <!-- Barra di ricerca (nascosta durante navigazione attiva) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_search"
@@ -246,18 +261,6 @@
             app:backgroundTint="#CC003366"
             app:fabSize="mini"
             app:tint="@color/white" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="CENTRA"
-            android:textColor="@color/white"
-            android:textSize="9sp"
-            android:textStyle="bold"
-            android:shadowColor="#000"
-            android:shadowDx="1"
-            android:shadowDy="1"
-            android:shadowRadius="2" />
     </LinearLayout>
 
 </FrameLayout>

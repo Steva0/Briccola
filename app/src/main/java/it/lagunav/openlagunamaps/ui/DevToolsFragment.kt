@@ -11,6 +11,7 @@ import android.widget.ArrayAdapter
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import it.lagunav.openlagunamaps.databinding.FragmentDevtoolsBinding
+import it.lagunav.openlagunamaps.engine.CameraTuning
 import it.lagunav.openlagunamaps.engine.SimulatedPositionProvider
 import it.lagunav.openlagunamaps.engine.SimulatorHub
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +65,8 @@ class DevToolsFragment : Fragment() {
 
         setupSpinner()
         setupButtons()
+        setupCameraSettingsPanel()
+        setupPositionSourceToggle()
 
         // Il simulatore parte automaticamente: il joystick è sempre visibile in Dev Tools
         startSimulator()
@@ -77,20 +80,118 @@ class DevToolsFragment : Fragment() {
         val modes = arrayOf(
             "Calcolo Percorso",
             "Test Punte (Tips)",
-            "Simula Percorso A→B"
+            "Simula Percorso A→B",
+            "Settaggi Dev",
+            "Posizione"
         )
         binding.spinnerDevMode.adapter =
             ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, modes)
 
         binding.spinnerDevMode.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, v: View?, position: Int, id: Long) {
-                binding.groupRouteButtons.visibility = if (position == 0) View.VISIBLE else View.GONE
-                binding.btnTestTips.visibility       = if (position == 1) View.VISIBLE else View.GONE
-                binding.groupSimAb.visibility        = if (position == 2) View.VISIBLE else View.GONE
+                binding.groupRouteButtons.visibility   = if (position == 0) View.VISIBLE else View.GONE
+                binding.btnTestTips.visibility         = if (position == 1) View.VISIBLE else View.GONE
+                binding.groupSimAb.visibility          = if (position == 2) View.VISIBLE else View.GONE
+                binding.groupCameraSettings.visibility = if (position == 3) View.VISIBLE else View.GONE
+                binding.groupSetPosition.visibility    = if (position == 4) View.VISIBLE else View.GONE
                 if (position != 2) { simAbStart = null; simAbEnd = null }
                 if (position == 0) binding.tvDevStatus.text = "Simulatore pronto — joystick per muovere"
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
+    // =================================================================
+    // TOGGLE SORGENTE POSIZIONE — simulata (joystick) o GPS reale del telefono
+    // =================================================================
+
+    /**
+     * Permette di testare i valori di CameraTuning col GPS vero (es. guidando in auto) restando
+     * su Dev Tools, invece di dover passare alla voce di menu "Mappa". Di default resta simulata:
+     * il joystick continua a funzionare finché non si attiva il toggle.
+     */
+    private fun setupPositionSourceToggle() {
+        binding.switchRealGps.setOnCheckedChangeListener { _, isChecked ->
+            childMap?.setUseSimulatedPosition(!isChecked)
+            binding.tvPositionSourceLabel.text =
+                if (isChecked) "Posizione: reale (GPS telefono)" else "Posizione: simulata (joystick)"
+            // Col GPS reale il joystick non serve (non controlla nulla): lo nascondiamo.
+            binding.cardSim.visibility = if (isChecked) View.GONE else View.VISIBLE
+        }
+    }
+
+    // =================================================================
+    // IMPOSTAZIONI CAMERA — slider per tarare CameraTuning a runtime
+    // =================================================================
+
+    private fun setupCameraSettingsPanel() {
+        CameraTuning.load(requireContext())
+
+        fun refreshLabels() {
+            binding.tvTuneRenderDelay.text = "Ritardo render: ${CameraTuning.renderDelayMs} ms"
+            binding.tvTuneMinDisp.text     = "Distanza minima bearing: %.1f m".format(CameraTuning.minBearingDisplacementM)
+            binding.tvTuneIconLerp.text    = "Lerp icona: %.2f".format(CameraTuning.iconBearingLerp)
+            binding.tvTuneDeadZone.text    = "Zona morta camera: ±%.0f° (%.0f° totali)".format(
+                CameraTuning.camDeadZoneDeg, CameraTuning.camDeadZoneDeg * 2
+            )
+            binding.tvTuneCamLerp.text     = "Lerp camera: %.2f".format(CameraTuning.camLerp)
+            binding.tvTuneFps.text         = "FPS barca/camera: ${(1000.0 / CameraTuning.frameIntervalMs).roundToInt()}"
+            binding.tvTuneHudRefresh.text  = "Refresh HUD (profondità/velocità/canale): ${(1000.0 / CameraTuning.hudIntervalMs).roundToInt()} Hz"
+            binding.tvTuneCanalThreshold.text = "Soglia \"Fuori canale\": %.0f m".format(CameraTuning.canalLabelThresholdM)
+        }
+
+        fun syncHudSpeedLinkedUi() {
+            binding.switchHudSpeedLinked.isChecked = CameraTuning.hudRefreshLinkedToSpeed
+            // Lo slider manuale è ignorato mentre è collegato alla velocità: lo disabilitiamo
+            // per non far credere che stia facendo qualcosa.
+            binding.seekHudRefresh.isEnabled = !CameraTuning.hudRefreshLinkedToSpeed
+            binding.seekHudRefresh.alpha     = if (CameraTuning.hudRefreshLinkedToSpeed) 0.4f else 1f
+        }
+
+        fun syncSeekBarsFromTuning() {
+            binding.seekRenderDelay.progress = (CameraTuning.renderDelayMs / 50L).toInt().coerceIn(0, 60)
+            binding.seekMinDisp.progress     = (CameraTuning.minBearingDisplacementM * 10).roundToInt().coerceIn(0, 150)
+            binding.seekIconLerp.progress    = (CameraTuning.iconBearingLerp * 100).roundToInt().coerceIn(1, 50)
+            binding.seekDeadZone.progress    = CameraTuning.camDeadZoneDeg.roundToInt().coerceIn(0, 30)
+            binding.seekCamLerp.progress     = (CameraTuning.camLerp * 100).roundToInt().coerceIn(1, 30)
+            binding.seekFps.progress         = (1000.0 / CameraTuning.frameIntervalMs).roundToInt().coerceIn(1, 60)
+            binding.seekHudRefresh.progress  = (1000.0 / CameraTuning.hudIntervalMs).roundToInt().coerceIn(1, 20)
+            binding.seekCanalThreshold.progress = CameraTuning.canalLabelThresholdM.roundToInt().coerceIn(0, 300)
+            syncHudSpeedLinkedUi()
+        }
+
+        fun onChange(seek: android.widget.SeekBar, update: (Int) -> Unit) {
+            seek.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) { update(progress); refreshLabels() }
+                }
+                override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
+                override fun onStopTrackingTouch(sb: android.widget.SeekBar?) { CameraTuning.save(requireContext()) }
+            })
+        }
+
+        syncSeekBarsFromTuning()
+        refreshLabels()
+
+        onChange(binding.seekRenderDelay) { CameraTuning.renderDelayMs = it * 50L }
+        onChange(binding.seekMinDisp)     { CameraTuning.minBearingDisplacementM = it / 10.0 }
+        onChange(binding.seekIconLerp)    { CameraTuning.iconBearingLerp = it.coerceAtLeast(1) / 100.0 }
+        onChange(binding.seekDeadZone)    { CameraTuning.camDeadZoneDeg = it.toDouble() }
+        onChange(binding.seekCamLerp)     { CameraTuning.camLerp = it.coerceAtLeast(1) / 100.0 }
+        onChange(binding.seekFps)         { CameraTuning.frameIntervalMs = (1000.0 / it.coerceAtLeast(1)).roundToInt().toLong() }
+        onChange(binding.seekHudRefresh)  { CameraTuning.hudIntervalMs = (1000.0 / it.coerceAtLeast(1)).roundToInt().toLong() }
+        onChange(binding.seekCanalThreshold) { CameraTuning.canalLabelThresholdM = it.toDouble() }
+
+        binding.switchHudSpeedLinked.setOnCheckedChangeListener { _, isChecked ->
+            CameraTuning.hudRefreshLinkedToSpeed = isChecked
+            CameraTuning.save(requireContext())
+            syncHudSpeedLinkedUi()
+        }
+
+        binding.btnResetTuning.setOnClickListener {
+            CameraTuning.resetToDefaults(requireContext())
+            syncSeekBarsFromTuning()
+            refreshLabels()
         }
     }
 
@@ -125,6 +226,16 @@ class DevToolsFragment : Fragment() {
             updateAbStatus()
         }
         binding.btnCalcAb.setOnClickListener { calcAbRoute() }
+
+        // Modalità "Posizione": teletrasporta la barca simulata al centro schermo e la ferma
+        binding.btnSetBoatPosition.setOnClickListener {
+            val center = childMap?.cameraCenter() ?: return@setOnClickListener
+            val provider = simProvider ?: return@setOnClickListener
+            provider.setPosition(center.latitude, center.longitude)
+            provider.setMovement(provider.bearingDeg, 0f)
+            provider.emitNow()
+            binding.tvDevStatus.text = "Barca posizionata: %.5f, %.5f".format(center.latitude, center.longitude)
+        }
 
         // Test Tips: calcola percorsi verso le 6 bocche di porto — BACKGROUND THREAD
         binding.btnTestTips.setOnClickListener {
@@ -274,6 +385,18 @@ class DevToolsFragment : Fragment() {
         super.onPause()
         // Teniamo il simulatore attivo via SimulatorHub anche se DevTools è in background
         // (MapFragment in Mappa lo ascolta via SimulatorHub.addListener)
+    }
+
+    /**
+     * Come in MapFragment: FragmentManager.hide() imposta la view a GONE, che per la MapView
+     * incorporata (superficie OpenGL) può forzare la ricreazione del contesto grafico al
+     * ritorno, causando uno scatto. INVISIBLE mantiene la superficie viva.
+     */
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        view?.visibility = if (hidden) View.INVISIBLE else View.VISIBLE
+        // Come in MapFragment: ad ogni cambio schermata la visuale torna centrata sulla barca.
+        if (!hidden) childMap?.recenterFollow()
     }
 
     override fun onDestroyView() {

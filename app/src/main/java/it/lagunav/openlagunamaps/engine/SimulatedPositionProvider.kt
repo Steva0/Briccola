@@ -54,6 +54,11 @@ class SimulatedPositionProvider : PositionProvider {
         currentLon = lon
     }
 
+    /** Emette subito un fix con lo stato corrente, senza aspettare il prossimo tick (1Hz). */
+    fun emitNow() {
+        callback?.invoke(buildLocation())
+    }
+
     private fun updatePosition() {
         if (speedKnots == 0f) return
         val speedMps  = speedKnots * 1852.0 / 3600.0

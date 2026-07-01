@@ -11,6 +11,7 @@ data class Edge(val u: String, val v: String, val lengthM: Double, val depthM: D
 data class NoGoArea(val id: String, val polygon: List<LatLng>, val isRock: Boolean)
 data class Segment(val p1: LatLng, val p2: LatLng)
 data class FixedDepthArea(val depth: Float, val polygon: List<LatLng>)
+data class NamedSegment(val name: String, val a: LatLng, val b: LatLng)
 
 /**
  * Motore di routing navale.
@@ -33,6 +34,9 @@ class RoutingEngine(private val context: Context) {
     private var projectBoundary: List<LatLng>? = null
     private val fixedDepthAreas = mutableListOf<FixedDepthArea>()
     private val seaTips = mutableListOf<LatLng>()
+    // Segmenti di canale CON NOME (da laguna_vettoriale.json, tag OSM "name"), separati dagli
+    // archi del grafo di routing (graph.json) che non hanno nomi. Usati solo per l'HUD.
+    private val namedCanalSegments = mutableListOf<NamedSegment>()
 
     // Dati precalcolati dal build Python (precalcola_grafo.py).
     // Vengono caricati da graph.json insieme agli archi e nodi, quindi costo = solo lettura JSON.
@@ -180,6 +184,11 @@ class RoutingEngine(private val context: Context) {
 
                 if (props["special:gate"]?.jsonPrimitive?.content == "sea_tip" && type == "Point" && lls[0] !in seaTips) {
                     seaTips.add(lls[0])
+                }
+
+                val canalName = props["name"]?.jsonPrimitive?.contentOrNull
+                if (type == "LineString" && props["type"]?.jsonPrimitive?.contentOrNull == "canal" && canalName != null) {
+                    for (i in 0 until lls.size - 1) namedCanalSegments.add(NamedSegment(canalName, lls[i], lls[i + 1]))
                 }
             }
         } catch (e: Exception) {
@@ -609,6 +618,18 @@ class RoutingEngine(private val context: Context) {
     fun distanceToNearestCanalMeters(p: LatLng): Double {
         val snap = snapToNearestEdge(p) ?: return Double.MAX_VALUE
         return haversine(p.latitude, p.longitude, snap.point.latitude, snap.point.longitude)
+    }
+
+    /** Nome del canale (con nome noto) più vicino al punto, entro [maxDistanceM]. Solo per HUD. */
+    fun nearestCanalName(p: LatLng, maxDistanceM: Double = 40.0): String? {
+        var bestName: String? = null
+        var bestDist = Double.MAX_VALUE
+        for (seg in namedCanalSegments) {
+            val closest = closestPointOnSegment(p, seg.a, seg.b)
+            val d = haversine(p.latitude, p.longitude, closest.latitude, closest.longitude)
+            if (d < bestDist) { bestDist = d; bestName = seg.name }
+        }
+        return if (bestDist <= maxDistanceM) bestName else null
     }
 
     fun getFixedDepthAt(p: LatLng): Float? = fixedDepthAreas.find { containsPoint(it.polygon, p) }?.depth

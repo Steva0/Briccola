@@ -9,10 +9,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.location.Location
 import android.os.Bundle
 import android.os.Handler
@@ -33,6 +29,7 @@ import com.google.gson.JsonObject
 import it.lagunav.openlagunamaps.R
 import it.lagunav.openlagunamaps.databinding.FragmentMapBinding
 import it.lagunav.openlagunamaps.engine.BathymetryEngine
+import it.lagunav.openlagunamaps.engine.CameraTuning
 import it.lagunav.openlagunamaps.engine.GnssPositionProvider
 import it.lagunav.openlagunamaps.engine.PositionProvider
 import it.lagunav.openlagunamaps.engine.RoutingEngine
@@ -74,6 +71,12 @@ private const val WAYPOINT_ADVANCE_M     = 25.0
 
 private const val BG_REROUTE_INTERVAL_MS = 5_000L  // frequenza del controllo percorso ottimale
 private const val REROUTE_IMPROVEMENT_THRESHOLD = 0.90  // ricalcola se nuovo percorso è >10% più veloce
+
+// Camera/icona: pipeline "solo GPS" (niente giroscopio, niente predizione in avanti).
+// Mostriamo sempre la scena a "adesso meno CameraTuning.renderDelayMs", interpolata tra due
+// fix GPS REALI — mai una posizione stimata. Il bearing si calcola dallo spostamento tra quei
+// due stessi fix (non dal campo Location.bearing, rumoroso a bassa velocità).
+// I valori di default sono in CameraTuning; regolabili a runtime da Dev Tools > Impostazioni Camera.
 
 class MapFragment : Fragment() {
 
@@ -134,61 +137,27 @@ class MapFragment : Fragment() {
     private val SOURCE_PREVIEW = "preview-route-source"
     private val LAYER_PREVIEW  = "preview-route-layer"
 
-    // Dead-reckoning per camera fluida a 30fps
-    private var drFixTime       = 0L
-    private var drLat           = 0.0
-    private var drLon           = 0.0
-    private var drSpeedMps      = 0f
-    private var drBearing       = 0f
-    // Velocità angolare calcolata tra fix consecutivi (°/s).
-    // Permette di predire il bearing CONTINUO tra un fix GPS e il successivo,
-    // esattamente come facciamo per la posizione — elimina il "ritmo 1Hz" della rotazione.
-    private var drBearingVelDegPerSec = 0f
-    private var prevDrBearing   = 0f
-    private var prevDrFixTime   = 0L
+    // Buffer dei fix GPS reali (posizione + istante). Nessun sensore esterno: solo posizione.
+    private data class Fix(val t: Long, val lat: Double, val lon: Double)
+    private val fixBuffer = ArrayDeque<Fix>()
 
-    // Icona barca: lerp rapido, sempre reattiva
+    // Ultimo bearing "buono" noto: aggiornato solo quando lo spostamento tra due fix è
+    // sufficiente a fidarsene (vedi MIN_BEARING_DISPLACEMENT_M). Sotto soglia (fermi, GPS
+    // che sballa, girata sul posto) resta invariato: niente rotazioni a caso.
+    private var lastGoodBearing = 0.0
+
+    // HUD (profondità/velocità/canale) e navigazione: aggiornati dal loop camera al ritmo
+    // regolabile CameraTuning.hudIntervalMs, indipendente dai 30-45fps di camera/icona (i calcoli
+    // di canale/profondità sono più pesanti e non serve rifarli ad ogni frame).
+    private var lastHudUpdateMs = 0L
+
+    // Icona barca: insegue lastGoodBearing con un lerp leggero, per ammorbidire il gradino
+    // che si vedrebbe altrimenti a ogni cambio di fix (1 aggiornamento al secondo).
     private var smoothedIconBearing = 0.0
 
-    // Camera: filtro adattivo — segue solo quando il bearing è stabile
+    // Camera: insegue l'icona solo fuori dal cono morto di ±CAM_DEAD_ZONE_DEG.
     private var smoothedCamBearing  = 0.0
-    private var stableFrameCount    = 0     // frame consecutivi con bearing stabile
-    companion object {
-        const val VEL_FREEZE_DEG_S    = 20f   // > 20°/s → camera bloccata
-        const val VEL_STABLE_DEG_S    = 8f    // < 8°/s → conta come stabile
-        const val DEAD_ZONE_DEG       = 8.0   // entro 8° → camera non si muove
-        const val STABLE_FRAMES_NEED  = 25    // ~0.8s di stabilità prima di seguire
-        const val CAM_LERP_FAST       = 0.025f // lerp quando fuori dead zone
-        const val CAM_LERP_SETTLE     = 0.005f // lerp per assestamento in dead zone
-    }
 
-    // Giroscopio: TYPE_ROTATION_VECTOR dà heading a ~50Hz invece di 1Hz GPS.
-    // Usato solo in modalità GPS reale; ignorato quando SimulatorHub è attivo.
-    private var sensorManager: SensorManager? = null
-    private var rotationSensor: Sensor? = null
-    private val rotationMatrix   = FloatArray(9)
-    private val orientationAngles = FloatArray(3)
-    private val gyroListener = object : SensorEventListener {
-        override fun onSensorChanged(event: SensorEvent) {
-            if (SimulatorHub.isActive) return  // il simulatore controlla il bearing
-            SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
-            SensorManager.getOrientation(rotationMatrix, orientationAngles)
-            val azimuthDeg = Math.toDegrees(orientationAngles[0].toDouble()).toFloat()
-            val bearing = (azimuthDeg + 360f) % 360f
-            val now = System.currentTimeMillis()
-            if (prevDrFixTime > 0L) {
-                val dtSec = (now - prevDrFixTime) / 1000.0
-                if (dtSec in 0.005..0.5) {
-                    val diff = ((bearing - prevDrBearing + 540) % 360) - 180
-                    drBearingVelDegPerSec = (diff / dtSec).toFloat().coerceIn(-180f, 180f)
-                }
-            }
-            prevDrBearing = bearing
-            prevDrFixTime = now
-            drBearing = bearing
-        }
-        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
-    }
     private val cameraHandler = Handler(Looper.getMainLooper())
     private var cameraRunnable: Runnable? = null
 
@@ -238,11 +207,43 @@ class MapFragment : Fragment() {
         prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         bathyEngine  = BathymetryEngine(requireContext())
         routingEngine = RoutingEngine(requireContext())
+        CameraTuning.load(requireContext())
 
         setupMap(savedInstanceState)
         setupSearch()
         setupButtons()
-        setFollowMode(false)  // inizializza visibilità pulsante CENTRA
+        setFollowMode(true)  // di default la visuale segue la barca (anche alla prima apertura)
+        binding.tvBuildTag.text = "v${it.lagunav.openlagunamaps.BuildConfig.VERSION_NAME} (${it.lagunav.openlagunamaps.BuildConfig.VERSION_CODE})"
+    }
+
+    /**
+     * Il fragment resta vivo ma nascosto quando si cambia voce di menu (vedi MainActivity),
+     * per evitare di ricreare la MapView ogni volta. Mettiamo in pausa GPS e loop camera solo
+     * mentre è nascosto, per non consumare batteria/GPS inutilmente in background.
+     */
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        // FragmentManager.hide() imposta la view a GONE: per la MapView (superficie OpenGL)
+        // questo può forzare la distruzione/ricreazione del contesto grafico quando si torna
+        // visibili, causando lo scatto percepito al rientro in Mappa. INVISIBLE mantiene la
+        // superficie viva — il rientro resta fluido come le altre schermate.
+        view?.visibility = if (hidden) View.INVISIBLE else View.VISIBLE
+
+        if (!isResumed) return  // evita doppio start/stop rispetto a onResume/onPause
+        if (hidden) {
+            // La Mappa vera (debugMode=false) continua a calcolare la posizione GPS reale anche
+            // in background, pure mentre sei su un'altra schermata (es. Dev Tools): così quando
+            // torni su Mappa non c'è da riavviare il GPS (la parte lenta, vedi GnssPositionProvider)
+            // e il cambio schermata resta istantaneo. Costa un po' di batteria/GPS in più, ma
+            // l'app è pensata per stare quasi sempre in modalità Mappa. In Dev Tools invece
+            // (debugMode=true, posizione di solito simulata) non c'è motivo di tenerlo vivo.
+            if (debugMode) stopPositionTracking()
+            stopCameraLoop()
+        } else {
+            if (debugMode) startPositionTracking()
+            startCameraLoop()
+            setFollowMode(true)  // ad ogni cambio schermata la visuale torna centrata sulla barca
+        }
     }
 
     // =================================================================
@@ -412,35 +413,42 @@ class MapFragment : Fragment() {
     // GPS / POSIZIONE
     // =================================================================
 
+    // Di default: debugMode=true (MapFragment incorporata in Dev Tools) -> posizione simulata;
+    // debugMode=false (voce di menu "Mappa") -> GPS reale. Non deve mai dipendere da
+    // SimulatorHub.isActive, altrimenti se Dev Tools è stato aperto almeno una volta (e resta
+    // vivo in background, vedi MainActivity) la Mappa mostrerebbe la posizione simulata invece
+    // di quella reale.
+    // In Dev Tools questo default può però essere sovrascritto a runtime dal toggle
+    // "Posizione: simulata/reale", per poter testare i valori di CameraTuning col telefono vero
+    // (es. guidando in auto) restando comunque sulla schermata Dev Tools.
+    private var simulatedPositionOverride: Boolean? = null
+    private val useSimulatedPosition: Boolean get() = simulatedPositionOverride ?: debugMode
+
+    /** Esposto per DevToolsFragment: forza posizione simulata o reale a runtime. */
+    fun setUseSimulatedPosition(simulated: Boolean) {
+        if (simulatedPositionOverride == simulated) return
+        val wasTracking = _binding != null && isResumed && !isHidden
+        if (wasTracking) stopPositionTracking()  // ferma la sorgente VECCHIA
+        simulatedPositionOverride = simulated
+        fixBuffer.clear()  // niente fix misti tra due sorgenti diverse: eviterebbe salti assurdi
+        if (wasTracking) startPositionTracking()  // riparte con la sorgente NUOVA
+    }
+
     private fun startPositionTracking() {
-        SimulatorHub.addListener(simCallback)
-        if (!SimulatorHub.isActive) {
+        if (useSimulatedPosition) {
+            SimulatorHub.addListener(simCallback)
+        } else {
             startGnss()
-            startGyroscope()
         }
     }
 
     private fun stopPositionTracking() {
-        SimulatorHub.removeListener(simCallback)
-        gnssProvider?.stop()
-        gnssProvider = null
-        stopGyroscope()
-    }
-
-    private fun startGyroscope() {
-        if (sensorManager == null) {
-            sensorManager = requireContext().getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        if (useSimulatedPosition) {
+            SimulatorHub.removeListener(simCallback)
+        } else {
+            gnssProvider?.stop()
+            gnssProvider = null
         }
-        rotationSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-        if (rotationSensor != null) {
-            // SENSOR_DELAY_GAME = ~50Hz. Leggero (~1-3mW), molto inferiore a GPS e schermo.
-            sensorManager?.registerListener(gyroListener, rotationSensor, SensorManager.SENSOR_DELAY_GAME)
-        }
-        // Se TYPE_ROTATION_VECTOR non è disponibile, si cade sul bearing del GPS (1Hz).
-    }
-
-    private fun stopGyroscope() {
-        sensorManager?.unregisterListener(gyroListener)
     }
 
     private fun startGnss() {
@@ -457,85 +465,88 @@ class MapFragment : Fragment() {
 
     private fun onGpsFix(location: Location) {
         lastGpsLocation = location
-        val bearing = if (location.hasBearing()) location.bearing else drBearing
-
-        drFixTime  = System.currentTimeMillis()
-        // Calcola velocità angolare (°/s) tra fix consecutivi per la predizione continua del bearing.
-        if (prevDrFixTime > 0L && drFixTime > prevDrFixTime) {
-            val dtSec = (drFixTime - prevDrFixTime) / 1000.0
-            val diff  = ((bearing - prevDrBearing + 540f) % 360f) - 180f  // angolo più corto
-            drBearingVelDegPerSec = (diff / dtSec).toFloat().coerceIn(-90f, 90f)  // max 90°/s
-        }
-        prevDrBearing  = bearing
-        prevDrFixTime  = drFixTime
-
-        drLat      = location.latitude
-        drLon      = location.longitude
-        drSpeedMps = location.speed
-        drBearing  = bearing
-
-        // Icona barca, camera e split percorso aggiornati dal loop a 30fps (smooth).
-        // Qui gestiamo solo HUD testuale e logica waypoint (1Hz va bene per questi).
-        val pos = LatLng(location.latitude, location.longitude)
-        updateHud(pos)
-        checkSpeedHud(location, pos)
-        updateNavigation(pos)
+        val t = System.currentTimeMillis()
+        fixBuffer.addLast(Fix(t, location.latitude, location.longitude))
+        while (fixBuffer.size > 1 && t - fixBuffer.first().t > CameraTuning.fixBufferMaxMs) fixBuffer.removeFirst()
+        // HUD (profondità/velocità/canale) e navigazione sono aggiornati dal loop camera a
+        // CameraTuning.hudIntervalMs, non qui: legato al fix GPS sarebbero fermi a 1Hz.
     }
 
     // =================================================================
-    // CAMERA FLUIDA (30fps dead-reckoning)
+    // CAMERA FLUIDA — solo GPS, ritardo fisso, interpolazione tra fix reali
     // =================================================================
+
+    /**
+     * Trova i due fix che racchiudono [renderTime] e la frazione di interpolazione tra loro.
+     * Mai estrapolazione: se il buffer non copre ancora [renderTime] (avvio app) o ha un solo
+     * fix, restituisce quel fix così com'è.
+     */
+    private fun bracketFixes(renderTime: Long): Triple<Fix, Fix, Double>? {
+        if (fixBuffer.isEmpty()) return null
+        if (fixBuffer.size == 1) { val f = fixBuffer.first(); return Triple(f, f, 0.0) }
+        if (renderTime <= fixBuffer.first().t) { val f = fixBuffer.first(); return Triple(f, f, 0.0) }
+        var prev = fixBuffer.first()
+        for (f in fixBuffer) {
+            if (f.t >= renderTime) {
+                val span = (f.t - prev.t).toDouble()
+                val frac = if (span <= 0.0) 0.0 else (renderTime - prev.t) / span
+                return Triple(prev, f, frac.coerceIn(0.0, 1.0))
+            }
+            prev = f
+        }
+        val last = fixBuffer.last(); return Triple(last, last, 0.0)
+    }
 
     private fun startCameraLoop() {
         val r = object : Runnable {
             override fun run() {
-                // drFixTime>0 = abbiamo almeno un fix GPS o simulato
-                if (drFixTime > 0L) {
-                    val elapsed    = (System.currentTimeMillis() - drFixTime) / 1000.0
-                    val bearingRad = Math.toRadians(drBearing.toDouble())
-                    val dist       = drSpeedMps * elapsed
-                    val predLat    = drLat + dist * cos(bearingRad) / 111_111.0
-                    val predLon    = drLon + dist * sin(bearingRad) / (111_111.0 * cos(Math.toRadians(drLat)))
-                    val predPos    = LatLng(predLat, predLon)
+                val now = System.currentTimeMillis()
+                val bracket = bracketFixes(now - CameraTuning.renderDelayMs)
+                if (bracket != null) {
+                    val (fixA, fixB, frac) = bracket
+                    val interpLat = fixA.lat + (fixB.lat - fixA.lat) * frac
+                    val interpLon = fixA.lon + (fixB.lon - fixA.lon) * frac
+                    val interpPos = LatLng(interpLat, interpLon)
 
-                    // Bearing predetto: estrapolazione continua (gyro 50Hz o GPS+velocity 1Hz)
-                    val predictedBearing = drBearing + drBearingVelDegPerSec * elapsed.toFloat()
-
-                    // Icona: sempre reattiva (lerp 0.20)
-                    smoothedIconBearing = lerpBearing(smoothedIconBearing, predictedBearing.toDouble(), 0.20f)
-
-                    // Camera: filtro adattivo anti-tremore
-                    val absVel = Math.abs(drBearingVelDegPerSec)
-                    val camDiff = Math.abs(((predictedBearing - smoothedCamBearing + 540) % 360) - 180)
-
-                    // Aggiorna contatore stabilità:
-                    // sale lentamente (1/frame) quando bearing stabile, cala rapidamente (3/frame) se instabile
-                    stableFrameCount = when {
-                        absVel < VEL_STABLE_DEG_S && camDiff < 45.0 ->
-                            (stableFrameCount + 1).coerceAtMost(STABLE_FRAMES_NEED + 30)
-                        else ->
-                            (stableFrameCount - 3).coerceAtLeast(0)
+                    // HUD (profondità/velocità/canale) + navigazione, a ritmo indipendente da
+                    // camera/icona. Se collegato alla velocità (CameraTuning.hudRefreshLinkedToSpeed),
+                    // il refresh sale con la velocità reale della barca; altrimenti usa il valore
+                    // fisso dello slider.
+                    val speedKn = (lastGpsLocation?.speed ?: 0f) * 3600.0 / 1852.0
+                    val hudInterval = CameraTuning.hudIntervalMsForSpeed(speedKn)
+                    if (now - lastHudUpdateMs >= hudInterval) {
+                        lastHudUpdateMs = now
+                        updateHud(interpPos)
+                        lastGpsLocation?.let { checkSpeedHud(it, interpPos) }
+                        updateNavigation(interpPos)
                     }
 
-                    val isStable = stableFrameCount >= STABLE_FRAMES_NEED
-                    val isFrozen = absVel > VEL_FREEZE_DEG_S
+                    // Bearing: solo se lo spostamento tra i due fix è sufficiente a fidarsene.
+                    // Sotto soglia (fermi, GPS rumoroso, girata sul posto) non tocchiamo il bearing.
+                    val posA = LatLng(fixA.lat, fixA.lon)
+                    val posB = LatLng(fixB.lat, fixB.lon)
+                    if (haversineLocal(posA, posB) >= CameraTuning.minBearingDisplacementM) {
+                        lastGoodBearing = bearingTo(posA, posB).toDouble()
+                    }
 
-                    smoothedCamBearing = when {
-                        isFrozen  -> smoothedCamBearing   // bearing caotico → camera ferma
-                        !isStable -> smoothedCamBearing   // non ancora stabile → camera ferma
-                        camDiff > DEAD_ZONE_DEG ->
-                            lerpBearing(smoothedCamBearing, predictedBearing.toDouble(), CAM_LERP_FAST)
-                        else ->
-                            lerpBearing(smoothedCamBearing, predictedBearing.toDouble(), CAM_LERP_SETTLE)
+                    // Icona: insegue il bearing buono con un lerp leggero, ammorbidisce il gradino
+                    // che si vedrebbe ogni cambio di fix (1 volta al secondo).
+                    smoothedIconBearing = lerpBearing(smoothedIconBearing, lastGoodBearing, CameraTuning.iconBearingLerp)
+
+                    // Camera: segue l'icona solo fuori dal cono morto (± CameraTuning.camDeadZoneDeg).
+                    // Meno ottimale ma molto più fluida — niente inseguimento di ogni micro-variazione.
+                    val camDiff = Math.abs(((smoothedIconBearing - smoothedCamBearing + 540) % 360) - 180)
+                    if (camDiff > CameraTuning.camDeadZoneDeg) {
+                        smoothedCamBearing = lerpBearing(smoothedCamBearing, smoothedIconBearing, CameraTuning.camLerp)
                     }
 
                     val map = mapLibre
                     if (map != null) {
-                        // 1. Camera (solo follow mode), bearing morbido
+                        // 1. Camera (solo follow mode)
                         if (followMode) {
                             val zoom = map.cameraPosition.zoom.coerceAtLeast(14.0)
                             map.moveCamera(CameraUpdateFactory.newCameraPosition(
-                                CameraPosition.Builder().target(predPos).zoom(zoom).bearing(smoothedCamBearing).build()
+                                CameraPosition.Builder().target(interpPos).zoom(zoom).bearing(smoothedCamBearing).build()
                             ))
                         }
 
@@ -548,23 +559,22 @@ class MapFragment : Fragment() {
                             b.cardCompass.rotation   = (-actualCamBearing).toFloat()
                         }
 
-                        // 3. Icona barca a 30fps con rotazione rapida (smoothedIconBearing)
+                        // 3. Icona barca + split percorso a 30fps, sulla posizione interpolata
                         map.getStyle { style ->
                             (style.getSource(SOURCE_GPS) as? GeoJsonSource)
-                                ?.setGeoJson(buildBoatGeoJson(predLat, predLon, smoothedIconBearing.toFloat()))
+                                ?.setGeoJson(buildBoatGeoJson(interpLat, interpLon, smoothedIconBearing.toFloat()))
 
-                            // 3. Split percorso a 30fps con posizione predetta come head point
                             val route = activeRoute
                             if (route != null && currentWaypointIdx > 0 && currentWaypointIdx < route.size) {
                                 val head = closestPointOnRouteSegment(
-                                    predPos, route[currentWaypointIdx - 1], route[currentWaypointIdx]
+                                    interpPos, route[currentWaypointIdx - 1], route[currentWaypointIdx]
                                 )
                                 drawRouteSplit(style, route, currentWaypointIdx, head)
                             }
                         }
                     }
                 }
-                cameraHandler.postDelayed(this, 33)
+                cameraHandler.postDelayed(this, CameraTuning.frameIntervalMs)
             }
         }
         cameraRunnable = r
@@ -572,7 +582,7 @@ class MapFragment : Fragment() {
     }
 
     /** Interpolazione lineare del bearing che gestisce il wrap 0°/360°. */
-    private fun lerpBearing(from: Double, to: Double, t: Float): Double {
+    private fun lerpBearing(from: Double, to: Double, t: Double): Double {
         val diff = ((to - from + 540.0) % 360.0) - 180.0
         return (from + diff * t + 360.0) % 360.0
     }
@@ -591,35 +601,51 @@ class MapFragment : Fragment() {
         val isNoGo     = routingEngine.isPointInNoGo(pos)
         val fixedDepth = routingEngine.getFixedDepthAt(pos)
 
-        val depthText: String; val hudColor: Int
+        // Riga in alto (grande): "dove sono" — nome canale, Mare, o l'avviso della zona no-go.
+        // Riga in basso (piccola): profondità. Prima era il contrario (profondità sopra, lat/lon
+        // sotto): il nome/luogo è l'informazione più utile a colpo d'occhio mentre si naviga.
+        val locationText: String; val depthText: String; val hudColor: Int
         when {
             isNoGo -> {
-                depthText = if (isAtSea) "Possibile Basso Fondale" else "Terraferma"
-                hudColor  = resources.getColor(android.R.color.holo_red_dark, null)
+                locationText = if (isAtSea) "Possibile Basso Fondale" else "Terraferma"
+                depthText    = "—"
+                hudColor     = resources.getColor(android.R.color.holo_red_dark, null)
             }
             fixedDepth != null -> {
-                depthText = "Profondita': %.1f m".format(fixedDepth)
-                hudColor  = resources.getColor(R.color.marine_blue_dark, null)
+                locationText = if (isAtSea) "Mare" else canalLocationLabel(pos)
+                depthText    = "Profondita': %.1f m".format(fixedDepth)
+                hudColor     = resources.getColor(R.color.marine_blue_dark, null)
             }
             isAtSea -> {
-                depthText = "Profondita': > 12 m"
-                hudColor  = resources.getColor(R.color.marine_blue_dark, null)
+                locationText = "Mare"
+                depthText    = "Profondita': > 12 m"
+                hudColor     = resources.getColor(R.color.marine_blue_dark, null)
             }
             else -> {
                 val d = bathyEngine.getDepthAt(pos.latitude, pos.longitude, routingEngine.getNoGoAreas())
-                depthText = "Profondita': %.1f m".format(d)
-                hudColor  = if (d in 0.1f..1.2f) resources.getColor(android.R.color.holo_red_dark, null)
-                            else resources.getColor(R.color.marine_blue_dark, null)
+                locationText = canalLocationLabel(pos)
+                depthText    = "Profondita': %.1f m".format(d)
+                hudColor     = if (d in 0.1f..1.2f) resources.getColor(android.R.color.holo_red_dark, null)
+                               else resources.getColor(R.color.marine_blue_dark, null)
             }
         }
-        binding.tvHudDepth.text = depthText
-        binding.tvHudCoords.text = "%.5f, %.5f".format(pos.latitude, pos.longitude)
+        binding.tvHudDepth.text = locationText
+        binding.tvHudCoords.text = depthText
         binding.cvHud.setCardBackgroundColor(hudColor)
+    }
+
+    /** "Fuori canale" se troppo lontani da qualsiasi canale; altrimenti il nome, o "Canale
+     *  sconosciuto" se il canale più vicino non ha un tag nome nei dati OSM. */
+    private fun canalLocationLabel(pos: LatLng): String {
+        val distCanal = routingEngine.distanceToNearestCanalMeters(pos)
+        if (distCanal > CameraTuning.canalLabelThresholdM) return "Fuori canale"
+        return routingEngine.nearestCanalName(pos, CameraTuning.canalLabelThresholdM) ?: "Canale sconosciuto"
     }
 
     private fun checkSpeedHud(location: Location, pos: LatLng) {
         if (!location.hasSpeed()) { binding.tvHudSpeed.visibility = View.GONE; return }
         val speedKn   = location.speed * 3600f / 1852f
+        val speedKmh  = location.speed * 3.6f
         val limitKn   = routingEngine.getMaxSpeedKnotsAt(pos)
         val distCanal = routingEngine.distanceToNearestCanalMeters(pos)
         val distStr   = if (distCanal < Double.MAX_VALUE / 2) " | %.0fm canal".format(distCanal) else ""
@@ -627,13 +653,13 @@ class MapFragment : Fragment() {
         binding.tvHudSpeed.visibility = View.VISIBLE
         if (limitKn != null) {
             val over = speedKn > limitKn
-            binding.tvHudSpeed.text = "%.1f kn / Lim %.0f kn%s".format(speedKn, limitKn, distStr)
+            binding.tvHudSpeed.text = "%.1f kn (%.0f km/h) / Lim %.0f kn%s".format(speedKn, speedKmh, limitKn, distStr)
             binding.tvHudSpeed.setTextColor(
                 if (over) resources.getColor(android.R.color.holo_red_light, null)
                 else resources.getColor(R.color.sea_white, null)
             )
         } else {
-            binding.tvHudSpeed.text = "%.1f kn%s".format(speedKn, distStr)
+            binding.tvHudSpeed.text = "%.1f kn (%.0f km/h)%s".format(speedKn, speedKmh, distStr)
             binding.tvHudSpeed.setTextColor(resources.getColor(R.color.sea_white, null))
         }
     }
@@ -791,11 +817,29 @@ class MapFragment : Fragment() {
     // BOTTONE CENTRA e gestione follow mode
     // =================================================================
 
+    /** Riattiva il follow mode (camera centrata sulla barca). Esposto per DevToolsFragment,
+     *  che lo richiama quando l'utente rientra sulla schermata Dev Tools. */
+    fun recenterFollow() = setFollowMode(true)
+
     /** Imposta il follow mode e aggiorna la visibilità del pulsante CENTRA. */
     private fun setFollowMode(active: Boolean) {
+        val reentering = active && !followMode
         followMode = active
         // CENTRA: visibile solo quando NON stai seguendo la barca
         _binding?.layoutCentra?.visibility = if (active) View.GONE else View.VISIBLE
+
+        // Rientro in follow mode (tasto CENTRA o nuova rotta): transizione dolce invece di uno
+        // scatto istantaneo verso la posizione/bearing della barca.
+        if (reentering) {
+            val map = mapLibre
+            val lastFix = fixBuffer.lastOrNull()
+            if (map != null && lastFix != null) {
+                val zoom = map.cameraPosition.zoom.coerceAtLeast(14.0)
+                map.animateCamera(CameraUpdateFactory.newCameraPosition(
+                    CameraPosition.Builder().target(LatLng(lastFix.lat, lastFix.lon)).zoom(zoom).bearing(smoothedCamBearing).build()
+                ), 500)
+            }
+        }
     }
 
     private fun setupButtons() {

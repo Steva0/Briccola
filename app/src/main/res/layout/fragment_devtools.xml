@@ -10,13 +10,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Pannello debug in alto: spinner + bottoni + stato -->
+    <!-- Pannello debug: spostato sotto la barra di ricerca della mappa incorporata, così resta
+         cliccabile anche in Dev Tools. -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
         android:layout_marginHorizontal="12dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="84dp"
         app:cardBackgroundColor="#DD111111"
         app:cardCornerRadius="8dp"
         app:cardElevation="6dp">
@@ -26,6 +27,29 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="8dp">
+
+            <!-- Toggle sempre visibile: posizione simulata (joystick) o GPS reale del telefono -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingBottom="4dp">
+
+                <TextView
+                    android:id="@+id/tv_position_source_label"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Posizione: simulata (joystick)"
+                    android:textColor="@color/white"
+                    android:textSize="11sp" />
+
+                <Switch
+                    android:id="@+id/switch_real_gps"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
 
             <!-- Spinner modalità -->
             <Spinner
@@ -127,6 +151,159 @@
                     android:text="Segna A e B, poi Calcola"
                     android:textColor="#AAAAAA"
                     android:textSize="9sp" />
+            </LinearLayout>
+
+            <!-- Bottone modalità "Posizione": teletrasporta la barca al centro schermo -->
+            <LinearLayout
+                android:id="@+id/group_set_position"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <Button
+                    android:id="@+id/btn_set_boat_position"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:text="Posiziona barca al centro"
+                    android:textSize="11sp"
+                    app:backgroundTint="#CC005580" />
+            </LinearLayout>
+
+            <!-- Pannello "Impostazioni Camera": slider per tarare a runtime lo smoothing -->
+            <LinearLayout
+                android:id="@+id/group_camera_settings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tv_tune_render_delay"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_render_delay"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="60" />
+
+                <TextView
+                    android:id="@+id/tv_tune_min_disp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_min_disp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="150" />
+
+                <TextView
+                    android:id="@+id/tv_tune_icon_lerp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_icon_lerp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="50" />
+
+                <TextView
+                    android:id="@+id/tv_tune_dead_zone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_dead_zone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="30" />
+
+                <TextView
+                    android:id="@+id/tv_tune_cam_lerp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_cam_lerp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="30" />
+
+                <TextView
+                    android:id="@+id/tv_tune_fps"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_fps"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="60" />
+
+                <TextView
+                    android:id="@+id/tv_tune_hud_refresh"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_hud_refresh"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="20" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Refresh HUD legato alla velocità (5-20Hz, 3-15kn)"
+                        android:textColor="@color/white"
+                        android:textSize="10sp" />
+
+                    <Switch
+                        android:id="@+id/switch_hud_speed_linked"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_tune_canal_threshold"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_canal_threshold"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <Button
+                    android:id="@+id/btn_reset_tuning"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:layout_marginTop="4dp"
+                    android:text="Reset valori default"
+                    android:textSize="11sp"
+                    app:backgroundTint="#CC333333" />
             </LinearLayout>
 
             <!-- Stato: info simulatore / debug -->

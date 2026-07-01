@@ -22,6 +22,32 @@ import it.lagunav.openlagunamaps.ui.DevToolsFragment
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private var currentFragment: Fragment? = null
+
+    /**
+     * Cambia la voce di menu SENZA ricreare i fragment già visti (evita di reinflate la
+     * MapView/lo stile MapLibre a ogni cambio, che è lento): il primo accesso li crea con
+     * add(), i successivi li recuperano per tag e li mostrano di nuovo con show()/hide().
+     * Il fragment che esce di scena resta vivo ma nascosto in background.
+     */
+    private fun showFragment(itemId: Int, title: CharSequence?, factory: () -> Fragment) {
+        val tag = "menu_fragment_$itemId"
+        val fm = supportFragmentManager
+        val transaction = fm.beginTransaction()
+        currentFragment?.let { if (it.tag != tag) transaction.hide(it) }
+
+        val existing = fm.findFragmentByTag(tag)
+        if (existing != null) {
+            transaction.show(existing)
+            currentFragment = existing
+        } else {
+            val newFragment = factory()
+            transaction.add(R.id.fragment_container, newFragment, tag)
+            currentFragment = newFragment
+        }
+        transaction.commit()
+        supportActionBar?.title = title
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Applica night mode PRIMA di setContentView, così tutto il tema è coerente
@@ -44,33 +70,25 @@ class MainActivity : AppCompatActivity() {
         toggle.syncState()
 
         binding.navView.setNavigationItemSelectedListener { menuItem ->
-            val fragment: Fragment? = when (menuItem.itemId) {
-                R.id.nav_map -> MapFragment()
-                R.id.nav_weather -> WeatherFragment()
-                R.id.nav_settings -> SettingsFragment()
-                R.id.nav_devtools -> DevToolsFragment()
-                R.id.nav_about -> AboutFragment()
-                R.id.nav_donate -> DonateFragment()
+            val factory: (() -> Fragment)? = when (menuItem.itemId) {
+                R.id.nav_map -> ({ MapFragment() })
+                R.id.nav_weather -> ({ WeatherFragment() })
+                R.id.nav_settings -> ({ SettingsFragment() })
+                R.id.nav_devtools -> ({ DevToolsFragment() })
+                R.id.nav_about -> ({ AboutFragment() })
+                R.id.nav_donate -> ({ DonateFragment() })
                 else -> null
             }
 
-            fragment?.let {
-                supportFragmentManager.beginTransaction()
-                    .replace(R.id.fragment_container, it)
-                    .commit()
-                supportActionBar?.title = menuItem.title
-            }
+            factory?.let { showFragment(menuItem.itemId, menuItem.title, it) }
 
             binding.drawerLayout.closeDrawer(GravityCompat.START)
             true
         }
 
-        // Carica il fragment di debug all'avvio (temporaneo per sviluppo)
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, DevToolsFragment())
-            .commit()
-        binding.navView.setCheckedItem(R.id.nav_devtools)
-        supportActionBar?.title = "Dev Tools"
+        // Schermata iniziale: Mappa (con GPS reale)
+        showFragment(R.id.nav_map, "Mappa") { MapFragment() }
+        binding.navView.setCheckedItem(R.id.nav_map)
 
         // Gestione tasto back moderno
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
