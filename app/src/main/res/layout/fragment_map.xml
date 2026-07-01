@@ -200,15 +200,29 @@
         app:cardCornerRadius="22dp"
         app:cardElevation="4dp">
 
-        <TextView
-            android:id="@+id/tv_compass"
+        <!-- PLACEHOLDER_COMPASS_ICON: sostituire con SVG bussola professionale.
+             Deve mostrare freccia rossa verso nord + lettera N, 44dp, sfondo trasparente. -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:text="N"
-            android:textColor="#FF4444"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:orientation="vertical"
+            android:padding="4dp">
+            <TextView
+                android:id="@+id/tv_compass"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="&#9650;"
+                android:textColor="#FF3333"
+                android:textSize="13sp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="N"
+                android:textColor="@color/white"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
     </androidx.cardview.widget.CardView>
 
     <!-- CENTRA: visibile solo quando followMode=false (camera libera).

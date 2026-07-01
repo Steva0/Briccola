@@ -9,6 +9,10 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.os.Bundle
 import android.os.Handler
@@ -142,8 +146,38 @@ class MapFragment : Fragment() {
     private var drBearingVelDegPerSec = 0f
     private var prevDrBearing   = 0f
     private var prevDrFixTime   = 0L
-    // Bearing interpolato a 30fps verso il target PREDETTO (non fisso)
-    private var smoothedBearing = 0.0
+
+    // Due bearing interpolati separati: icona reattiva, camera più morbida.
+    private var smoothedIconBearing = 0.0   // fattore 0.20 → icona reattiva (~5 frame)
+    private var smoothedCamBearing  = 0.0   // fattore 0.05 → camera dolce (~30 frame)
+
+    // Giroscopio: TYPE_ROTATION_VECTOR dà heading a ~50Hz invece di 1Hz GPS.
+    // Usato solo in modalità GPS reale; ignorato quando SimulatorHub è attivo.
+    private var sensorManager: SensorManager? = null
+    private var rotationSensor: Sensor? = null
+    private val rotationMatrix   = FloatArray(9)
+    private val orientationAngles = FloatArray(3)
+    private val gyroListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            if (SimulatorHub.isActive) return  // il simulatore controlla il bearing
+            SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+            SensorManager.getOrientation(rotationMatrix, orientationAngles)
+            val azimuthDeg = Math.toDegrees(orientationAngles[0].toDouble()).toFloat()
+            val bearing = (azimuthDeg + 360f) % 360f
+            val now = System.currentTimeMillis()
+            if (prevDrFixTime > 0L) {
+                val dtSec = (now - prevDrFixTime) / 1000.0
+                if (dtSec in 0.005..0.5) {
+                    val diff = ((bearing - prevDrBearing + 540) % 360) - 180
+                    drBearingVelDegPerSec = (diff / dtSec).toFloat().coerceIn(-180f, 180f)
+                }
+            }
+            prevDrBearing = bearing
+            prevDrFixTime = now
+            drBearing = bearing
+        }
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    }
     private val cameraHandler = Handler(Looper.getMainLooper())
     private var cameraRunnable: Runnable? = null
 
@@ -368,11 +402,10 @@ class MapFragment : Fragment() {
     // =================================================================
 
     private fun startPositionTracking() {
-        if (SimulatorHub.isActive) {
-            // Posizione simulata da DevTools: mi registro come listener
-            SimulatorHub.addListener(simCallback)
-        } else {
+        SimulatorHub.addListener(simCallback)
+        if (!SimulatorHub.isActive) {
             startGnss()
+            startGyroscope()
         }
     }
 
@@ -380,6 +413,23 @@ class MapFragment : Fragment() {
         SimulatorHub.removeListener(simCallback)
         gnssProvider?.stop()
         gnssProvider = null
+        stopGyroscope()
+    }
+
+    private fun startGyroscope() {
+        if (sensorManager == null) {
+            sensorManager = requireContext().getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        }
+        rotationSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        if (rotationSensor != null) {
+            // SENSOR_DELAY_GAME = ~50Hz. Leggero (~1-3mW), molto inferiore a GPS e schermo.
+            sensorManager?.registerListener(gyroListener, rotationSensor, SensorManager.SENSOR_DELAY_GAME)
+        }
+        // Se TYPE_ROTATION_VECTOR non è disponibile, si cade sul bearing del GPS (1Hz).
+    }
+
+    private fun stopGyroscope() {
+        sensorManager?.unregisterListener(gyroListener)
     }
 
     private fun startGnss() {
@@ -437,38 +487,36 @@ class MapFragment : Fragment() {
                     val predLon    = drLon + dist * sin(bearingRad) / (111_111.0 * cos(Math.toRadians(drLat)))
                     val predPos    = LatLng(predLat, predLon)
 
-                    // Bearing PREDETTO: usa la velocità angolare per continuare a girare
-                    // tra fix GPS invece di restare fisso. Elimina il "ritmo 1Hz" della rotazione.
-                    // (identico alla predizione della posizione: ultima_val + velocità * tempo_trascorso)
+                    // Bearing predetto: estrapolazione continua (gyro 50Hz o GPS+velocity 1Hz)
                     val predictedBearing = drBearing + drBearingVelDegPerSec * elapsed.toFloat()
 
-                    // Lerp 0.08 verso il bearing predetto (target in movimento = molto più fluido).
-                    smoothedBearing = lerpBearing(smoothedBearing, predictedBearing.toDouble(), 0.08f)
+                    // Due lerp separati: icona reattiva, camera dolce
+                    smoothedIconBearing = lerpBearing(smoothedIconBearing, predictedBearing.toDouble(), 0.20f)
+                    smoothedCamBearing  = lerpBearing(smoothedCamBearing,  predictedBearing.toDouble(), 0.05f)
 
                     val map = mapLibre
                     if (map != null) {
-                        // 1. Camera: si muove in follow mode con course-up sempre attivo.
-                        // Quando si segue la barca, la prua è sempre in alto (track-up).
+                        // 1. Camera (solo follow mode), bearing morbido
                         if (followMode) {
                             val zoom = map.cameraPosition.zoom.coerceAtLeast(14.0)
                             map.moveCamera(CameraUpdateFactory.newCameraPosition(
-                                CameraPosition.Builder().target(predPos).zoom(zoom).bearing(smoothedBearing).build()
+                                CameraPosition.Builder().target(predPos).zoom(zoom).bearing(smoothedCamBearing).build()
                             ))
                         }
 
-                        // 2. Bussola custom: ruota la "N" in senso opposto al bearing della mappa.
-                        //    Visibile quando siamo in follow mode (mappa ruotata) o bearing != 0.
-                        val compassRotation = (-smoothedBearing).toFloat()
+                        // 2. Bussola: usa il bearing REALE della camera (non il bearing barca)
+                        val actualCamBearing = if (followMode) smoothedCamBearing
+                                               else map.cameraPosition.bearing
+                        val showCompass = Math.abs(actualCamBearing % 360) > 2.0
                         _binding?.let { b ->
-                            val showCompass = followMode || Math.abs(smoothedBearing % 360) > 2.0
                             b.cardCompass.visibility = if (showCompass) View.VISIBLE else View.GONE
-                            b.tvCompass.rotation = compassRotation
+                            b.cardCompass.rotation   = (-actualCamBearing).toFloat()
                         }
 
-                        // 3. Icona barca a 30fps con rotazione smooth (usa smoothedBearing, non drBearing)
+                        // 3. Icona barca a 30fps con rotazione rapida (smoothedIconBearing)
                         map.getStyle { style ->
                             (style.getSource(SOURCE_GPS) as? GeoJsonSource)
-                                ?.setGeoJson(buildBoatGeoJson(predLat, predLon, smoothedBearing.toFloat()))
+                                ?.setGeoJson(buildBoatGeoJson(predLat, predLon, smoothedIconBearing.toFloat()))
 
                             // 3. Split percorso a 30fps con posizione predetta come head point
                             val route = activeRoute
