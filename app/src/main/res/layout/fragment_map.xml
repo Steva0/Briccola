@@ -242,16 +242,5 @@
             app:tint="@color/white" />
     </LinearLayout>
 
-    <!-- FAB MOB (bottom-right) -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_mob"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:contentDescription="Segna posizione"
-        android:src="@android:drawable/ic_menu_mylocation"
-        app:backgroundTint="#CC003366"
-        app:tint="@color/white" />
 
 </FrameLayout>

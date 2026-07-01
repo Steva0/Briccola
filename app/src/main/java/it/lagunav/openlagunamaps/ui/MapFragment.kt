@@ -154,11 +154,8 @@ class MapFragment : Fragment() {
                 .zoom(14.0)
                 .build()
 
-            map.addOnCameraMoveListener {
-                map.cameraPosition.target?.let { pos ->
-                    if (!followMode) updateHud(pos)
-                }
-            }
+            // L'HUD mostra SOLO i dati della barca (onGpsFix), mai la posizione della camera.
+            // Nessun addOnCameraMoveListener qui.
 
             // Tap lungo sulla mappa -> imposta destinazione
             map.addOnMapLongClickListener { point ->
@@ -618,9 +615,6 @@ class MapFragment : Fragment() {
 
         // Cancella navigazione
         binding.btnCancelRoute.setOnClickListener { cancelRoute() }
-
-        // MOB
-        binding.fabMob.setOnClickListener { savePin() }
     }
 
     // =================================================================
