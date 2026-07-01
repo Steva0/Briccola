@@ -29,6 +29,7 @@ import it.lagunav.openlagunamaps.engine.BathymetryEngine
 import it.lagunav.openlagunamaps.engine.GnssPositionProvider
 import it.lagunav.openlagunamaps.engine.PositionProvider
 import it.lagunav.openlagunamaps.engine.RoutingEngine
+import it.lagunav.openlagunamaps.engine.SimulatedPositionProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -70,11 +71,15 @@ class MapFragment : Fragment() {
 
     private lateinit var bathyEngine: BathymetryEngine
     private lateinit var routingEngine: RoutingEngine
-    private lateinit var positionProvider: PositionProvider
     private lateinit var prefs: SharedPreferences
     private var mapLibre: MapLibreMap? = null
 
-    // GPS
+    // Provider GPS — swappabile tra reale e simulato
+    private var positionProvider: PositionProvider? = null
+    private var simMode = false
+    private var simProvider: SimulatedPositionProvider? = null
+
+    // Ultima posizione ricevuta (GPS reale o simulato)
     private var lastGpsLocation: Location? = null
     private var overSpeedAlerted = false
 
@@ -121,7 +126,6 @@ class MapFragment : Fragment() {
         prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         bathyEngine = BathymetryEngine(requireContext())
         routingEngine = RoutingEngine(requireContext())
-        positionProvider = GnssPositionProvider(requireContext())
 
         setupMap(savedInstanceState)
         setupSearch()
@@ -299,17 +303,52 @@ class MapFragment : Fragment() {
     }
 
     // =================================================================
-    // GPS
+    // GPS / SIMULATORE
     // =================================================================
 
     private fun requestGpsIfNeeded() {
+        if (simMode) return   // in modalità simulatore non serve il permesso GPS
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
             == PackageManager.PERMISSION_GRANTED
         ) startGps()
         else locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
-    private fun startGps() { positionProvider.start { onGpsFix(it) } }
+    private fun startGps() {
+        val provider = GnssPositionProvider(requireContext())
+        positionProvider = provider
+        provider.start { onGpsFix(it) }
+    }
+
+    private fun toggleSimulator() {
+        positionProvider?.stop()
+        simMode = !simMode
+
+        if (simMode) {
+            val sim = SimulatedPositionProvider().apply {
+                // Punto di partenza = ultima posizione nota o centro mappa
+                lastGpsLocation?.let { setPosition(it.latitude, it.longitude) }
+                    ?: mapLibre?.cameraPosition?.target?.let { setPosition(it.latitude, it.longitude) }
+            }
+            simProvider = sim
+            positionProvider = sim
+            sim.start { onGpsFix(it) }
+            binding.cardSim.visibility    = View.VISIBLE
+            binding.fabSimToggle.backgroundTintList =
+                android.content.res.ColorStateList.valueOf(Color.parseColor("#CC886600"))
+            binding.joystickMap.onMove = { normX, normY, magnitude ->
+                val bearing = Math.toDegrees(atan2(normX.toDouble(), -normY.toDouble())).toFloat()
+                sim.setMovement(bearing, magnitude * 25f)
+            }
+        } else {
+            simProvider = null
+            binding.joystickMap.onMove = null
+            binding.cardSim.visibility    = View.GONE
+            binding.fabSimToggle.backgroundTintList =
+                android.content.res.ColorStateList.valueOf(Color.parseColor("#88444400"))
+            requestGpsIfNeeded()
+        }
+    }
 
     private fun onGpsFix(location: Location) {
         lastGpsLocation = location
@@ -410,8 +449,10 @@ class MapFragment : Fragment() {
         pendingSearchResult = null
         binding.cardSearchResult.visibility = View.GONE
 
-        val startPos = lastGpsLocation?.let { LatLng(it.latitude, it.longitude) }
-            ?: mapLibre?.cameraPosition?.target ?: return
+        val startPos = lastGpsLocation?.let { LatLng(it.latitude, it.longitude) } ?: run {
+            Snackbar.make(binding.root, "Attiva GPS o il simulatore prima di navigare", Snackbar.LENGTH_LONG).show()
+            return
+        }
 
         val route = routingEngine.findRoute(startPos, dest)
         if (route == null) {
@@ -427,7 +468,6 @@ class MapFragment : Fragment() {
         }
         showNavBanner()
         binding.cardSearch.visibility = View.GONE
-        binding.ivCrosshair.visibility = View.GONE
     }
 
     private fun updateNavigation(pos: LatLng) {
@@ -477,7 +517,6 @@ class MapFragment : Fragment() {
         currentWaypointIdx = 0
         binding.cardNavBanner.visibility = View.GONE
         binding.cardSearch.visibility    = View.VISIBLE
-        binding.ivCrosshair.visibility   = View.VISIBLE
         mapLibre?.getStyle { style ->
             (style.getSource(SOURCE_ROUTE) as? GeoJsonSource)?.setGeoJson(emptyFeatureCollection())
             (style.getSource(SOURCE_DEST)  as? GeoJsonSource)?.setGeoJson(emptyFeatureCollection())
@@ -546,6 +585,9 @@ class MapFragment : Fragment() {
     // =================================================================
 
     private fun setupButtons() {
+        // Toggle simulatore barca
+        binding.fabSimToggle.setOnClickListener { toggleSimulator() }
+
         // Follow mode
         binding.fabFollow.setOnClickListener {
             followMode = !followMode
@@ -586,16 +628,14 @@ class MapFragment : Fragment() {
     // =================================================================
 
     private fun savePin() {
-        val pinPos = lastGpsLocation?.let { LatLng(it.latitude, it.longitude) }
-            ?: mapLibre?.cameraPosition?.target
-            ?: run {
-                Snackbar.make(binding.root, "Nessuna posizione disponibile", Snackbar.LENGTH_SHORT).show()
-                return
-            }
-        val label = if (lastGpsLocation == null) "Centro mappa" else "GPS"
+        val loc = lastGpsLocation ?: run {
+            Snackbar.make(binding.root, "Posizione non disponibile (GPS o simulatore spento)", Snackbar.LENGTH_SHORT).show()
+            return
+        }
+        val pinPos = LatLng(loc.latitude, loc.longitude)
         savePins(loadPins().toMutableList().also { it.add(pinPos) })
         refreshMobLayer()
-        Snackbar.make(binding.root, "$label salvato (%.5f, %.5f)".format(pinPos.latitude, pinPos.longitude), Snackbar.LENGTH_SHORT).show()
+        Snackbar.make(binding.root, "Posizione salvata (%.5f, %.5f)".format(loc.latitude, loc.longitude), Snackbar.LENGTH_SHORT).show()
     }
 
     private fun loadPins(): List<LatLng> {
@@ -753,7 +793,7 @@ class MapFragment : Fragment() {
     override fun onPause() {
         super.onPause()
         binding.mapView.onPause()
-        positionProvider.stop()
+        positionProvider?.stop()
     }
 
     override fun onStop() {

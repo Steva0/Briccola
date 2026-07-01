@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Barra di ricerca (visibile quando non è in corso una navigazione) -->
+    <!-- Barra di ricerca (nascosta durante la navigazione attiva) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_search"
         android:layout_width="match_parent"
@@ -48,7 +48,7 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Risultato di ricerca (appare sotto la barra di ricerca) -->
+    <!-- Risultato ricerca -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_search_result"
         android:layout_width="match_parent"
@@ -63,9 +63,9 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="12dp"
-            android:gravity="center_vertical">
+            android:padding="12dp">
 
             <TextView
                 android:id="@+id/tv_search_result_name"
@@ -86,7 +86,7 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Banner di navigazione (visibile quando una rotta e' attiva) -->
+    <!-- Banner navigazione attiva -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_nav_banner"
         android:layout_width="match_parent"
@@ -101,9 +101,9 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="12dp"
-            android:gravity="center_vertical">
+            android:padding="12dp">
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -115,18 +115,18 @@
                     android:id="@+id/tv_nav_instruction"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:text="-- m"
                     android:textColor="@color/white"
                     android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:text="-- m" />
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tv_nav_detail"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:text="Calcolo..."
                     android:textColor="@color/sea_white"
-                    android:textSize="12sp"
-                    android:text="Calcolo in corso..." />
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <ImageButton
@@ -185,22 +185,42 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Mirino (nascosto in navigazione attiva) -->
-    <ImageView
-        android:id="@+id/iv_crosshair"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_gravity="center"
-        android:src="@android:drawable/ic_menu_add"
-        app:tint="@color/marine_blue_dark" />
+    <!-- Pannello joystick simulatore (visibile solo in modalita' simulazione) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_sim"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="#CC111111"
+        app:cardCornerRadius="100dp"
+        app:cardElevation="4dp">
 
-    <!-- FAB Follow mode + Course Up (bottom-left) -->
+        <it.lagunav.openlagunamaps.ui.JoystickView
+            android:id="@+id/joystick_map"
+            android:layout_width="140dp"
+            android:layout_height="140dp" />
+    </androidx.cardview.widget.CardView>
+
+    <!-- FAB colonna sinistra: follow, course-up, simulatore -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|start"
         android:layout_margin="16dp"
         android:orientation="vertical">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_sim_toggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:contentDescription="Simulatore barca"
+            android:src="@android:drawable/ic_menu_directions"
+            app:backgroundTint="#88444400"
+            app:fabSize="mini"
+            app:tint="@color/white" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab_course_up"
@@ -210,7 +230,6 @@
             android:contentDescription="Course Up"
             android:src="@android:drawable/ic_menu_compass"
             app:backgroundTint="#88003366"
-            app:fabSize="mini"
             app:tint="@color/white" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
