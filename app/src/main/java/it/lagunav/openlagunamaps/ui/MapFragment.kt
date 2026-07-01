@@ -561,9 +561,11 @@ class MapFragment : Fragment() {
 
         if (currentWaypointIdx >= route.size - 1) { onRouteFinished(); return }
 
-        if (currentWaypointIdx != prevIdx) {
-            mapLibre?.getStyle { style -> drawRouteSplit(style, route, currentWaypointIdx) }
-        }
+        // Proiezione del punto GPS sul segmento corrente → split fluido ad ogni fix (1Hz)
+        val headPoint = if (currentWaypointIdx > 0) {
+            closestPointOnRouteSegment(pos, route[currentWaypointIdx - 1], route[currentWaypointIdx])
+        } else null
+        mapLibre?.getStyle { style -> drawRouteSplit(style, route, currentWaypointIdx, headPoint) }
 
         val nextWp    = route[currentWaypointIdx]
         val distNext  = haversineLocal(pos, nextWp)
@@ -678,8 +680,16 @@ class MapFragment : Fragment() {
     // =================================================================
 
     /** Disegna il percorso diviso in tratto percorso (grigio) e tratto rimanente (blu). */
-    private fun drawRouteSplit(style: Style, route: List<LatLng>, splitIdx: Int) {
-        fun makeLineGeoJson(pts: List<LatLng>): String {
+    /**
+     * Aggiorna la divisione grigio/blu del percorso.
+     *
+     * @param splitIdx indice del waypoint corrente (approssimazione per evento waypoint-advance)
+     * @param headPoint se fornito, viene usato come "testa" della parte percorsa al posto
+     *                  di route[splitIdx] — proiezione della posizione GPS sul segmento corrente
+     *                  per uno split fluido che segue la barca metro per metro (aggiornato a 1Hz).
+     */
+    private fun drawRouteSplit(style: Style, route: List<LatLng>, splitIdx: Int, headPoint: LatLng? = null) {
+        fun lineGeoJson(pts: List<LatLng>): String {
             val coords = JsonArray().also { arr -> pts.forEach { p -> arr.add(JsonArray().apply { add(p.longitude); add(p.latitude) }) } }
             val feat   = JsonObject().apply {
                 addProperty("type","Feature"); add("properties", JsonObject())
@@ -687,12 +697,35 @@ class MapFragment : Fragment() {
             }
             return JsonObject().apply { addProperty("type","FeatureCollection"); add("features", JsonArray().apply { add(feat) }) }.toString()
         }
-        val done      = if (splitIdx > 0) route.subList(0, splitIdx + 1) else emptyList()
-        val remaining = if (splitIdx < route.size) route.subList(splitIdx, route.size) else emptyList()
-        if (done.size >= 2)      (style.getSource(SOURCE_ROUTE_DONE) as? GeoJsonSource)?.setGeoJson(makeLineGeoJson(done))
+        val head = headPoint
+
+        val done = if (head != null) {
+            val pts = if (splitIdx > 0) route.subList(0, splitIdx).toMutableList() else mutableListOf()
+            pts.add(head)
+            pts
+        } else {
+            if (splitIdx > 0) route.subList(0, splitIdx + 1) else emptyList()
+        }
+        val remaining = if (head != null) {
+            val pts = mutableListOf(head)
+            if (splitIdx < route.size) pts.addAll(route.subList(splitIdx, route.size))
+            pts
+        } else {
+            if (splitIdx < route.size) route.subList(splitIdx, route.size) else emptyList()
+        }
+
+        if (done.size >= 2)      (style.getSource(SOURCE_ROUTE_DONE) as? GeoJsonSource)?.setGeoJson(lineGeoJson(done))
         else                     (style.getSource(SOURCE_ROUTE_DONE) as? GeoJsonSource)?.setGeoJson(emptyFc())
-        if (remaining.size >= 2) (style.getSource(SOURCE_ROUTE)      as? GeoJsonSource)?.setGeoJson(makeLineGeoJson(remaining))
+        if (remaining.size >= 2) (style.getSource(SOURCE_ROUTE)      as? GeoJsonSource)?.setGeoJson(lineGeoJson(remaining))
         else                     (style.getSource(SOURCE_ROUTE)      as? GeoJsonSource)?.setGeoJson(emptyFc())
+    }
+
+    private fun closestPointOnRouteSegment(p: LatLng, a: LatLng, b: LatLng): LatLng {
+        val l2 = (b.latitude - a.latitude) * (b.latitude - a.latitude) + (b.longitude - a.longitude) * (b.longitude - a.longitude)
+        if (l2 == 0.0) return a
+        var t = ((p.latitude - a.latitude) * (b.latitude - a.latitude) + (p.longitude - a.longitude) * (b.longitude - a.longitude)) / l2
+        t = t.coerceIn(0.0, 1.0)
+        return LatLng(a.latitude + t * (b.latitude - a.latitude), a.longitude + t * (b.longitude - a.longitude))
     }
 
     /**

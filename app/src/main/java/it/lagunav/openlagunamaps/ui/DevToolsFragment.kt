@@ -215,10 +215,19 @@ class DevToolsFragment : Fragment() {
         }
 
         binding.joystick.onMove = { normX, normY, magnitude ->
-            val joyBearing = Math.toDegrees(atan2(normX.toDouble(), -normY.toDouble())).toFloat()
-            val camBearing = map?.mapLibreMap()?.cameraPosition?.bearing?.toFloat() ?: 0f
-            val absBearing = (joyBearing + camBearing + 360f) % 360f
-            sim.setMovement(absBearing, magnitude * 25f)
+            val provider = simProvider
+            if (provider != null) {
+                if (magnitude < 0.05f) {
+                    // Joystick al centro: ferma la barca mantenendo il bearing corrente.
+                    // Senza questo, atan2(0,0)=0 + offset camera può girare la barca di 180°.
+                    provider.setMovement(provider.bearingDeg, 0f)
+                } else {
+                    val joyBearing = Math.toDegrees(atan2(normX.toDouble(), -normY.toDouble())).toFloat()
+                    val camBearing = childMap?.mapLibreMap()?.cameraPosition?.bearing?.toFloat() ?: 0f
+                    val absBearing = (joyBearing + camBearing + 360f) % 360f
+                    provider.setMovement(absBearing, magnitude * 25f)
+                }
+            }
         }
     }
 
