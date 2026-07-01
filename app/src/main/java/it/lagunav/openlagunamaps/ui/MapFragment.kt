@@ -186,15 +186,16 @@ class MapFragment : Fragment() {
             return
         }
 
-        val gpsSpeedKmh = location.speed * 3.6f
-        val gpsSpeedKn  = gpsSpeedKmh / 1.852f
-        val limitKn     = routingEngine.getMaxSpeedKnotsAt(pos)
+        val gpsSpeedKn = location.speed * 3600f / 1852f
+        val limitKn    = routingEngine.getMaxSpeedKnotsAt(pos)
+        val distCanal  = routingEngine.distanceToNearestCanalMeters(pos)
+        val distStr    = if (distCanal < Double.MAX_VALUE / 2) " | %.0fm canal".format(distCanal) else ""
 
         if (limitKn != null) {
             val over = gpsSpeedKn > limitKn
             binding.tvHudSpeed.visibility = View.VISIBLE
             binding.tvHudSpeed.text = String.format(
-                Locale.getDefault(), "%.1f kn  /  Lim %.0f kn", gpsSpeedKn, limitKn
+                Locale.getDefault(), "%.1f kn / Lim %.0f kn%s", gpsSpeedKn, limitKn, distStr
             )
             binding.tvHudSpeed.setTextColor(
                 if (over) resources.getColor(android.R.color.holo_red_light, null)
@@ -209,9 +210,10 @@ class MapFragment : Fragment() {
                 overSpeedAlerted = false
             }
         } else {
-            // Nessun limite sull'arco corrente, mostra solo la velocità
             binding.tvHudSpeed.visibility = View.VISIBLE
-            binding.tvHudSpeed.text = String.format(Locale.getDefault(), "%.1f kn", gpsSpeedKn)
+            binding.tvHudSpeed.text = String.format(
+                Locale.getDefault(), "%.1f kn%s", gpsSpeedKn, distStr
+            )
             binding.tvHudSpeed.setTextColor(resources.getColor(R.color.sea_white, null))
             overSpeedAlerted = false
         }

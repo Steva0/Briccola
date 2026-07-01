@@ -370,11 +370,14 @@ class DevToolsFragment : Fragment() {
         val bearingStr = "%d°".format(location.bearing.roundToInt())
         val isAtSea = routingEngine.isAtSea(pos)
         val zoneStr = if (isAtSea) "MARE" else "LAGUNA"
+        val distCanal = routingEngine.distanceToNearestCanalMeters(pos)
+        val distStr = if (distCanal < Double.MAX_VALUE / 2) "%.0f m".format(distCanal) else "--"
 
-        binding.tvSimStatus.text = "Barca: %.6f, %.6f  [%s]\nVelocità: %.1f kn  Heading: %s\nLimite canale: %s%s".format(
+        binding.tvSimStatus.text = "Barca: %.6f, %.6f  [%s]\nVelocità: %.1f kn  Heading: %s\nLimite canale: %s%s\nDist. canale: %s".format(
             location.latitude, location.longitude, zoneStr,
             speedKn, bearingStr,
-            limitStr, if (overLimit) "  ⚠️ SUPERATO!" else ""
+            limitStr, if (overLimit) "  ⚠️ SUPERATO!" else "",
+            distStr
         )
         binding.tvSimStatus.setTextColor(
             if (overLimit) android.graphics.Color.parseColor("#FF4444")

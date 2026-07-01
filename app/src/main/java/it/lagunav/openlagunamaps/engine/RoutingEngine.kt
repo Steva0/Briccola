@@ -598,6 +598,16 @@ class RoutingEngine(private val context: Context) {
         return snap.edge.speedKmh / 1.852
     }
 
+    /**
+     * Distanza in metri dal punto al canale (arco del grafo) più vicino.
+     * Usa la griglia spaziale precalcolata: O(~30-50 confronti).
+     * Utile per "allarme fuori canale" e per il pannello debug del simulatore.
+     */
+    fun distanceToNearestCanalMeters(p: LatLng): Double {
+        val snap = snapToNearestEdge(p) ?: return Double.MAX_VALUE
+        return haversine(p.latitude, p.longitude, snap.point.latitude, snap.point.longitude)
+    }
+
     fun getFixedDepthAt(p: LatLng): Float? = fixedDepthAreas.find { containsPoint(it.polygon, p) }?.depth
     fun isPointInNoGo(p: LatLng): Boolean = noGoAreas.any { containsPoint(it.polygon, p) }
     fun isInsideProject(p: LatLng): Boolean = projectBoundary?.let { containsPoint(it, p) } ?: true
