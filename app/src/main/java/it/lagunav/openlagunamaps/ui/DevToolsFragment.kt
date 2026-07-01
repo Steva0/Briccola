@@ -9,10 +9,14 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import it.lagunav.openlagunamaps.databinding.FragmentDevtoolsBinding
 import it.lagunav.openlagunamaps.engine.RoutingEngine
 import it.lagunav.openlagunamaps.engine.SimulatedPositionProvider
 import it.lagunav.openlagunamaps.engine.SimulatorHub
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.maplibre.android.geometry.LatLng
 import java.util.Locale
 import kotlin.math.atan2
@@ -160,18 +164,27 @@ class DevToolsFragment : Fragment() {
             binding.tvDevStatus.text = "Avvia simulatore prima per avere una posizione"
             return
         }
-        val results = engine.pathsToTips(pos)
-        val sb = StringBuilder("Tips (${results.size}):\n")
-        results.forEachIndexed { i, r ->
-            if (r.path != null) {
-                val d = engine.calculateTotalDistance(r.path)
-                val t = engine.calculateEstimatedTimeMinutes(r.path)
-                sb.append("Tip ${i+1}: %.2f km | %d min\n".format(d/1000.0, t))
-            } else {
-                sb.append("Tip ${i+1}: ${r.error}\n")
+        binding.tvDevStatus.text = "Calcolo tips in corso..."
+
+        // Eseguito su Dispatchers.Default: pathsToTips può fare A* sul grafo canali (lento
+        // sul main thread → ANR crash). Su background thread è sicuro e non blocca la UI.
+        viewLifecycleOwner.lifecycleScope.launch {
+            val results = withContext(Dispatchers.Default) { engine.pathsToTips(pos) }
+            val sb = StringBuilder("Tips dal punto corrente:\n")
+            results.forEachIndexed { i, r ->
+                if (r.path != null) {
+                    val d = engine.calculateTotalDistance(r.path)
+                    sb.append("Tip ${i+1}: %.2f km | %d min [PERCORSO REALE]\n".format(
+                        d/1000.0, engine.calculateEstimatedTimeMinutes(r.path)
+                    ))
+                } else if (r.estimatedSeconds > 0) {
+                    sb.append("Tip ${i+1}: ~${(r.estimatedSeconds/60).toInt()} min [stima, non ottimale]\n")
+                } else {
+                    sb.append("Tip ${i+1}: ${r.error}\n")
+                }
             }
+            binding.tvDevStatus.text = sb.toString()
         }
-        binding.tvDevStatus.text = sb.toString()
     }
 
     // =================================================================

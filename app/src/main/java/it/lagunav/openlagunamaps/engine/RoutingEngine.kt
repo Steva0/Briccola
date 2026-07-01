@@ -617,19 +617,60 @@ class RoutingEngine(private val context: Context) {
     fun getNoGoAreas(): List<NoGoArea> = noGoAreas
     fun getSeaTips(): List<LatLng> = seaTips
 
-    data class TipResult(val tip: LatLng, val path: List<LatLng>?, val error: String)
+    data class TipResult(val tip: LatLng, val path: List<LatLng>?, val error: String, val estimatedSeconds: Double = 0.0)
 
     /**
-     * Calcola il percorso dal punto dato verso ciascuna delle bocche di porto (tips).
-     * Riusa la dispatch di [findRoute]: utile sia come strumento di debug, sia come banco
-     * di prova per il caso misto laguna<->mare (ancora TODO), che per ogni coppia
-     * (punto in laguna, tip in mare) restituirà null finché non sarà implementato.
+     * Restituisce percorsi verso tutti i tip.
+     *
+     * Quando chiamato da un punto in laguna: usa [nodeTipBest] per trovare il tip ottimale
+     * in O(1) ed esegue A* SOLO per quel tip (non per tutti e 6). Per gli altri restituisce
+     * solo la stima temporale precomputata senza path — evita 6 A* che bloccherebbero il
+     * main thread per diversi secondi e causerebbero crash da ANR.
+     *
+     * IMPORTANTE: va chiamato su un thread background (Dispatchers.Default), non sul main thread.
      */
     fun pathsToTips(point: LatLng): List<TipResult> {
-        return seaTips.map { tip ->
-            val path = findRoute(point, tip)
-            TipResult(tip, path, lastRoutingError)
+        if (seaTips.isEmpty()) return emptyList()
+        val atSea = isAtSea(point)
+
+        if (atSea) {
+            // Da mare: solveSeaToSea per ogni tip — veloce (grafo di visibilità piccolo)
+            return seaTips.map { tip ->
+                val path = findRoute(point, tip)
+                TipResult(tip, path, lastRoutingError, if (path != null) calculateTotalTimeSeconds(path) else 0.0)
+            }
         }
+
+        // Da laguna: usa nodeTipBest per trovare il tip migliore in O(1) senza A*
+        val snap = snapToNearestEdge(point)
+        val bestTipIdx: Int? = if (snap != null && nodeTipBest.isNotEmpty()) {
+            val fromU = nodeTipBest[snap.edge.u]
+            val fromV = nodeTipBest[snap.edge.v]
+            when {
+                fromU == null -> fromV?.first
+                fromV == null -> fromU.first
+                fromU.second <= fromV.second -> fromU.first
+                else -> fromV.first
+            }
+        } else null
+
+        // A* completo solo per il tip ottimale (1 chiamata invece di 6)
+        val results = seaTips.mapIndexed { i, tip ->
+            if (i == bestTipIdx) {
+                val path = findRoute(point, tip)
+                TipResult(tip, path, lastRoutingError, if (path != null) calculateTotalTimeSeconds(path) else 0.0)
+            } else {
+                // Per gli altri: stima precomputata senza path (istantaneo)
+                val snapNodeBest = if (snap != null) {
+                    listOfNotNull(nodeTipBest[snap.edge.u], nodeTipBest[snap.edge.v])
+                        .filter { it.first == i }.minByOrNull { it.second }
+                } else null
+                val estSec = snapNodeBest?.second?.toDouble() ?: -1.0
+                val msg = if (estSec > 0) "Stima: ${(estSec/60).toInt()} min (non ottimale)" else "Non raggiungibile"
+                TipResult(tip, null, msg, estSec)
+            }
+        }
+        return results
     }
 
     fun calculateEstimatedTimeMinutes(p: List<LatLng>): Int {
