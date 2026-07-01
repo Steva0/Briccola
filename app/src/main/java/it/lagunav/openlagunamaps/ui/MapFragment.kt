@@ -147,9 +147,20 @@ class MapFragment : Fragment() {
     private var prevDrBearing   = 0f
     private var prevDrFixTime   = 0L
 
-    // Due bearing interpolati separati: icona reattiva, camera più morbida.
-    private var smoothedIconBearing = 0.0   // fattore 0.20 → icona reattiva (~5 frame)
-    private var smoothedCamBearing  = 0.0   // fattore 0.05 → camera dolce (~30 frame)
+    // Icona barca: lerp rapido, sempre reattiva
+    private var smoothedIconBearing = 0.0
+
+    // Camera: filtro adattivo — segue solo quando il bearing è stabile
+    private var smoothedCamBearing  = 0.0
+    private var stableFrameCount    = 0     // frame consecutivi con bearing stabile
+    companion object {
+        const val VEL_FREEZE_DEG_S    = 20f   // > 20°/s → camera bloccata
+        const val VEL_STABLE_DEG_S    = 8f    // < 8°/s → conta come stabile
+        const val DEAD_ZONE_DEG       = 8.0   // entro 8° → camera non si muove
+        const val STABLE_FRAMES_NEED  = 25    // ~0.8s di stabilità prima di seguire
+        const val CAM_LERP_FAST       = 0.025f // lerp quando fuori dead zone
+        const val CAM_LERP_SETTLE     = 0.005f // lerp per assestamento in dead zone
+    }
 
     // Giroscopio: TYPE_ROTATION_VECTOR dà heading a ~50Hz invece di 1Hz GPS.
     // Usato solo in modalità GPS reale; ignorato quando SimulatorHub è attivo.
@@ -490,9 +501,33 @@ class MapFragment : Fragment() {
                     // Bearing predetto: estrapolazione continua (gyro 50Hz o GPS+velocity 1Hz)
                     val predictedBearing = drBearing + drBearingVelDegPerSec * elapsed.toFloat()
 
-                    // Due lerp separati: icona reattiva, camera dolce
+                    // Icona: sempre reattiva (lerp 0.20)
                     smoothedIconBearing = lerpBearing(smoothedIconBearing, predictedBearing.toDouble(), 0.20f)
-                    smoothedCamBearing  = lerpBearing(smoothedCamBearing,  predictedBearing.toDouble(), 0.05f)
+
+                    // Camera: filtro adattivo anti-tremore
+                    val absVel = Math.abs(drBearingVelDegPerSec)
+                    val camDiff = Math.abs(((predictedBearing - smoothedCamBearing + 540) % 360) - 180)
+
+                    // Aggiorna contatore stabilità:
+                    // sale lentamente (1/frame) quando bearing stabile, cala rapidamente (3/frame) se instabile
+                    stableFrameCount = when {
+                        absVel < VEL_STABLE_DEG_S && camDiff < 45.0 ->
+                            (stableFrameCount + 1).coerceAtMost(STABLE_FRAMES_NEED + 30)
+                        else ->
+                            (stableFrameCount - 3).coerceAtLeast(0)
+                    }
+
+                    val isStable = stableFrameCount >= STABLE_FRAMES_NEED
+                    val isFrozen = absVel > VEL_FREEZE_DEG_S
+
+                    smoothedCamBearing = when {
+                        isFrozen  -> smoothedCamBearing   // bearing caotico → camera ferma
+                        !isStable -> smoothedCamBearing   // non ancora stabile → camera ferma
+                        camDiff > DEAD_ZONE_DEG ->
+                            lerpBearing(smoothedCamBearing, predictedBearing.toDouble(), CAM_LERP_FAST)
+                        else ->
+                            lerpBearing(smoothedCamBearing, predictedBearing.toDouble(), CAM_LERP_SETTLE)
+                    }
 
                     val map = mapLibre
                     if (map != null) {
