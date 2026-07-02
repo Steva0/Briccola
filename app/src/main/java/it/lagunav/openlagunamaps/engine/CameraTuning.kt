@@ -27,7 +27,7 @@ object CameraTuning {
     const val DEFAULT_CAM_LERP                 = 0.04
     const val DEFAULT_FRAME_INTERVAL_MS        = 22L    // ~45 fps
     const val DEFAULT_HUD_INTERVAL_MS          = 200L   // 5 Hz per profondità/velocità/canale
-    const val DEFAULT_HUD_SPEED_LINKED         = false
+    const val DEFAULT_HUD_SPEED_LINKED         = true
     const val DEFAULT_CANAL_LABEL_THRESHOLD_M  = 100.0  // oltre: HUD mostra "Fuori canale"
 
     var renderDelayMs: Long          = DEFAULT_RENDER_DELAY_MS

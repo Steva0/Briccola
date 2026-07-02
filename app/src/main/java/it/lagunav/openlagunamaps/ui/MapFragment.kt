@@ -1,7 +1,10 @@
 package it.lagunav.openlagunamaps.ui
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -10,17 +13,25 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.location.Location
+import android.location.LocationManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
+import android.util.TypedValue
 
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.LinearLayout
+import android.widget.PopupMenu
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 
@@ -31,9 +42,16 @@ import it.lagunav.openlagunamaps.databinding.FragmentMapBinding
 import it.lagunav.openlagunamaps.engine.BathymetryEngine
 import it.lagunav.openlagunamaps.engine.CameraTuning
 import it.lagunav.openlagunamaps.engine.GnssPositionProvider
+import it.lagunav.openlagunamaps.engine.PerfMonitor
+import it.lagunav.openlagunamaps.engine.PlaceType
+import it.lagunav.openlagunamaps.engine.PlacesStore
 import it.lagunav.openlagunamaps.engine.PositionProvider
 import it.lagunav.openlagunamaps.engine.RoutingEngine
+import it.lagunav.openlagunamaps.engine.SavedPlace
 import it.lagunav.openlagunamaps.engine.SimulatorHub
+import it.lagunav.openlagunamaps.engine.SpeedUnit
+import it.lagunav.openlagunamaps.engine.UiTuning
+import it.lagunav.openlagunamaps.engine.toLatLng
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -67,6 +85,7 @@ private const val STYLE_DAY             = "https://tiles.openfreemap.org/styles/
 private const val STYLE_NIGHT           = "https://tiles.openfreemap.org/styles/dark"
 private const val BOAT_ICON_ID          = "boat-nav-icon"
 private const val OFF_CANAL_THRESHOLD_M  = 30.0
+private const val SAVED_PLACE_TAP_RADIUS_DP = 28f  // tap entro questa distanza (in pixel schermo) da un pallino -> lo apre
 private const val WAYPOINT_ADVANCE_M     = 25.0
 
 private const val BG_REROUTE_INTERVAL_MS = 5_000L  // frequenza del controllo percorso ottimale
@@ -89,10 +108,6 @@ class MapFragment : Fragment() {
     /** Centro attuale della camera — usato da DevTools per impostare la destinazione al volo. */
     fun cameraCenter(): LatLng? = mapLibre?.cameraPosition?.target
 
-    /**
-     * Mostra un percorso come preview visivo (linea verde tratteggiata) senza avviare navigazione.
-     * Usato da DevTools "Simula A→B". Passa null per rimuovere il preview.
-     */
     fun showPreviewRoute(route: List<LatLng>?) {
         val geoJson = if (route != null && route.size >= 2) {
             val coords = JsonArray().also { arr -> route.forEach { p -> arr.add(JsonArray().apply { add(p.longitude); add(p.latitude) }) } }
@@ -111,10 +126,10 @@ class MapFragment : Fragment() {
                 style.addSource(GeoJsonSource(SOURCE_PREVIEW, geoJson))
                 style.addLayer(LineLayer(LAYER_PREVIEW, SOURCE_PREVIEW).withProperties(
                     lineColor("#00CC44"),
-                    lineWidth(4f),
-                    lineOpacity(0.85f),
-                    lineDasharray(arrayOf(8f, 4f)),
-                    lineCap(Property.LINE_CAP_ROUND)
+                    lineWidth(5f),
+                    lineOpacity(0.9f),
+                    lineCap(Property.LINE_CAP_ROUND),
+                    lineJoin(Property.LINE_JOIN_ROUND)
                 ))
             }
         }
@@ -182,6 +197,8 @@ class MapFragment : Fragment() {
     private val LAYER_ROUTE_DONE  = "route-done-layer"
     private val LAYER_ROUTE       = "route-layer"
     private val LAYER_DEST        = "destination-layer"
+    private val SOURCE_SAVED_PLACES = "saved-places-source"
+    private val LAYER_SAVED_PLACES  = "saved-places-layer"
 
     private val locationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -208,12 +225,60 @@ class MapFragment : Fragment() {
         bathyEngine  = BathymetryEngine(requireContext())
         routingEngine = RoutingEngine(requireContext())
         CameraTuning.load(requireContext())
+        UiTuning.load(requireContext())
 
         setupMap(savedInstanceState)
         setupSearch()
         setupButtons()
         setFollowMode(true)  // di default la visuale segue la barca (anche alla prima apertura)
         binding.tvBuildTag.text = "v${it.lagunav.openlagunamaps.BuildConfig.VERSION_NAME} (${it.lagunav.openlagunamaps.BuildConfig.VERSION_CODE})"
+        applyUiTuning()
+    }
+
+    /**
+     * Applica posizione/dimensione di tachimetro, altimetro, pulsante segui e HUD canale,
+     * lette da UiTuning (regolabili dal pannello Dev Tools). Richiamata all'avvio, ad ogni
+     * rientro sulla schermata, e da Dev Tools stesso quando si muove uno slider.
+     */
+    fun applyUiTuning() {
+        val density = resources.displayMetrics.density
+        binding.speedometer.scaleX = UiTuning.gaugeScale
+        binding.speedometer.scaleY = UiTuning.gaugeScale
+        binding.speedometer.translationY = UiTuning.gaugeOffsetYDp * density
+        // Altimetro impilato esattamente sopra il tachimetro (stessa X, stesso gruppo bottom|start
+        // nel layout): parte dalla stessa posizione del tachimetro e sale di gaugeStackOffsetDp.
+        binding.altitudeView.scaleX = UiTuning.gaugeScale
+        binding.altitudeView.scaleY = UiTuning.gaugeScale
+        binding.altitudeView.translationX = 0f
+        binding.altitudeView.translationY = (UiTuning.gaugeOffsetYDp - UiTuning.gaugeStackOffsetDp) * density
+        binding.layoutCentra.translationY = UiTuning.followBtnOffsetYDp * density
+        binding.layoutCentra.translationX = UiTuning.followBtnOffsetXDp * density
+        binding.layoutCentra.scaleX = UiTuning.followBtnScale
+        binding.layoutCentra.scaleY = UiTuning.followBtnScale
+        binding.cvHud.translationY = UiTuning.hudOffsetYDp * density
+
+        // Scaling elementi Salva luogo
+        val btnScale = UiTuning.savePlaceBtnScale
+        val textScale = UiTuning.savePlaceTextScale
+        binding.btnSavePlaceDelete.scaleX = UiTuning.deletePlaceBtnScale
+        binding.btnSavePlaceDelete.scaleY = UiTuning.deletePlaceBtnScale
+        binding.btnSavePlaceRoute.scaleX = btnScale
+        binding.btnSavePlaceRoute.scaleY = btnScale
+        binding.btnSavePlaceConfirm.scaleX = btnScale
+        binding.btnSavePlaceConfirm.scaleY = btnScale
+        
+        binding.etSavePlaceName.scaleX = textScale
+        binding.etSavePlaceName.scaleY = textScale
+        binding.etSavePlaceNotes.scaleX = textScale
+        binding.etSavePlaceNotes.scaleY = textScale
+
+        mapLibre?.getStyle { style ->
+            (style.getLayer(LAYER_GPS) as? SymbolLayer)?.setProperties(iconSize(UiTuning.mapObjectScale))
+            PlaceType.values().forEach { type ->
+                (style.getLayer("$LAYER_SAVED_PLACES-${type.name}") as? SymbolLayer)
+                    ?.setProperties(iconSize(UiTuning.savedPlaceScale))
+            }
+        }
     }
 
     /**
@@ -243,6 +308,8 @@ class MapFragment : Fragment() {
             if (debugMode) startPositionTracking()
             startCameraLoop()
             setFollowMode(true)  // ad ogni cambio schermata la visuale torna centrata sulla barca
+            applyUiTuning()
+            refreshSavedPlacesLayer()
         }
     }
 
@@ -279,8 +346,33 @@ class MapFragment : Fragment() {
             }
 
             map.addOnMapLongClickListener { point ->
-                setDestinationAndRoute(point)
+                if (!isMapInteractionLocked()) {
+                    selectedPlacePos = point
+                    selectedPlaceName = routingEngine.nearestCanalName(point, 50.0) ?: "Punto sulla mappa"
+                    centerPointInUpperScreen(point)
+                    openSavePlaceScreen()
+                }
                 true
+            }
+
+            // Tap breve su un pallino già salvato -> apre la schermata di modifica. Stessa
+            // logica di "punto più vicino entro una soglia" già usata altrove (es.
+            // nearestCanalName/distanceToNearestCanalMeters), niente bisogno di leggere i
+            // layer disegnati sulla mappa: i luoghi sono già tutti in PlacesStore.
+            // Distanza confrontata in PIXEL SCHERMO, non metri: l'icona ha una dimensione fissa
+            // sullo schermo indipendente dallo zoom, quindi anche la tolleranza del tap deve
+            // esserlo — con una soglia in metri, zoomando fuori il pallino diventa pochi pixel
+            // e serve mirare quasi esatto (da qui i tap falliti più volte di fila).
+            map.addOnMapClickListener { point ->
+                if (isMapInteractionLocked()) return@addOnMapClickListener false
+                val tapScreen = map.projection.toScreenLocation(point)
+                val tapRadiusPx = SAVED_PLACE_TAP_RADIUS_DP * resources.displayMetrics.density
+                val nearest = PlacesStore.getSaved(requireContext())
+                    .map { place -> place to map.projection.toScreenLocation(place.toLatLng()) }
+                    .minByOrNull { (_, screen) -> screenDistance(screen, tapScreen) }
+                    ?.takeIf { (_, screen) -> screenDistance(screen, tapScreen) < tapRadiusPx }
+                    ?.first
+                if (nearest != null) { editSavedPlace(nearest); true } else false
             }
         }
     }
@@ -303,9 +395,13 @@ class MapFragment : Fragment() {
         setupBoatIcon(style)
         setupLagunaLayers(style)
         if (debugMode) setupDebugLayers(style)
-        setupGpsLayer(style)
         setupRouteLayer(style)
         setupDestinationLayer(style)
+        setupSavedPlacesLayer(style)
+        // La barca va aggiunta PER ULTIMA: in MapLibre i layer si disegnano nell'ordine in cui
+        // vengono aggiunti allo stile, quindi l'ultimo aggiunto sta sopra a tutti gli altri —
+        // vogliamo che l'icona barca resti sempre in primo piano rispetto ai pallini salvati.
+        setupGpsLayer(style)
         activeRoute?.let { drawRouteSplit(style, it, currentWaypointIdx) }
         destination?.let { drawDestination(style, it) }
     }
@@ -345,8 +441,84 @@ class MapFragment : Fragment() {
         style.addImage(BOAT_ICON_ID, bmp)
     }
 
+    /** Bitmap tondo colorato con l'icona/emoji del tipo di luogo al centro (stesso stile del
+     *  triangolo barca: disegnato su Canvas, nessuna risorsa immagine da aggiungere). */
+    private fun buildPlaceIconBitmap(emoji: String, bgColor: Int): Bitmap {
+        val size = 72
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = bgColor; style = Paint.Style.FILL }
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 4f }
+        val radius = size / 2f - 3f
+        canvas.drawCircle(size / 2f, size / 2f, radius, fill)
+        canvas.drawCircle(size / 2f, size / 2f, radius, stroke)
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textAlign = Paint.Align.CENTER
+            textSize = size * 0.5f
+        }
+        val textY = size / 2f - (textPaint.descent() + textPaint.ascent()) / 2f
+        canvas.drawText(emoji, size / 2f, textY, textPaint)
+        return bmp
+    }
+
+    /** Un layer per tipo (stesso pattern di setupDebugLayers), tutti sulla stessa sorgente:
+     *  più semplice e sicuro di un'espressione match() per scegliere l'icona giusta. */
+    private fun setupSavedPlacesLayer(style: Style) {
+        val colors = mapOf(
+            PlaceType.BERTH to Color.parseColor("#1565C0"),
+            PlaceType.FAVORITE to Color.parseColor("#C2185B"),
+            PlaceType.TO_VISIT to Color.parseColor("#2E7D32"),
+            PlaceType.GENERIC to Color.parseColor("#616161")
+        )
+        PlaceType.values().forEach { type ->
+            style.addImage("place-icon-${type.name}", buildPlaceIconBitmap(type.icon, colors.getValue(type)))
+        }
+        style.addSource(GeoJsonSource(SOURCE_SAVED_PLACES, emptyFc()))
+        PlaceType.values().forEach { type ->
+            style.addLayer(
+                SymbolLayer("$LAYER_SAVED_PLACES-${type.name}", SOURCE_SAVED_PLACES)
+                    .withFilter(eq(get("type"), literal(type.name)))
+                    .withProperties(
+                        iconImage("place-icon-${type.name}"),
+                        iconSize(UiTuning.savedPlaceScale),
+                        iconAllowOverlap(true), iconIgnorePlacement(true)
+                    )
+            )
+        }
+        refreshSavedPlacesLayer()
+    }
+
+    /** Rilegge PlacesStore e ridisegna tutti i luoghi salvati sulla mappa. Da richiamare dopo
+     *  ogni salvataggio, e ad ogni rientro sulla schermata (l'altra istanza di MapFragment,
+     *  es. in Dev Tools, ha la sua sorgente separata e potrebbe non essere aggiornata). */
+    private fun refreshSavedPlacesLayer() {
+        val places = PlacesStore.getSaved(requireContext())
+        val features = JsonArray()
+        places.forEach { place ->
+            features.add(JsonObject().apply {
+                addProperty("type", "Feature")
+                add("properties", JsonObject().apply {
+                    addProperty("type", place.type.name)
+                    addProperty("name", place.name)
+                })
+                add("geometry", JsonObject().apply {
+                    addProperty("type", "Point")
+                    add("coordinates", JsonArray().apply { add(place.lon); add(place.lat) })
+                })
+            })
+        }
+        val geoJson = JsonObject().apply {
+            addProperty("type", "FeatureCollection")
+            add("features", features)
+        }.toString()
+        mapLibre?.getStyle { style -> (style.getSource(SOURCE_SAVED_PLACES) as? GeoJsonSource)?.setGeoJson(geoJson) }
+    }
+
     private fun setupGpsLayer(style: Style) {
-        style.addSource(GeoJsonSource(SOURCE_GPS, buildBoatGeoJson(45.433, 12.333, 0f)))
+        // Nessuna posizione fittizia di default: l'icona barca non deve comparire finché non
+        // arriva un fix vero (vedi bracketFixes/fixBuffer nel loop camera). Sorgente vuota finché
+        // onGpsFix/onSimFix non riempie il buffer.
+        style.addSource(GeoJsonSource(SOURCE_GPS, emptyFc()))
         style.addLayer(
             SymbolLayer(LAYER_GPS, SOURCE_GPS).withProperties(
                 iconImage(BOAT_ICON_ID),
@@ -499,7 +671,9 @@ class MapFragment : Fragment() {
 
     private fun startCameraLoop() {
         val r = object : Runnable {
-            override fun run() {
+            override fun run() = PerfMonitor.trace("cameraLoop.frame") { runFrame() }
+
+            private fun runFrame() {
                 val now = System.currentTimeMillis()
                 val bracket = bracketFixes(now - CameraTuning.renderDelayMs)
                 if (bracket != null) {
@@ -516,9 +690,11 @@ class MapFragment : Fragment() {
                     val hudInterval = CameraTuning.hudIntervalMsForSpeed(speedKn)
                     if (now - lastHudUpdateMs >= hudInterval) {
                         lastHudUpdateMs = now
-                        updateHud(interpPos)
-                        lastGpsLocation?.let { checkSpeedHud(it, interpPos) }
-                        updateNavigation(interpPos)
+                        PerfMonitor.trace("hud.updateHud") { updateHud(interpPos) }
+                        lastGpsLocation?.let { loc ->
+                            PerfMonitor.trace("hud.checkSpeedHud") { checkSpeedHud(loc, interpPos) }
+                        }
+                        PerfMonitor.trace("hud.updateNavigation") { updateNavigation(interpPos) }
                     }
 
                     // Bearing: solo se lo spostamento tra i due fix è sufficiente a fidarsene.
@@ -541,7 +717,7 @@ class MapFragment : Fragment() {
                     }
 
                     val map = mapLibre
-                    if (map != null) {
+                    if (map != null) PerfMonitor.trace("cameraLoop.render") {
                         // 1. Camera (solo follow mode)
                         if (followMode) {
                             val zoom = map.cameraPosition.zoom.coerceAtLeast(14.0)
@@ -597,71 +773,88 @@ class MapFragment : Fragment() {
     // =================================================================
 
     private fun updateHud(pos: LatLng) {
-        val isAtSea    = routingEngine.isAtSea(pos)
-        val isNoGo     = routingEngine.isPointInNoGo(pos)
-        val fixedDepth = routingEngine.getFixedDepthAt(pos)
+        val isAtSea    = PerfMonitor.trace("routingEngine.isAtSea") { routingEngine.isAtSea(pos) }
+        val isNoGo     = PerfMonitor.trace("routingEngine.isPointInNoGo") { routingEngine.isPointInNoGo(pos) }
+        val fixedDepth = PerfMonitor.trace("routingEngine.getFixedDepthAt") { routingEngine.getFixedDepthAt(pos) }
 
-        // Riga in alto (grande): "dove sono" — nome canale, Mare, o l'avviso della zona no-go.
-        // Riga in basso (piccola): profondità. Prima era il contrario (profondità sopra, lat/lon
-        // sotto): il nome/luogo è l'informazione più utile a colpo d'occhio mentre si naviga.
-        val locationText: String; val depthText: String; val hudColor: Int
+        val locationText: String; val depthValue: Float; val hudColor: Int
         when {
             isNoGo -> {
                 locationText = if (isAtSea) "Possibile Basso Fondale" else "Terraferma"
-                depthText    = "—"
+                depthValue   = 0f
                 hudColor     = resources.getColor(android.R.color.holo_red_dark, null)
             }
             fixedDepth != null -> {
                 locationText = if (isAtSea) "Mare" else canalLocationLabel(pos)
-                depthText    = "Profondita': %.1f m".format(fixedDepth)
+                depthValue   = fixedDepth.toFloat()
                 hudColor     = resources.getColor(R.color.marine_blue_dark, null)
             }
             isAtSea -> {
                 locationText = "Mare"
-                depthText    = "Profondita': > 12 m"
+                depthValue   = 12f
                 hudColor     = resources.getColor(R.color.marine_blue_dark, null)
             }
             else -> {
-                val d = bathyEngine.getDepthAt(pos.latitude, pos.longitude, routingEngine.getNoGoAreas())
+                val d = PerfMonitor.trace("bathyEngine.getDepthAt") {
+                    bathyEngine.getDepthAt(pos.latitude, pos.longitude, routingEngine.getNoGoAreas())
+                }
                 locationText = canalLocationLabel(pos)
-                depthText    = "Profondita': %.1f m".format(d)
+                depthValue   = d
                 hudColor     = if (d in 0.1f..1.2f) resources.getColor(android.R.color.holo_red_dark, null)
                                else resources.getColor(R.color.marine_blue_dark, null)
             }
         }
         binding.tvHudDepth.text = locationText
-        binding.tvHudCoords.text = depthText
         binding.cvHud.setCardBackgroundColor(hudColor)
+        binding.altitudeView.altitude = depthValue
     }
+
+    // routingEngine.nearestCanalName() scansiona linearmente TUTTI i segmenti di canale con
+    // nome (nessun indice spaziale, a differenza di distanceToNearestCanalMeters che usa la
+    // griglia precalcolata) — con l'HUD che può arrivare a 20Hz sarebbe una chiamata pesante
+    // ripetuta decine di volte al secondo sul main thread. Il nome del canale cambia raramente
+    // (al massimo ogni 1s, quando cambi effettivamente canale), quindi lo ricalcoliamo al più
+    // una volta al secondo indipendentemente dal refresh HUD, e riusiamo il valore in cache
+    // per tutte le chiamate intermedie.
+    private var cachedCanalLabel = "Canale sconosciuto"
+    private var lastCanalLabelUpdateMs = 0L
+    private val CANAL_LABEL_REFRESH_MS = 1000L
 
     /** "Fuori canale" se troppo lontani da qualsiasi canale; altrimenti il nome, o "Canale
      *  sconosciuto" se il canale più vicino non ha un tag nome nei dati OSM. */
     private fun canalLocationLabel(pos: LatLng): String {
-        val distCanal = routingEngine.distanceToNearestCanalMeters(pos)
-        if (distCanal > CameraTuning.canalLabelThresholdM) return "Fuori canale"
-        return routingEngine.nearestCanalName(pos, CameraTuning.canalLabelThresholdM) ?: "Canale sconosciuto"
+        val now = System.currentTimeMillis()
+        if (now - lastCanalLabelUpdateMs < CANAL_LABEL_REFRESH_MS) return cachedCanalLabel
+        lastCanalLabelUpdateMs = now
+        cachedCanalLabel = PerfMonitor.trace("hud.canalLocationLabel") {
+            // Tracciati separati: distanceToNearestCanalMeters e nearestCanalName usano indici
+            // diversi (griglia archi di routing vs griglia segmenti con nome) — utile tenerli
+            // distinti nel log per non confondere quale dei due è lento.
+            val distCanal = PerfMonitor.trace("routingEngine.distanceToNearestCanalMeters(canalLabel)") {
+                routingEngine.distanceToNearestCanalMeters(pos)
+            }
+            if (distCanal > CameraTuning.canalLabelThresholdM) "Fuori canale"
+            else PerfMonitor.trace("routingEngine.nearestCanalName") {
+                routingEngine.nearestCanalName(pos, CameraTuning.canalLabelThresholdM) ?: "Canale sconosciuto"
+            }
+        }
+        return cachedCanalLabel
     }
 
     private fun checkSpeedHud(location: Location, pos: LatLng) {
-        if (!location.hasSpeed()) { binding.tvHudSpeed.visibility = View.GONE; return }
-        val speedKn   = location.speed * 3600f / 1852f
-        val speedKmh  = location.speed * 3.6f
-        val limitKn   = routingEngine.getMaxSpeedKnotsAt(pos)
-        val distCanal = routingEngine.distanceToNearestCanalMeters(pos)
-        val distStr   = if (distCanal < Double.MAX_VALUE / 2) " | %.0fm canal".format(distCanal) else ""
+        val unit = SpeedUnit.get(requireContext())
+        val speedMps = location.speed.toDouble()
+        val speedKn = speedMps * 3600.0 / 1852.0
+        val speedDisp = unit.fromMps(speedMps)
+        val limitKn = PerfMonitor.trace("routingEngine.getMaxSpeedKnotsAt") { routingEngine.getMaxSpeedKnotsAt(pos) }
 
-        binding.tvHudSpeed.visibility = View.VISIBLE
-        if (limitKn != null) {
-            val over = speedKn > limitKn
-            binding.tvHudSpeed.text = "%.1f kn (%.0f km/h) / Lim %.0f kn%s".format(speedKn, speedKmh, limitKn, distStr)
-            binding.tvHudSpeed.setTextColor(
-                if (over) resources.getColor(android.R.color.holo_red_light, null)
-                else resources.getColor(R.color.sea_white, null)
-            )
-        } else {
-            binding.tvHudSpeed.text = "%.1f kn (%.0f km/h)%s".format(speedKn, speedKmh, distStr)
-            binding.tvHudSpeed.setTextColor(resources.getColor(R.color.sea_white, null))
-        }
+        binding.speedometer.maxSpeed = unit.gaugeMax
+        binding.speedometer.unitLabel = unit.label
+        binding.speedometer.speed = speedDisp.toFloat()
+        binding.speedometer.speedLimit = limitKn?.let { unit.fromKnots(it).toFloat() }
+
+        // Manteniamo tvHudSpeed per debug o se vogliamo info extra, ma lo nascondiamo se non serve
+        binding.tvHudSpeed.visibility = View.GONE
     }
 
     // =================================================================
@@ -689,7 +882,283 @@ class MapFragment : Fragment() {
         }
         binding.cardNavBanner.visibility = View.VISIBLE
         binding.cardSearch.visibility    = View.GONE
+        setNavigationUiActive(true)
         startBgReroute()
+    }
+
+    /** HUD normale (canale) SOLO fuori navigazione; durante la
+     *  navigazione lo sostituiscono il chip in basso (tempo/distanza/arrivo).
+     *  Tachimetro e Altimetro restano sempre visibili. */
+    private fun setNavigationUiActive(active: Boolean) {
+        binding.cvHud.visibility       = if (active) View.GONE else View.VISIBLE
+        binding.cardNavChip.visibility = if (active) View.VISIBLE else View.GONE
+    }
+
+    // =================================================================
+    // SELEZIONE LUOGO / SALVA / PIANIFICAZIONE PERCORSO
+    // =================================================================
+    // Cercare o tenere premuto sulla mappa apre un popup di selezione (nome, coordinate, X per
+    // chiudere, Salva, Percorso) — NON calcola subito un percorso. "Percorso" apre la
+    // pianificazione (partenza/destinazione, zoom-to-fit, ETA) e solo da lì "Avvia" mette in
+    // follow mode e naviga sul serio. Finché una di queste UI è aperta, o c'è una navigazione
+    // attiva, un nuovo tap lungo sulla mappa non fa nulla (va chiuso tutto prima con la X).
+    // setDestinationAndRoute() sopra resta invariata ed esposta per DevTools, che vuole partire
+    // subito senza passare da tutto questo.
+
+    private var selectedPlacePos: LatLng? = null
+    private var selectedPlaceName: String = "Luogo"
+    private var selectedSaveType: PlaceType = PlaceType.GENERIC
+    // Non-null quando la schermata "Salva luogo" è aperta per MODIFICARE un luogo già salvato
+    // (tap su un pallino sulla mappa), invece che per salvarne uno nuovo: mostra "Elimina" e
+    // aggiorna l'esistente invece di crearne uno nuovo.
+    private var editingPlace: SavedPlace? = null
+
+    private var planningDest: LatLng? = null
+    private var planningRoute: List<LatLng>? = null
+
+    /** true se c'è già un popup/schermata di pianificazione aperta o una navigazione attiva:
+     *  in quel caso un nuovo tap lungo sulla mappa deve restare inerte finché non si chiude. */
+    private fun isMapInteractionLocked(): Boolean =
+        activeRoute != null ||
+        binding.cardPlaceDetail.visibility == View.VISIBLE ||
+        binding.cardRoutePlanning.visibility == View.VISIBLE ||
+        binding.cardSavePlace.visibility == View.VISIBLE
+
+    fun showPlaceDetail(pos: LatLng, name: String) {
+        if (isMapInteractionLocked()) return
+        selectedPlacePos = pos
+        selectedPlaceName = name
+
+        pendingSearchResult = null
+        binding.cardSearchResult.visibility = View.GONE
+        hidePlacesList()
+        binding.cardSearch.visibility = View.GONE
+
+        binding.tvPlaceDetailName.text = name
+        val canal = routingEngine.nearestCanalName(pos, 50.0) ?: "Laguna aperta"
+        binding.tvPlaceDetailCanal.text = canal
+        binding.cardPlaceDetail.visibility = View.VISIBLE
+        binding.speedometer.visibility = View.GONE
+        binding.altitudeView.visibility = View.GONE
+
+        // Segna il punto selezionato sulla mappa: altrimenti dopo il tap lungo/ricerca
+        // non si vede più dove avevi effettivamente premuto.
+        mapLibre?.getStyle { style -> drawDestination(style, pos) }
+        centerPointInUpperScreen(pos)
+    }
+
+    /** Nasconde la tastiera e toglie il focus dal campo che la teneva aperta — da richiamare
+     *  in OGNI punto che chiude un popup/schermata con la X, altrimenti se si stava scrivendo
+     *  (ricerca, nome/note del luogo) la tastiera resta aperta anche a schermata chiusa. */
+    private fun hideKeyboard() {
+        (requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+            .hideSoftInputFromWindow(binding.root.windowToken, 0)
+        activity?.currentFocus?.clearFocus()
+    }
+
+    private fun closePlaceDetail() {
+        hideKeyboard()
+        selectedPlacePos = null
+        binding.cardPlaceDetail.visibility = View.GONE
+        binding.cardSearch.visibility = View.VISIBLE
+        binding.speedometer.visibility = View.VISIBLE
+        binding.altitudeView.visibility = View.VISIBLE
+        mapLibre?.getStyle { style -> (style.getSource(SOURCE_DEST) as? GeoJsonSource)?.setGeoJson(emptyFc()) }
+    }
+
+    // --- Salva luogo (schermo intero) ---
+
+    private fun openSavePlaceScreen() {
+        if (selectedPlacePos == null) return
+        editingPlace = null
+        binding.btnSavePlaceDelete.visibility = View.GONE
+        binding.cardPlaceDetail.visibility = View.GONE
+        binding.etSavePlaceName.setText(selectedPlaceName)
+        binding.etSavePlaceNotes.setText("")
+        selectedSaveType = PlaceType.GENERIC
+        updateSaveTypeButtons()
+        binding.cardSavePlace.visibility = View.VISIBLE
+    }
+
+    /** Tap su un pallino già salvato sulla mappa: riapre la stessa schermata precompilata,
+     *  con "Elimina" visibile (vedi setupMap/tapOnSavedPlace per la ricerca del luogo). */
+    private fun editSavedPlace(place: SavedPlace) {
+        if (isMapInteractionLocked()) return
+        selectedPlacePos = place.toLatLng()
+        selectedPlaceName = place.name
+        editingPlace = place
+        selectedSaveType = place.type
+        binding.etSavePlaceName.setText(place.name)
+        binding.etSavePlaceNotes.setText(place.notes)
+        updateSaveTypeButtons()
+        binding.btnSavePlaceDelete.visibility = View.VISIBLE
+        binding.cardSearch.visibility = View.GONE
+        binding.cardSavePlace.visibility = View.VISIBLE
+        mapLibre?.getStyle { style -> drawDestination(style, place.toLatLng()) }
+        centerPointInUpperScreen(place.toLatLng())
+    }
+
+    private fun closeSavePlaceScreen() {
+        hideKeyboard()
+        selectedPlacePos = null
+        editingPlace = null
+        binding.cardSavePlace.visibility = View.GONE
+        binding.cardSearch.visibility = View.VISIBLE
+        mapLibre?.getStyle { style -> (style.getSource(SOURCE_DEST) as? GeoJsonSource)?.setGeoJson(emptyFc()) }
+    }
+
+    private fun confirmSavePlace() {
+        val pos = selectedPlacePos ?: return
+        val name = binding.etSavePlaceName.text.toString().trim().ifEmpty { selectedPlaceName }
+        val notes = binding.etSavePlaceNotes.text.toString().trim()
+        // addSaved() aggiorna sul posto se esiste già un luogo salvato alla stessa posizione
+        // (dedup per lat/lon in PlacesStore) — non serve altra logica per l'update.
+        PlacesStore.addSaved(requireContext(), SavedPlace(name, pos.latitude, pos.longitude, selectedSaveType, notes = notes))
+        // Niente Toast: la schermata si chiude e il pallino compare/si aggiorna sulla mappa,
+        // è già conferma visiva sufficiente senza sovrapporre altri popup.
+        closeSavePlaceScreen()
+        refreshSavedPlacesLayer()
+    }
+
+    private fun deleteEditingPlace() {
+        val place = editingPlace ?: return
+        PlacesStore.removeSaved(requireContext(), place)
+        closeSavePlaceScreen()
+        refreshSavedPlacesLayer()
+    }
+
+    private fun updateSaveTypeButtons() {
+        val selectedTint = android.content.res.ColorStateList.valueOf(Color.parseColor("#0091EA"))
+        val normalTint    = android.content.res.ColorStateList.valueOf(Color.parseColor("#F5F5F5"))
+        val selectedText = Color.WHITE
+        val normalText   = Color.parseColor("#444444")
+        
+        mapOf(
+            PlaceType.BERTH to binding.btnTypeBerth,
+            PlaceType.FAVORITE to binding.btnTypeFavorite,
+            PlaceType.TO_VISIT to binding.btnTypeSpecial,
+            PlaceType.GENERIC to binding.btnTypeGeneric
+        ).forEach { (type, btn) -> 
+            val isSelected = type == selectedSaveType
+            btn.backgroundTintList = if (isSelected) selectedTint else normalTint
+            btn.setTextColor(if (isSelected) selectedText else normalText)
+        }
+        binding.tvSavePlaceTypeLabel.text = selectedSaveType.label
+    }
+
+    private fun openRoutePlanning() {
+        val dest = selectedPlacePos ?: return
+        binding.cardPlaceDetail.visibility = View.GONE
+        planningDest = dest
+        planningRoute = null
+
+        val canal = routingEngine.nearestCanalName(dest, 50.0) ?: "Laguna aperta"
+        binding.tvRouteDestination.text = canal
+        binding.tvRoutePlanningTime.text = "-- min"
+        binding.tvRoutePlanningDist.text = "-- km"
+        binding.cardRoutePlanning.visibility = View.VISIBLE
+        binding.speedometer.visibility = View.GONE
+        binding.altitudeView.visibility = View.GONE
+        showPreviewRoute(null)
+
+        recalcPlanningRoute()
+    }
+
+    private fun recalcPlanningRoute() {
+        val dest = planningDest ?: return
+        val origin = lastGpsLocation?.let { LatLng(it.latitude, it.longitude) } ?: run {
+            binding.tvRoutePlanningTime.text = "N/A"
+            return
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            val route = withContext(Dispatchers.Default) { routingEngine.findRoute(origin, dest) }
+            if (planningDest != dest) return@launch  // pianificazione chiusa/sostituita nel frattempo
+            planningRoute = route
+            if (route == null) {
+                binding.tvRoutePlanningTime.text = "Errore"
+                binding.tvRoutePlanningDist.text = routingEngine.lastRoutingError
+                return@launch
+            }
+            val etaMin = routingEngine.calculateEstimatedTimeMinutes(route)
+            val distKm = routingEngine.calculateTotalDistance(route) / 1000.0
+            binding.tvRoutePlanningTime.text = "%d min".format(etaMin)
+            binding.tvRoutePlanningDist.text = "%.1f km".format(distKm)
+            showPreviewRoute(route)
+            mapLibre?.getStyle { style -> drawDestination(style, dest) }
+            zoomToFitRoute(route)
+        }
+    }
+
+    /** Zooma/pana la camera per contenere tutto il percorso, con un margine attorno.
+     * Considera che in basso c'è la card della pianificazione che copre una parte di mappa. */
+    private fun zoomToFitRoute(route: List<LatLng>) {
+        if (route.size < 2) return
+        val map = mapLibre ?: return
+        val boundsBuilder = org.maplibre.android.geometry.LatLngBounds.Builder()
+        route.forEach { boundsBuilder.include(it) }
+
+        val density = resources.displayMetrics.density
+        val paddingSide = (48 * density).toInt()
+        val paddingTop  = (48 * density).toInt()
+        val paddingBottom = (260 * density).toInt() // Spazio per la card in basso
+
+        map.animateCamera(CameraUpdateFactory.newLatLngBounds(
+            boundsBuilder.build(), 
+            paddingSide, paddingTop, paddingSide, paddingBottom
+        ), 1000)
+    }
+
+    /** Chiudere la pianificazione (X) senza premere "Avvia" NON deve buttare via la selezione:
+     *  torna al popup da cui si era partiti — la schermata di MODIFICA se il punto era già un
+     *  luogo salvato (editingPlace != null), altrimenti quella di PRIMA CREAZIONE (place-detail)
+     *  per un punto nuovo — così l'utente può ancora decidere di salvarlo, rinominarlo, ecc. */
+    private fun closeRoutePlanning() {
+        hideKeyboard()
+        val dest = planningDest
+        val name = selectedPlaceName
+        val wasEditingExisting = editingPlace
+        planningDest = null
+        planningRoute = null
+        binding.cardRoutePlanning.visibility = View.GONE
+        binding.speedometer.visibility = View.VISIBLE
+        binding.altitudeView.visibility = View.VISIBLE
+        showPreviewRoute(null)
+        mapLibre?.getStyle { style -> (style.getSource(SOURCE_DEST) as? GeoJsonSource)?.setGeoJson(emptyFc()) }
+
+        if (dest == null) {
+            // Niente da riaprire (caso limite): torna semplicemente alla mappa.
+            selectedPlacePos = null
+            binding.cardSearch.visibility = View.VISIBLE
+            return
+        }
+        if (wasEditingExisting != null) editSavedPlace(wasEditingExisting) else showPlaceDetail(dest, name)
+    }
+
+    private fun startPlannedRoute() {
+        val dest  = planningDest ?: return
+        val route = planningRoute ?: return  // percorso non ancora calcolato: nessun popup, semplicemente non fa nulla
+        destination = dest
+        activeRoute = route
+        currentWaypointIdx = 0
+        setFollowMode(true)
+
+        showPreviewRoute(null)  // il tratteggio verde non serve più: ora c'è il percorso vero
+        mapLibre?.getStyle { style ->
+            drawRouteSplit(style, route, 0)
+            drawDestination(style, dest)
+        }
+        binding.cardRoutePlanning.visibility = View.GONE
+        binding.speedometer.visibility = View.VISIBLE
+        binding.altitudeView.visibility = View.VISIBLE
+        binding.cardNavBanner.visibility     = View.VISIBLE
+        binding.cardSearch.visibility        = View.GONE
+        setNavigationUiActive(true)
+        startBgReroute()
+
+        PlacesStore.addRecent(requireContext(), SavedPlace(selectedPlaceName, dest.latitude, dest.longitude))
+        selectedPlacePos = null
+        planningDest = null
+        planningRoute = null
     }
 
     private fun updateNavigation(pos: LatLng) {
@@ -728,31 +1197,42 @@ class MapFragment : Fragment() {
         val distNext  = haversineLocal(pos, nextWp)
         val arrow     = bearingToArrow(bearingTo(pos, nextWp))
         val remaining = route.drop(currentWaypointIdx)
-        val etaMin    = routingEngine.calculateEstimatedTimeMinutes(remaining)
+        val etaMin    = PerfMonitor.trace("routingEngine.calculateEstimatedTimeMinutes") { routingEngine.calculateEstimatedTimeMinutes(remaining) }
         val distKm    = routingEngine.calculateTotalDistance(remaining) / 1000.0
 
         val distCanal = routingEngine.distanceToNearestCanalMeters(pos)
         val offCanal  = distCanal > OFF_CANAL_THRESHOLD_M && !routingEngine.isAtSea(pos)
 
+        // Banner in alto: icona svolta + distanza dalla prossima svolta + canale su cui siamo ora.
         if (offCanal) {
             binding.cardNavBanner.setCardBackgroundColor(Color.parseColor("#CC880000"))
-            binding.tvNavInstruction.text = "Fuori canale! (%.0f m)".format(distCanal)
-            binding.tvNavDetail.text      = "ETA: %d min | %.1f km".format(etaMin, distKm)
+            binding.tvNavArrow.text       = "!"
+            binding.tvNavInstruction.text = "Fuori canale"
+            binding.tvNavCanal.text       = "%.0f m dal canale più vicino".format(distCanal)
             // Il ricalcolo è gestito dal background job ogni 5 secondi — nessun trigger qui
         } else {
-            binding.cardNavBanner.setCardBackgroundColor(Color.parseColor("#CC003366"))
-            binding.tvNavInstruction.text = "$arrow  %.0f m".format(distNext)
-            binding.tvNavDetail.text      = "ETA: %d min | %.1f km".format(etaMin, distKm)
+            binding.cardNavBanner.setCardBackgroundColor(Color.parseColor("#00695C"))
+            binding.tvNavArrow.text       = arrow
+            binding.tvNavInstruction.text = "%.0f m".format(distNext)
+            binding.tvNavCanal.text       = canalLocationLabel(pos)
         }
+
+        // Chip in basso (al posto dell'HUD): tempo residuo, distanza, orario di arrivo stimato.
+        val arrivalTime = java.text.SimpleDateFormat("HH:mm", Locale.getDefault())
+            .format(java.util.Date(System.currentTimeMillis() + etaMin * 60_000L))
+        binding.tvNavChipTime.text   = "%d min".format(etaMin)
+        binding.tvNavChipDetail.text = "%.1f km · %s".format(distKm, arrivalTime)
     }
 
     /** Cancella il percorso attivo. Esposto per DevToolsFragment. */
     fun cancelRoute() {
+        hideKeyboard()
         bgRerouteJob?.cancel()
         activeRoute = null; destination = null; currentWaypointIdx = 0
         setFollowMode(false)
         binding.cardNavBanner.visibility = View.GONE
         binding.cardSearch.visibility    = View.VISIBLE
+        setNavigationUiActive(false)
         mapLibre?.getStyle { style ->
             (style.getSource(SOURCE_ROUTE)      as? GeoJsonSource)?.setGeoJson(emptyFc())
             (style.getSource(SOURCE_ROUTE_DONE) as? GeoJsonSource)?.setGeoJson(emptyFc())
@@ -775,8 +1255,113 @@ class MapFragment : Fragment() {
         }
         binding.btnSearch.setOnClickListener { performSearch() }
         binding.btnNavigateTo.setOnClickListener {
-            pendingSearchResult?.let { setDestinationAndRoute(it) }
+            pendingSearchResult?.let { showPlaceDetail(it, binding.tvSearchResultName.text.toString()) }
         }
+
+        // Lista luoghi (salvati/recenti): visibile quando la barra ha il focus ed è vuota,
+        // come la cronologia di Google Maps.
+        binding.etSearch.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus && binding.etSearch.text.isNullOrBlank()) showPlacesList() else hidePlacesList()
+            // Con la tastiera aperta l'HUD in basso non deve comparire spinto a metà schermo:
+            // lo nascondiamo finché si sta scrivendo (fuori navigazione, dove l'HUD non c'è già).
+            if (activeRoute == null) binding.cvHud.visibility = if (hasFocus) View.GONE else View.VISIBLE
+        }
+        binding.etSearch.addTextChangedListener { text ->
+            if (text.isNullOrBlank()) { if (binding.etSearch.hasFocus()) showPlacesList() }
+            else hidePlacesList()
+        }
+
+        // Popup selezione luogo
+        binding.btnPlaceDetailClose.setOnClickListener { closePlaceDetail() }
+        binding.btnPlaceDetailSave.setOnClickListener { openSavePlaceScreen() }
+        binding.btnPlaceDetailRoute.setOnClickListener { openRoutePlanning() }
+
+        // Schermata Salva luogo
+        binding.btnSavePlaceClose.setOnClickListener { closeSavePlaceScreen() }
+        binding.btnSavePlaceConfirm.setOnClickListener { confirmSavePlace() }
+        binding.btnSavePlaceDelete.setOnClickListener { deleteEditingPlace() }
+        binding.btnSavePlaceRoute.setOnClickListener {
+            // NON chiudiamo lo stato con closeSavePlaceScreen()/confirmSavePlace(): altrimenti
+            // openRoutePlanning() qui sotto trova selectedPlacePos già nullo e non apre nulla.
+            //
+            // Salvataggio in PlacesStore SOLO se stiamo modificando un luogo GIÀ salvato
+            // (editingPlace != null): lì l'utente ha già scelto di tenerlo, ha senso aggiornare
+            // le modifiche fatte prima di navigare. Su un punto NUOVO invece "Itinerario" deve
+            // SOLO calcolare il percorso, senza salvarlo per sempre — altrimenti ogni volta che
+            // chiedi indicazioni verso un punto qualsiasi te lo ritrovi tra i luoghi salvati
+            // senza aver mai premuto "Salva".
+            val pos = selectedPlacePos
+            if (pos != null) {
+                val name = binding.etSavePlaceName.text.toString().trim().ifEmpty { selectedPlaceName }
+                selectedPlaceName = name
+                if (editingPlace != null) {
+                    val notes = binding.etSavePlaceNotes.text.toString().trim()
+                    PlacesStore.addSaved(requireContext(), SavedPlace(name, pos.latitude, pos.longitude, selectedSaveType, notes = notes))
+                    refreshSavedPlacesLayer()
+                }
+            }
+            hideKeyboard()
+            binding.cardSavePlace.visibility = View.GONE
+            openRoutePlanning()
+        }
+        binding.btnTypeBerth.setOnClickListener { selectedSaveType = PlaceType.BERTH; updateSaveTypeButtons() }
+        binding.btnTypeFavorite.setOnClickListener { selectedSaveType = PlaceType.FAVORITE; updateSaveTypeButtons() }
+        binding.btnTypeSpecial.setOnClickListener { selectedSaveType = PlaceType.TO_VISIT; updateSaveTypeButtons() }
+        binding.btnTypeGeneric.setOnClickListener { selectedSaveType = PlaceType.GENERIC; updateSaveTypeButtons() }
+
+        // Pianificazione percorso
+        binding.btnRoutePlanningCancel.setOnClickListener { closeRoutePlanning() }
+        binding.btnRoutePlanningStart.setOnClickListener { startPlannedRoute() }
+    }
+
+    // =================================================================
+    // LISTA LUOGHI — salvati (ancora/preferito/speciale/generico) + recenti
+    // =================================================================
+
+    private fun showPlacesList() {
+        val ctx = requireContext()
+        val container = binding.layoutPlacesList
+        container.removeAllViews()
+        var any = false
+
+        PlacesStore.getSaved(ctx)
+            .sortedBy { it.type.ordinal }
+            .forEach { place ->
+                addPlaceRow(container, "${place.type.icon} ${place.name}", place.type.label) { selectPlace(place) }
+                any = true
+            }
+        PlacesStore.getRecents(ctx).forEach { rec ->
+            addPlaceRow(container, rec.name, "Recente") { selectPlace(rec) }
+            any = true
+        }
+        binding.cardPlaces.visibility = if (any) View.VISIBLE else View.GONE
+    }
+
+    private fun hidePlacesList() {
+        _binding?.cardPlaces?.visibility = View.GONE
+    }
+
+    private fun selectPlace(place: SavedPlace) {
+        hideKeyboard()
+        hidePlacesList()
+        editSavedPlace(place)
+    }
+
+    private fun addPlaceRow(container: LinearLayout, title: String, subtitle: String, onClick: () -> Unit) {
+        val ctx = requireContext()
+        val outValue = TypedValue()
+        ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+        val row = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 24, 32, 24)
+            isClickable = true
+            isFocusable = true
+            setBackgroundResource(outValue.resourceId)
+            setOnClickListener { onClick() }
+        }
+        row.addView(TextView(ctx).apply { text = title; textSize = 14f; setTextColor(Color.WHITE) })
+        row.addView(TextView(ctx).apply { text = subtitle; textSize = 11f; setTextColor(Color.LTGRAY) })
+        container.addView(row)
     }
 
     private fun performSearch() {
@@ -858,7 +1443,27 @@ class MapFragment : Fragment() {
             )
         }
 
-        binding.btnCancelRoute.setOnClickListener { cancelRoute() }
+        binding.btnNavChipClose.setOnClickListener { cancelRoute() }
+
+        // Banner GPS disattivato: tap -> apre le impostazioni di localizzazione di sistema
+        binding.cardGpsDisabled.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+        }
+    }
+
+    // =================================================================
+    // GPS ATTIVO/DISATTIVATO (solo Mappa reale, non Dev Tools)
+    // =================================================================
+
+    private val gpsStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) = updateGpsEnabledBanner()
+    }
+
+    private fun updateGpsEnabledBanner() {
+        if (debugMode || _binding == null) return
+        val lm = requireContext().getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val enabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        binding.cardGpsDisabled.visibility = if (!enabled) View.VISIBLE else View.GONE
     }
 
     // =================================================================
@@ -969,6 +1574,33 @@ class MapFragment : Fragment() {
     // GEOMETRIA
     // =================================================================
 
+    private fun screenDistance(a: android.graphics.PointF, b: android.graphics.PointF): Float {
+        val dx = a.x - b.x; val dy = a.y - b.y
+        return sqrt(dx * dx + dy * dy)
+    }
+
+    /** Sposta la camera in modo che "pos" finisca nella parte centro-alta dello schermo invece
+     *  che al centro esatto: i popup (place-detail, salva luogo) occupano la parte bassa dello
+     *  schermo e coprirebbero il punto appena selezionato. Calcolato tramite la projection
+     *  corrente (screen -> LatLng e viceversa) così funziona anche con bearing/tilt della
+     *  camera, non solo con la mappa orientata a nord. */
+    private fun centerPointInUpperScreen(pos: LatLng) {
+        val map = mapLibre ?: return
+        val width = binding.mapView.width.toFloat()
+        val height = binding.mapView.height.toFloat()
+        if (width <= 0f || height <= 0f) return
+        val projection = map.projection
+        val currentScreenPos = projection.toScreenLocation(pos)
+        val screenCenter = android.graphics.PointF(width / 2f, height / 2f)
+        val desiredScreenPos = android.graphics.PointF(width / 2f, height * 0.3f)
+        val newTargetScreen = android.graphics.PointF(
+            currentScreenPos.x + screenCenter.x - desiredScreenPos.x,
+            currentScreenPos.y + screenCenter.y - desiredScreenPos.y
+        )
+        val newTarget = projection.fromScreenLocation(newTargetScreen)
+        map.easeCamera(CameraUpdateFactory.newLatLng(newTarget), 400)
+    }
+
     private fun haversineLocal(a: LatLng, b: LatLng): Double {
         val r    = 6371000.0
         val dLat = Math.toRadians(b.latitude - a.latitude)
@@ -1005,8 +1637,18 @@ class MapFragment : Fragment() {
         binding.mapView.onResume()
         startPositionTracking()
         startCameraLoop()
+        refreshSavedPlacesLayer()
         // Riavvia il controllo percorso ottimale se c'è una navigazione attiva
         if (activeRoute != null && destination != null) startBgReroute()
+
+        // Banner "GPS disattivato": solo sulla Mappa reale, non in Dev Tools (simulatore).
+        if (!debugMode) {
+            updateGpsEnabledBanner()
+            ContextCompat.registerReceiver(
+                requireContext(), gpsStateReceiver, IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        }
     }
 
     override fun onPause() {
@@ -1014,8 +1656,12 @@ class MapFragment : Fragment() {
         binding.mapView.onPause()
         stopPositionTracking()
         stopCameraLoop()
-        
+
         bgRerouteJob?.cancel()
+
+        if (!debugMode) {
+            try { requireContext().unregisterReceiver(gpsStateReceiver) } catch (_: IllegalArgumentException) {}
+        }
     }
 
     override fun onStop() {

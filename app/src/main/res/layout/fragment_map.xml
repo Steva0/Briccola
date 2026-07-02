@@ -63,6 +63,30 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
+    <!-- Banner GPS disattivato: visibile solo sulla Mappa reale (non in Dev Tools, dove si usa
+         il simulatore). Tap -> apre le impostazioni di localizzazione di sistema. -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_gps_disabled"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="80dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="#CC880000"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="6dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:text="GPS disattivato — tocca per attivarlo"
+            android:textColor="@color/white"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </androidx.cardview.widget.CardView>
+
     <!-- Risultato ricerca -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_search_result"
@@ -95,9 +119,229 @@
                 android:id="@+id/btn_navigate_to"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
-                android:text="Naviga qui"
+                android:text="Vedi percorso"
                 android:textSize="12sp"
                 app:backgroundTint="@color/marine_blue" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Lista luoghi: Posto Barca / Preferiti / Recenti. Visibile quando la barra di ricerca
+         ha il focus ed è vuota (come la cronologia di Google Maps), nascosta appena si digita
+         o si seleziona qualcosa. -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_places"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="80dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="#DD111111"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="6dp">
+
+        <LinearLayout
+            android:id="@+id/layout_places_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingVertical="4dp" />
+    </androidx.cardview.widget.CardView>
+
+    <!-- Popup selezione luogo: stile Waze.
+         Compare dopo tap lungo sulla mappa. Mostra nome canale e azioni. -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_place_detail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_margin="12dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="top"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_place_detail_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:text="Punto sulla mappa"
+                        android:textColor="#222222"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_place_detail_canal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Canale"
+                        android:textColor="#666666"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/btn_place_detail_close"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Chiudi"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    app:tint="#444444" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_place_detail_save"
+                    android:layout_width="0dp"
+                    android:layout_height="54dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="Salva"
+                    android:textAllCaps="false"
+                    android:textColor="#0091EA"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="#F0F7FF"
+                    app:cornerRadius="27dp"
+                    app:strokeColor="#0091EA"
+                    app:strokeWidth="1dp" />
+
+                <Button
+                    android:id="@+id/btn_place_detail_route"
+                    android:layout_width="0dp"
+                    android:layout_height="54dp"
+                    android:layout_weight="1.2"
+                    android:text="Itinerario"
+                    android:textAllCaps="false"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="#0091EA"
+                    app:cornerRadius="27dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Pianificazione percorso stile Waze: riassunto e bottoni Partenza/Annulla -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_route_planning"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_margin="12dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/tv_route_planning_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- min"
+                    android:textColor="#222222"
+                    android:textSize="28sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_route_planning_dist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:text="-- km"
+                    android:textColor="#666666"
+                    android:textSize="16sp" />
+            </RelativeLayout>
+
+            <TextView
+                android:id="@+id/tv_route_destination"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="Destinazione"
+                android:textColor="#222222"
+                android:textSize="18sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Itinerario migliore, traffico normale"
+                android:textColor="#0091EA"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_route_planning_cancel"
+                    android:layout_width="0dp"
+                    android:layout_height="54dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="12dp"
+                    android:text="Annulla"
+                    android:textAllCaps="false"
+                    android:textColor="#666666"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="#F2F2F2"
+                    app:cornerRadius="27dp" />
+
+                <Button
+                    android:id="@+id/btn_route_planning_start"
+                    android:layout_width="0dp"
+                    android:layout_height="54dp"
+                    android:layout_weight="1"
+                    android:text="Partenza"
+                    android:textAllCaps="false"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="#0091EA"
+                    app:cornerRadius="27dp" />
+            </LinearLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
@@ -109,16 +353,28 @@
         android:layout_gravity="top"
         android:layout_margin="12dp"
         android:visibility="gone"
-        app:cardBackgroundColor="#CC003366"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="6dp">
+        app:cardBackgroundColor="#00695C"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="8dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="12dp">
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="16dp">
+
+            <TextView
+                android:id="@+id/tv_nav_arrow"
+                android:layout_width="48dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
+                android:gravity="center"
+                android:text="↑"
+                android:textColor="@color/white"
+                android:textSize="42sp"
+                android:textStyle="bold" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -132,26 +388,19 @@
                     android:layout_height="wrap_content"
                     android:text="-- m"
                     android:textColor="@color/white"
-                    android:textSize="18sp"
+                    android:textSize="24sp"
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/tv_nav_detail"
+                    android:id="@+id/tv_nav_canal"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
                     android:text="Calcolo..."
-                    android:textColor="@color/sea_white"
-                    android:textSize="12sp" />
+                    android:textColor="#B2DFDB"
+                    android:textSize="14sp" />
             </LinearLayout>
-
-            <ImageButton
-                android:id="@+id/btn_cancel_route"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Annulla navigazione"
-                android:src="@android:drawable/ic_menu_close_clear_cancel"
-                app:tint="@color/white" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
@@ -163,31 +412,33 @@
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="80dp"
         app:cardBackgroundColor="#CC003366"
-        app:cardCornerRadius="8dp"
+        app:cardCornerRadius="24dp"
         app:cardElevation="4dp">
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="10dp">
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="8dp">
 
             <TextView
                 android:id="@+id/tv_hud_depth"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Profondita': -- m"
+                android:text="Canale"
                 android:textColor="@color/white"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tv_hud_coords"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Lat: --, Lon: --"
+                android:text="Profondità"
                 android:textColor="@color/sea_white"
-                android:textSize="11sp" />
+                android:textSize="11sp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/tv_hud_speed"
@@ -199,6 +450,83 @@
                 android:visibility="gone" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
+
+    <!-- Chip navigazione attiva: stile Google Maps.
+         X per uscire, tempo residuo grande, distanza + orario di arrivo. -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_nav_chip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="30dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="32dp"
+        app:cardElevation="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp">
+
+            <ImageButton
+                android:id="@+id/btn_nav_chip_close"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Esci dalla navigazione"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                app:tint="#444444" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="20dp"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_nav_chip_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- min"
+                    android:textColor="#1B5E20"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_nav_chip_detail"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- km · --:--"
+                    android:textColor="#666666"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Tachimetro stile Waze: visibile sempre se possibile, o solo in nav. -->
+    <it.lagunav.openlagunamaps.ui.SpeedometerView
+        android:id="@+id/speedometer"
+        android:layout_width="90dp"
+        android:layout_height="90dp"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="16dp"
+        android:visibility="visible" />
+
+    <!-- Altimetro (Profondità) specchiato al tachimetro -->
+    <it.lagunav.openlagunamaps.ui.AltitudeView
+        android:id="@+id/altitude_view"
+        android:layout_width="90dp"
+        android:layout_height="90dp"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="16dp"
+        android:visibility="visible" />
+
 
     <!-- Bussola custom: top-right sotto la barra di ricerca.
          Visibile quando la mappa e' ruotata (follow mode o rotazione manuale).
@@ -246,7 +574,7 @@
         android:id="@+id/layout_centra"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|start"
+        android:layout_gravity="bottom|end"
         android:layout_margin="12dp"
         android:gravity="center"
         android:orientation="vertical"
@@ -262,5 +590,204 @@
             app:fabSize="mini"
             app:tint="@color/white" />
     </LinearLayout>
+
+    <!-- Schermata "Salva luogo" in stile Bottom Sheet -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_save_place"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_margin="12dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Salva nell'elenco"
+                    android:textColor="#222222"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <ImageButton
+                    android:id="@+id/btn_save_place_close"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Chiudi"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    app:tint="#444444" />
+            </LinearLayout>
+
+            <EditText
+                android:id="@+id/et_save_place_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:background="@null"
+                android:hint="Nome del luogo"
+                android:inputType="text"
+                android:maxLines="1"
+                android:textColor="#222222"
+                android:textSize="18sp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="4dp"
+                android:background="#EEEEEE" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="Categoria"
+                android:textColor="#666666"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_type_berth"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="⚓"
+                    android:textSize="22sp"
+                    app:backgroundTint="#F5F5F5"
+                    app:cornerRadius="16dp" />
+
+                <Button
+                    android:id="@+id/btn_type_favorite"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="♥"
+                    android:textSize="22sp"
+                    app:backgroundTint="#F5F5F5"
+                    app:cornerRadius="16dp" />
+
+                <Button
+                    android:id="@+id/btn_type_special"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="🚩"
+                    android:textSize="22sp"
+                    app:backgroundTint="#F5F5F5"
+                    app:cornerRadius="16dp" />
+
+                <Button
+                    android:id="@+id/btn_type_generic"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:text="📍"
+                    android:textSize="22sp"
+                    app:backgroundTint="#F5F5F5"
+                    app:cornerRadius="16dp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_save_place_type_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:text="Luogo"
+                android:textColor="#0091EA"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/et_save_place_notes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:background="@drawable/bg_notes_input"
+                android:gravity="top"
+                android:hint="Aggiungi una nota su questo luogo..."
+                android:inputType="textMultiLine"
+                android:minLines="3"
+                android:padding="12dp"
+                android:textColor="#444444"
+                android:textSize="14sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/btn_save_place_delete"
+                    android:layout_width="54dp"
+                    android:layout_height="54dp"
+                    android:layout_marginEnd="8dp"
+                    android:contentDescription="Elimina"
+                    android:src="@android:drawable/ic_menu_delete"
+                    android:visibility="gone"
+                    app:backgroundTint="#D32F2F"
+                    app:elevation="0dp"
+                    app:fabCustomSize="54dp"
+                    app:maxImageSize="24dp"
+                    app:pressedTranslationZ="0dp"
+                    app:tint="@color/white" />
+
+                <Button
+                    android:id="@+id/btn_save_place_route"
+                    android:layout_width="0dp"
+                    android:layout_height="54dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="Itinerario"
+                    android:textAllCaps="false"
+                    android:textColor="#0091EA"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="#F0F7FF"
+                    app:cornerRadius="27dp"
+                    app:strokeColor="#0091EA"
+                    app:strokeWidth="1dp" />
+
+                <Button
+                    android:id="@+id/btn_save_place_confirm"
+                    android:layout_width="0dp"
+                    android:layout_height="54dp"
+                    android:layout_weight="1"
+                    android:text="Salva"
+                    android:textAllCaps="false"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="#0091EA"
+                    app:cornerRadius="27dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
 </FrameLayout>

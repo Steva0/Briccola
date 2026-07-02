@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.0-cam13-canal100"
+        versionCode = 39
+        versionName = "1.6-centra-punto-selezionato"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

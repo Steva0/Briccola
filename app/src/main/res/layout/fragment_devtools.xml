@@ -22,6 +22,14 @@
         app:cardCornerRadius="8dp"
         app:cardElevation="6dp">
 
+        <!-- Compatto quando il contenuto ci sta (es. poche voci), scorrevole solo oltre
+             maxHeight (es. pannello Settaggi Dev con molti slider). -->
+        <it.lagunav.openlagunamaps.ui.MaxHeightScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxHeight="420dp"
+            android:scrollbars="vertical">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -296,6 +304,153 @@
                     android:layout_height="wrap_content"
                     android:max="300" />
 
+                <!-- Tachimetro/Altimetro sono specchiati (stessa dimensione/posizione, lato
+                     opposto): un solo slider per ciascuno vale per entrambi. -->
+                <TextView
+                    android:id="@+id/tv_tune_gauge_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_gauge_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/tv_tune_gauge_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_gauge_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="150" />
+
+                <TextView
+                    android:id="@+id/tv_tune_gauge_stack_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_gauge_stack_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <TextView
+                    android:id="@+id/tv_tune_saved_place_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_saved_place_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <TextView
+                    android:id="@+id/tv_tune_follow_btn_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_follow_btn_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="600" />
+
+                <TextView
+                    android:id="@+id/tv_tune_follow_btn_offset_x"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_follow_btn_offset_x"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="600" />
+
+                <TextView
+                    android:id="@+id/tv_tune_follow_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_follow_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <TextView
+                    android:id="@+id/tv_tune_map_object_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_map_object_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <TextView
+                    android:id="@+id/tv_tune_hud_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_hud_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="150" />
+
+                <TextView
+                    android:id="@+id/tv_tune_save_place_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_save_place_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/tv_tune_delete_place_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_delete_place_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/tv_tune_save_place_text_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_save_place_text_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
                 <Button
                     android:id="@+id/btn_reset_tuning"
                     android:layout_width="match_parent"
@@ -317,6 +472,7 @@
                 android:textColor="#FF00FF"
                 android:textSize="9sp" />
         </LinearLayout>
+        </it.lagunav.openlagunamaps.ui.MaxHeightScrollView>
     </androidx.cardview.widget.CardView>
 
     <!-- Joystick simulatore: SEMPRE visibile in Dev Tools (fondo centro) -->

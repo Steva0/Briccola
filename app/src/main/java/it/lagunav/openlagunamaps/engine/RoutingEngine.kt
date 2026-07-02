@@ -37,6 +37,15 @@ class RoutingEngine(private val context: Context) {
     // Segmenti di canale CON NOME (da laguna_vettoriale.json, tag OSM "name"), separati dagli
     // archi del grafo di routing (graph.json) che non hanno nomi. Usati solo per l'HUD.
     private val namedCanalSegments = mutableListOf<NamedSegment>()
+    // Griglia spaziale per namedCanalSegments (costruita qui in Kotlin, a differenza di
+    // spatialGrid che arriva precalcolata dal grafo Python): senza indice, nearestCanalName
+    // scansionava linearmente MIGLIAIA di segmenti ad ogni chiamata (~44ms per chiamata,
+    // misurato con PerfMonitor — uno scatto pieno sul thread principale ad ogni refresh).
+    private val namedCanalGrid = mutableMapOf<Long, MutableList<Int>>()  // cellKey -> indici in namedCanalSegments
+    private val NAMED_CANAL_CELL_DEG = 0.003  // stessa scala della griglia di routing (~250-330m)
+
+    private fun namedCanalCellKey(lat: Double, lon: Double): Long =
+        (lat / NAMED_CANAL_CELL_DEG).toInt().toLong() * 100_000L + (lon / NAMED_CANAL_CELL_DEG).toInt().toLong()
 
     // Dati precalcolati dal build Python (precalcola_grafo.py).
     // Vengono caricati da graph.json insieme agli archi e nodi, quindi costo = solo lettura JSON.
@@ -188,7 +197,13 @@ class RoutingEngine(private val context: Context) {
 
                 val canalName = props["name"]?.jsonPrimitive?.contentOrNull
                 if (type == "LineString" && props["type"]?.jsonPrimitive?.contentOrNull == "canal" && canalName != null) {
-                    for (i in 0 until lls.size - 1) namedCanalSegments.add(NamedSegment(canalName, lls[i], lls[i + 1]))
+                    for (i in 0 until lls.size - 1) {
+                        val idx = namedCanalSegments.size
+                        namedCanalSegments.add(NamedSegment(canalName, lls[i], lls[i + 1]))
+                        val midLat = (lls[i].latitude + lls[i + 1].latitude) / 2.0
+                        val midLon = (lls[i].longitude + lls[i + 1].longitude) / 2.0
+                        namedCanalGrid.getOrPut(namedCanalCellKey(midLat, midLon)) { mutableListOf() }.add(idx)
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -307,9 +322,17 @@ class RoutingEngine(private val context: Context) {
 
     /**
      * Snap al canale più vicino usando la griglia spaziale precalcolata.
-     * Ricerca nelle celle vicine al punto (raggio ~3 celle) invece di scorrere
+     * Ricerca nelle celle vicine al punto (raggio ~2 celle) invece di scorrere
      * tutti i 15k+ archi — da O(N) a O(~30-50 archi), speedup ~300-500x.
-     * Fallback a forza bruta se la griglia non è disponibile o la cella è vuota.
+     *
+     * Se la griglia NON è caricata affatto (bug di parsing di graph.json), fallback a forza
+     * bruta su tutti gli archi — rete di sicurezza per un caso che non dovrebbe capitare.
+     * Se invece la griglia è caricata ma il punto è troppo lontano da qualsiasi arco coperto
+     * (fuori dalla laguna, es. mentre testi da casa/ufficio) NON si fa più fallback a forza
+     * bruta: misurato con PerfMonitor, una scansione di 15k archi costa ~40ms, e se il punto
+     * resta fuori copertura viene ripetuta ad ogni chiamata (fino a 20/s con l'HUD). "Nessun
+     * canale vicino" è comunque la risposta corretta in quel caso — i chiamanti (findRoute,
+     * getMaxSpeedKnotsAt, distanceToNearestCanalMeters) già gestiscono un risultato null.
      */
     private fun snapToNearestEdge(p: LatLng): EdgeSnap? {
         val candidateEdgeIndices = mutableSetOf<Int>()
@@ -323,10 +346,11 @@ class RoutingEngine(private val context: Context) {
                 }
             }
         }
-        val candidates = if (candidateEdgeIndices.isNotEmpty())
-            candidateEdgeIndices.map { edges[it] }
-        else
-            edges   // fallback a forza bruta
+        val candidates = when {
+            candidateEdgeIndices.isNotEmpty() -> candidateEdgeIndices.map { edges[it] }
+            spatialGrid.isEmpty() -> edges   // griglia non caricata: unico caso con fallback a forza bruta
+            else -> return null              // griglia caricata ma punto fuori copertura: nessun canale vicino
+        }
 
         var best: EdgeSnap? = null
         var bestDist = Double.MAX_VALUE
@@ -620,14 +644,30 @@ class RoutingEngine(private val context: Context) {
         return haversine(p.latitude, p.longitude, snap.point.latitude, snap.point.longitude)
     }
 
-    /** Nome del canale (con nome noto) più vicino al punto, entro [maxDistanceM]. Solo per HUD. */
+    /**
+     * Nome del canale (con nome noto) più vicino al punto, entro [maxDistanceM]. Solo per HUD.
+     * Usa namedCanalGrid per limitare il confronto ai segmenti nelle celle vicine (±2 celle,
+     * ~1.3km di lato — abbondante rispetto ai 100-300m tipici della soglia), invece di
+     * scansionare tutti i segmenti con nome della laguna.
+     */
     fun nearestCanalName(p: LatLng, maxDistanceM: Double = 40.0): String? {
         var bestName: String? = null
         var bestDist = Double.MAX_VALUE
-        for (seg in namedCanalSegments) {
-            val closest = closestPointOnSegment(p, seg.a, seg.b)
-            val d = haversine(p.latitude, p.longitude, closest.latitude, closest.longitude)
-            if (d < bestDist) { bestDist = d; bestName = seg.name }
+        val rowCenter = (p.latitude / NAMED_CANAL_CELL_DEG).toInt()
+        val colCenter = (p.longitude / NAMED_CANAL_CELL_DEG).toInt()
+        val seen = HashSet<Int>()
+        for (dr in -2..2) {
+            for (dc in -2..2) {
+                val key = (rowCenter + dr).toLong() * 100_000L + (colCenter + dc).toLong()
+                val bucket = namedCanalGrid[key] ?: continue
+                for (idx in bucket) {
+                    if (!seen.add(idx)) continue
+                    val seg = namedCanalSegments[idx]
+                    val closest = closestPointOnSegment(p, seg.a, seg.b)
+                    val d = haversine(p.latitude, p.longitude, closest.latitude, closest.longitude)
+                    if (d < bestDist) { bestDist = d; bestName = seg.name }
+                }
+            }
         }
         return if (bestDist <= maxDistanceM) bestName else null
     }

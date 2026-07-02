@@ -10,6 +10,7 @@ import android.widget.ArrayAdapter
 import androidx.fragment.app.Fragment
 import it.lagunav.openlagunamaps.R
 import it.lagunav.openlagunamaps.databinding.FragmentSettingsBinding
+import it.lagunav.openlagunamaps.engine.SpeedUnit
 import java.util.Locale
 
 class SettingsFragment : Fragment() {
@@ -31,7 +32,27 @@ class SettingsFragment : Fragment() {
 
         setupDraftSlider()
         setupSpinners()
+        setupSpeedUnit()
         loadSettings()
+    }
+
+    private fun setupSpeedUnit() {
+        val current = SpeedUnit.get(requireContext())
+        binding.radioSpeedUnit.check(
+            when (current) {
+                SpeedUnit.KMH -> R.id.radio_kmh
+                SpeedUnit.KNOTS -> R.id.radio_knots
+                SpeedUnit.MPH -> R.id.radio_mph
+            }
+        )
+        binding.radioSpeedUnit.setOnCheckedChangeListener { _, checkedId ->
+            val unit = when (checkedId) {
+                R.id.radio_knots -> SpeedUnit.KNOTS
+                R.id.radio_mph -> SpeedUnit.MPH
+                else -> SpeedUnit.KMH
+            }
+            SpeedUnit.set(requireContext(), unit)
+        }
     }
 
     private fun setupDraftSlider() {

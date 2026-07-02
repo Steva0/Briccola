@@ -14,6 +14,7 @@ import it.lagunav.openlagunamaps.databinding.FragmentDevtoolsBinding
 import it.lagunav.openlagunamaps.engine.CameraTuning
 import it.lagunav.openlagunamaps.engine.SimulatedPositionProvider
 import it.lagunav.openlagunamaps.engine.SimulatorHub
+import it.lagunav.openlagunamaps.engine.UiTuning
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -126,6 +127,7 @@ class DevToolsFragment : Fragment() {
 
     private fun setupCameraSettingsPanel() {
         CameraTuning.load(requireContext())
+        UiTuning.load(requireContext())
 
         fun refreshLabels() {
             binding.tvTuneRenderDelay.text = "Ritardo render: ${CameraTuning.renderDelayMs} ms"
@@ -138,6 +140,18 @@ class DevToolsFragment : Fragment() {
             binding.tvTuneFps.text         = "FPS barca/camera: ${(1000.0 / CameraTuning.frameIntervalMs).roundToInt()}"
             binding.tvTuneHudRefresh.text  = "Refresh HUD (profondità/velocità/canale): ${(1000.0 / CameraTuning.hudIntervalMs).roundToInt()} Hz"
             binding.tvTuneCanalThreshold.text = "Soglia \"Fuori canale\": %.0f m".format(CameraTuning.canalLabelThresholdM)
+            binding.tvTuneGaugeScale.text      = "Scala tachimetro/altimetro: %.2fx".format(UiTuning.gaugeScale)
+            binding.tvTuneGaugeOffset.text     = "Posizione tachimetro/altimetro: %.0f dp".format(UiTuning.gaugeOffsetYDp)
+            binding.tvTuneGaugeStackOffset.text = "Distanza altimetro sopra il tachimetro: %.0f dp".format(UiTuning.gaugeStackOffsetDp)
+            binding.tvTuneSavedPlaceScale.text = "Scala luoghi salvati: %.2fx".format(UiTuning.savedPlaceScale)
+            binding.tvTuneFollowBtnOffset.text = "Posizione pulsante Segui (Y): %.0f dp".format(UiTuning.followBtnOffsetYDp)
+            binding.tvTuneFollowBtnOffsetX.text = "Posizione pulsante Segui (X): %.0f dp".format(UiTuning.followBtnOffsetXDp)
+            binding.tvTuneFollowBtnScale.text = "Scala pulsante Segui: %.2fx".format(UiTuning.followBtnScale)
+            binding.tvTuneMapObjectScale.text  = "Scala oggetti mappa (icona barca): %.2fx".format(UiTuning.mapObjectScale)
+            binding.tvTuneHudOffset.text       = "Posizione HUD canale: %.0f dp".format(UiTuning.hudOffsetYDp)
+            binding.tvTuneSavePlaceBtnScale.text = "Scala bottoni Salva: %.2fx".format(UiTuning.savePlaceBtnScale)
+            binding.tvTuneDeletePlaceBtnScale.text = "Scala pulsante Elimina: %.2fx".format(UiTuning.deletePlaceBtnScale)
+            binding.tvTuneSavePlaceTextScale.text = "Scala testi Salva: %.2fx".format(UiTuning.savePlaceTextScale)
         }
 
         fun syncHudSpeedLinkedUi() {
@@ -157,6 +171,18 @@ class DevToolsFragment : Fragment() {
             binding.seekFps.progress         = (1000.0 / CameraTuning.frameIntervalMs).roundToInt().coerceIn(1, 60)
             binding.seekHudRefresh.progress  = (1000.0 / CameraTuning.hudIntervalMs).roundToInt().coerceIn(1, 20)
             binding.seekCanalThreshold.progress = CameraTuning.canalLabelThresholdM.roundToInt().coerceIn(0, 300)
+            binding.seekGaugeScale.progress      = (UiTuning.gaugeScale * 100).roundToInt().coerceIn(50, 200)
+            binding.seekGaugeOffset.progress     = (UiTuning.gaugeOffsetYDp + 100).roundToInt().coerceIn(0, 150)
+            binding.seekGaugeStackOffset.progress = UiTuning.gaugeStackOffsetDp.roundToInt().coerceIn(0, 300)
+            binding.seekSavedPlaceScale.progress   = (UiTuning.savedPlaceScale * 100).roundToInt().coerceIn(10, 300)
+            binding.seekFollowBtnOffset.progress  = (UiTuning.followBtnOffsetYDp + 300).roundToInt().coerceIn(0, 600)
+            binding.seekFollowBtnOffsetX.progress = (UiTuning.followBtnOffsetXDp + 300).roundToInt().coerceIn(0, 600)
+            binding.seekFollowBtnScale.progress    = (UiTuning.followBtnScale * 100).roundToInt().coerceIn(50, 300)
+            binding.seekMapObjectScale.progress  = (UiTuning.mapObjectScale * 100).roundToInt().coerceIn(50, 300)
+            binding.seekHudOffset.progress       = (UiTuning.hudOffsetYDp + 100).roundToInt().coerceIn(0, 150)
+            binding.seekSavePlaceBtnScale.progress = (UiTuning.savePlaceBtnScale * 100).roundToInt().coerceIn(10, 200)
+            binding.seekDeletePlaceBtnScale.progress = (UiTuning.deletePlaceBtnScale * 100).roundToInt().coerceIn(10, 200)
+            binding.seekSavePlaceTextScale.progress = (UiTuning.savePlaceTextScale * 100).roundToInt().coerceIn(10, 200)
             syncHudSpeedLinkedUi()
         }
 
@@ -167,6 +193,21 @@ class DevToolsFragment : Fragment() {
                 }
                 override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
                 override fun onStopTrackingTouch(sb: android.widget.SeekBar?) { CameraTuning.save(requireContext()) }
+            })
+        }
+
+        // Come onChange, ma per gli slider di UiTuning: applica subito il cambiamento alla
+        // mappa incorporata (feedback visivo immediato mentre si trascina), non solo al rilascio.
+        fun onChangeUi(seek: android.widget.SeekBar, update: (Int) -> Unit) {
+            seek.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        update(progress); refreshLabels()
+                        childMap?.applyUiTuning()
+                    }
+                }
+                override fun onStartTrackingTouch(sb: android.widget.SeekBar?) {}
+                override fun onStopTrackingTouch(sb: android.widget.SeekBar?) { UiTuning.save(requireContext()) }
             })
         }
 
@@ -182,6 +223,19 @@ class DevToolsFragment : Fragment() {
         onChange(binding.seekHudRefresh)  { CameraTuning.hudIntervalMs = (1000.0 / it.coerceAtLeast(1)).roundToInt().toLong() }
         onChange(binding.seekCanalThreshold) { CameraTuning.canalLabelThresholdM = it.toDouble() }
 
+        onChangeUi(binding.seekGaugeScale)      { UiTuning.gaugeScale = it / 100f }
+        onChangeUi(binding.seekGaugeOffset)     { UiTuning.gaugeOffsetYDp = (it - 100).toFloat() }
+        onChangeUi(binding.seekGaugeStackOffset) { UiTuning.gaugeStackOffsetDp = it.toFloat() }
+        onChangeUi(binding.seekSavedPlaceScale)  { UiTuning.savedPlaceScale = it.coerceAtLeast(10) / 100f }
+        onChangeUi(binding.seekFollowBtnOffset)  { UiTuning.followBtnOffsetYDp = (it - 300).toFloat() }
+        onChangeUi(binding.seekFollowBtnOffsetX) { UiTuning.followBtnOffsetXDp = (it - 300).toFloat() }
+        onChangeUi(binding.seekFollowBtnScale)   { UiTuning.followBtnScale = it.coerceAtLeast(10) / 100f }
+        onChangeUi(binding.seekMapObjectScale)  { UiTuning.mapObjectScale = it / 100f }
+        onChangeUi(binding.seekHudOffset)       { UiTuning.hudOffsetYDp = (it - 100).toFloat() }
+        onChangeUi(binding.seekSavePlaceBtnScale) { UiTuning.savePlaceBtnScale = it.coerceAtLeast(10) / 100f }
+        onChangeUi(binding.seekDeletePlaceBtnScale) { UiTuning.deletePlaceBtnScale = it.coerceAtLeast(10) / 100f }
+        onChangeUi(binding.seekSavePlaceTextScale) { UiTuning.savePlaceTextScale = it.coerceAtLeast(10) / 100f }
+
         binding.switchHudSpeedLinked.setOnCheckedChangeListener { _, isChecked ->
             CameraTuning.hudRefreshLinkedToSpeed = isChecked
             CameraTuning.save(requireContext())
@@ -190,8 +244,10 @@ class DevToolsFragment : Fragment() {
 
         binding.btnResetTuning.setOnClickListener {
             CameraTuning.resetToDefaults(requireContext())
+            UiTuning.resetToDefaults(requireContext())
             syncSeekBarsFromTuning()
             refreshLabels()
+            childMap?.applyUiTuning()
         }
     }
 
