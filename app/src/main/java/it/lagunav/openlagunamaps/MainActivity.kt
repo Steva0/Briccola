@@ -6,6 +6,8 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.animation.doOnEnd
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import com.google.android.material.navigation.NavigationView
@@ -23,6 +25,15 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private var currentFragment: Fragment? = null
+    private var isMapReady = false
+
+    /**
+     * Segnala che la mappa (o l'inizializzazione principale) è completata,
+     * permettendo alla splash screen di sparire.
+     */
+    fun setReady() {
+        isMapReady = true
+    }
 
     /**
      * Cambia la voce di menu SENZA ricreare i fragment già visti (evita di reinflate la
@@ -50,6 +61,48 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
+
+        // Mantieni la splash screen finché la mappa non è pronta o finché non scatta un timeout (5s)
+        splashScreen.setKeepOnScreenCondition { !isMapReady }
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ isMapReady = true }, 5000L)
+
+        // Personalizzazione dell'uscita della splash screen per un effetto "premium"
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
+            val iconView = splashScreenView.iconView
+
+            // Animazione di "scatto verso l'alto" con dissolvenza
+            // L'AnticipateInterpolator farà scendere leggermente l'icona prima di lanciarla verso l'alto
+            val translationY = android.animation.ObjectAnimator.ofFloat(
+                iconView,
+                android.view.View.TRANSLATION_Y,
+                0f,
+                -iconView.height.toFloat() * 1.5f
+            )
+            
+            val alpha = android.animation.ObjectAnimator.ofFloat(
+                iconView,
+                android.view.View.ALPHA,
+                1f,
+                0f
+            )
+
+            val set = android.animation.AnimatorSet()
+            set.playTogether(translationY, alpha)
+            set.duration = 600L
+            set.interpolator = android.view.animation.AnticipateInterpolator()
+            
+            set.doOnEnd { splashScreenView.remove() }
+            set.start()
+
+            // Scomparsa fluida dello sfondo azzurro
+            splashScreenView.view.animate()
+                .alpha(0f)
+                .setDuration(400L)
+                .setStartDelay(200L)
+                .start()
+        }
+
         // Applica night mode PRIMA di setContentView, così tutto il tema è coerente
         val nightMode = getSharedPreferences("laguna_prefs", Context.MODE_PRIVATE)
             .getBoolean("night_mode", false)

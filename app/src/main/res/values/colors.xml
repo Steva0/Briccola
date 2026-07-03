@@ -9,6 +9,7 @@
 
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="splash_background">#A1CAE8</color>
 
     <!-- Theme Colors -->
     <color name="primaryColor">@color/marine_blue</color>

@@ -20,6 +20,7 @@ object UiTuning {
     private const val KEY_SAVE_PLACE_BTN_SCALE = "ui_save_place_btn_scale"
     private const val KEY_SAVE_PLACE_TEXT_SCALE = "ui_save_place_text_scale"
     private const val KEY_DELETE_PLACE_BTN_SCALE = "ui_delete_place_btn_scale"
+    private const val KEY_FOLLOW_BOAT_SCREEN_Y   = "ui_follow_boat_screen_y_fraction"
 
     const val DEFAULT_GAUGE_SCALE         = 0.72f  // tachimetro/altimetro un po' più piccoli
     const val DEFAULT_GAUGE_OFFSET_Y      = -78f   // e un po' più in alto (negativo = su)
@@ -35,6 +36,10 @@ object UiTuning {
     // Scala del pulsante Elimina, SEPARATA da savePlaceBtnScale (che riguarda Itinerari/Salva):
     // il pulsante Elimina è circolare (FAB) e spesso serve tararlo diverso dagli altri due.
     const val DEFAULT_DELETE_PLACE_BTN_SCALE = 0.8f
+    // Posizione verticale della barca sullo schermo in modalità Segui, come frazione dall'alto:
+    // non il centro esatto (0.5) — lascia più mappa visibile davanti alla direzione di marcia
+    // rispetto a quella alle spalle. Valore confermato dall'utente come corretto.
+    const val DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION = 0.7f
 
     // Tachimetro e altimetro sono specchiati (stessa dimensione/posizione, solo lato opposto):
     // un solo slider per ciascuno basta per entrambi.
@@ -51,6 +56,7 @@ object UiTuning {
     var savePlaceBtnScale: Float   = DEFAULT_SAVE_PLACE_BTN_SCALE
     var savePlaceTextScale: Float  = DEFAULT_SAVE_PLACE_TEXT_SCALE
     var deletePlaceBtnScale: Float = DEFAULT_DELETE_PLACE_BTN_SCALE
+    var followBoatScreenYFraction: Float = DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION
 
     private var loaded = false
 
@@ -70,6 +76,7 @@ object UiTuning {
         savePlaceBtnScale  = p.getFloat(KEY_SAVE_PLACE_BTN_SCALE, savePlaceBtnScale)
         savePlaceTextScale = p.getFloat(KEY_SAVE_PLACE_TEXT_SCALE, savePlaceTextScale)
         deletePlaceBtnScale = p.getFloat(KEY_DELETE_PLACE_BTN_SCALE, deletePlaceBtnScale)
+        followBoatScreenYFraction = p.getFloat(KEY_FOLLOW_BOAT_SCREEN_Y, followBoatScreenYFraction)
     }
 
     fun save(context: Context) {
@@ -86,6 +93,7 @@ object UiTuning {
             putFloat(KEY_SAVE_PLACE_BTN_SCALE, savePlaceBtnScale)
             putFloat(KEY_SAVE_PLACE_TEXT_SCALE, savePlaceTextScale)
             putFloat(KEY_DELETE_PLACE_BTN_SCALE, deletePlaceBtnScale)
+            putFloat(KEY_FOLLOW_BOAT_SCREEN_Y, followBoatScreenYFraction)
             apply()
         }
     }
@@ -103,6 +111,7 @@ object UiTuning {
         savePlaceBtnScale  = DEFAULT_SAVE_PLACE_BTN_SCALE
         savePlaceTextScale = DEFAULT_SAVE_PLACE_TEXT_SCALE
         deletePlaceBtnScale = DEFAULT_DELETE_PLACE_BTN_SCALE
+        followBoatScreenYFraction = DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION
         save(context)
     }
 }

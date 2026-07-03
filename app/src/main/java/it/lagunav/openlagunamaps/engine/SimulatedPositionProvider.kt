@@ -34,6 +34,12 @@ class SimulatedPositionProvider : PositionProvider {
 
     override fun start(onFix: (Location) -> Unit) {
         callback = onFix
+        // Idempotente: se già in esecuzione (es. onResume richiamato subito dopo onViewCreated,
+        // che ha già avviato tutto tramite startSimulator()), non ripostare tickRunnable —
+        // altrimenti finisce due volte in coda sullo stesso Handler, producendo un doppio tick
+        // leggermente sfasato ogni secondo invece di uno pulito (lo scatto periodico della barca
+        // alla primissima apertura di Dev Tools).
+        if (running) return
         running = true
         handler.post(tickRunnable)
     }

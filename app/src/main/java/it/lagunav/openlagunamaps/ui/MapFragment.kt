@@ -70,6 +70,8 @@ import org.maplibre.android.style.layers.PropertyFactory.*
 import org.maplibre.android.style.expressions.Expression.*
 import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.Point
 import java.net.URL
 import java.nio.charset.Charset
 import java.util.Locale
@@ -147,6 +149,14 @@ class MapFragment : Fragment() {
         private set
     private lateinit var prefs: SharedPreferences
     private var mapLibre: MapLibreMap? = null
+    // Cache dello Style corrente, aggiornata nei due punti in cui viene caricato (setupMap,
+    // applyNightMode). Usata SOLO nel loop camera (runFrame, fino a ~45 volte al secondo): con
+    // map.getStyle{} invece della cache, ogni fotogramma metteva in coda una nuova callback
+    // asincrona sul thread principale — a quella frequenza il backlog di callback in coda non
+    // faceva mai in tempo a svuotarsi (ogni "cameraLoop.frame" costava già 8-30ms), causando
+    // aggiornamenti dell'icona fuori ordine/in ritardo percepiti come scatti, indipendenti da
+    // qualunque valore di CameraTuning. Il loop stesso non tocca mai questa cache.
+    private var mapStyle: Style? = null
 
     private var gnssProvider: PositionProvider? = null
     private val SOURCE_PREVIEW = "preview-route-source"
@@ -294,23 +304,30 @@ class MapFragment : Fragment() {
         // superficie viva — il rientro resta fluido come le altre schermate.
         view?.visibility = if (hidden) View.INVISIBLE else View.VISIBLE
 
-        if (!isResumed) return  // evita doppio start/stop rispetto a onResume/onPause
         if (hidden) {
-            // La Mappa vera (debugMode=false) continua a calcolare la posizione GPS reale anche
-            // in background, pure mentre sei su un'altra schermata (es. Dev Tools): così quando
-            // torni su Mappa non c'è da riavviare il GPS (la parte lenta, vedi GnssPositionProvider)
-            // e il cambio schermata resta istantaneo. Costa un po' di batteria/GPS in più, ma
-            // l'app è pensata per stare quasi sempre in modalità Mappa. In Dev Tools invece
-            // (debugMode=true, posizione di solito simulata) non c'è motivo di tenerlo vivo.
+            // NON guardato da isResumed (a differenza del ramo "torna visibile" sotto): se questo
+            // fragment viene nascosto SUBITO dopo la creazione, prima ancora che la propria
+            // onResume() sia arrivata (capita aprendo un'altra schermata molto in fretta dopo
+            // l'avvio dell'app), isResumed sarebbe ancora false e l'arresto verrebbe saltato per
+            // sempre — il motore di rendering restava acceso e girava per sempre in sottofondo,
+            // in contesa per CPU/GPU con la mappa visibile (dimezzava il framerate del loop
+            // camera, misurato ~24Hz invece di ~45Hz). Si "sistemava" solo al primo vero
+            // background/foreground dell'intera app, l'unico altro punto che ferma tutto senza
+            // questa guardia. Fermare qui è idempotente (vedi startCameraLoop/startGnss), quindi
+            // sicuro anche se onPause() lo fa già poco dopo.
             if (debugMode) stopPositionTracking()
             stopCameraLoop()
-        } else {
-            if (debugMode) startPositionTracking()
-            startCameraLoop()
-            setFollowMode(true)  // ad ogni cambio schermata la visuale torna centrata sulla barca
-            applyUiTuning()
-            refreshSavedPlacesLayer()
+            binding.mapView.onPause()
+            return
         }
+
+        if (!isResumed) return  // evita di avviare GPS/loop prima che arrivi onResume()
+        if (debugMode) startPositionTracking()
+        binding.mapView.onResume()
+        startCameraLoop()
+        setFollowMode(true)  // ad ogni cambio schermata la visuale torna centrata sulla barca
+        applyUiTuning()
+        refreshSavedPlacesLayer()
     }
 
     // =================================================================
@@ -330,7 +347,10 @@ class MapFragment : Fragment() {
 
             val styleUrl = if (prefs.getBoolean(KEY_NIGHT_MODE, false)) STYLE_NIGHT else STYLE_DAY
             map.setStyle(Style.Builder().fromUri(styleUrl)) { style ->
+                mapStyle = style
                 setupAllLayers(style)
+                // Notifica alla MainActivity che la mappa è carica per togliere la splash screen
+                (activity as? it.lagunav.openlagunamaps.MainActivity)?.setReady()
             }
 
             map.cameraPosition = CameraPosition.Builder()
@@ -387,6 +407,7 @@ class MapFragment : Fragment() {
     private fun applyNightMode() {
         val night = prefs.getBoolean(KEY_NIGHT_MODE, false)
         mapLibre?.setStyle(Style.Builder().fromUri(if (night) STYLE_NIGHT else STYLE_DAY)) { style ->
+            mapStyle = style
             setupAllLayers(style)
         }
     }
@@ -739,11 +760,14 @@ class MapFragment : Fragment() {
 
                     val map = mapLibre
                     if (map != null) PerfMonitor.trace("cameraLoop.render") {
-                        // 1. Camera (solo follow mode)
+                        // 1. Camera (solo follow mode): la barca non va al centro esatto dello
+                        // schermo ma a FOLLOW_BOAT_SCREEN_Y_FRACTION dall'alto (2/5 dal basso),
+                        // per lasciare più mappa visibile davanti alla direzione di marcia.
                         if (followMode) {
                             val zoom = map.cameraPosition.zoom.coerceAtLeast(14.0)
+                            val target = followCameraTarget(map, interpPos)
                             map.moveCamera(CameraUpdateFactory.newCameraPosition(
-                                CameraPosition.Builder().target(interpPos).zoom(zoom).bearing(smoothedCamBearing).build()
+                                CameraPosition.Builder().target(target).zoom(zoom).bearing(smoothedCamBearing).build()
                             ))
                         }
 
@@ -756,10 +780,24 @@ class MapFragment : Fragment() {
                             b.cardCompass.rotation   = (-actualCamBearing).toFloat()
                         }
 
-                        // 3. Icona barca + split percorso a 30fps, sulla posizione interpolata
-                        map.getStyle { style ->
-                            (style.getSource(SOURCE_GPS) as? GeoJsonSource)
-                                ?.setGeoJson(buildBoatGeoJson(interpLat, interpLon, smoothedIconBearing.toFloat()))
+                        // 3. Icona barca + split percorso a 30fps, sulla posizione interpolata.
+                        // Usa la cache mapStyle invece di map.getStyle{}: quella è una callback
+                        // asincrona che a ~45 chiamate/secondo non faceva mai in tempo a
+                        // svuotarsi, accumulando un ritardo/disordine percepito come scatti
+                        // (vedi commento su mapStyle).
+                        val style = mapStyle
+                        if (style != null) {
+                            // setGeoJson(String) fa il parsing del testo su un thread separato e
+                            // applica il risultato in modo asincrono (da qui l'esistenza di
+                            // setGeoJsonSync come alternativa): a ~45 chiamate/secondo la coda di
+                            // parsing non faceva mai in tempo a svuotarsi, con applicazioni in
+                            // ritardo/fuori ordine percepite come scatti dell'icona — pur avendo
+                            // valori interpolati corretti e lisci in ingresso (verificato via log).
+                            // setGeoJsonSync su un Feature già tipizzato evita sia il parsing
+                            // testuale sia la coda asincrona.
+                            val boatFeature = Feature.fromGeometry(Point.fromLngLat(interpLon, interpLat))
+                            boatFeature.addNumberProperty("bearing", smoothedIconBearing.toFloat())
+                            (style.getSource(SOURCE_GPS) as? GeoJsonSource)?.setGeoJsonSync(boatFeature)
 
                             val route = activeRoute
                             if (route != null && currentWaypointIdx > 0 && currentWaypointIdx < route.size) {
@@ -1516,8 +1554,9 @@ class MapFragment : Fragment() {
             val lastFix = fixBuffer.lastOrNull()
             if (map != null && lastFix != null) {
                 val zoom = map.cameraPosition.zoom.coerceAtLeast(14.0)
+                val target = followCameraTarget(map, LatLng(lastFix.lat, lastFix.lon))
                 map.animateCamera(CameraUpdateFactory.newCameraPosition(
-                    CameraPosition.Builder().target(LatLng(lastFix.lat, lastFix.lon)).zoom(zoom).bearing(smoothedCamBearing).build()
+                    CameraPosition.Builder().target(target).zoom(zoom).bearing(smoothedCamBearing).build()
                 ), 500)
             }
         }
@@ -1661,9 +1700,6 @@ class MapFragment : Fragment() {
         )
     }
 
-    private fun buildBoatGeoJson(lat: Double, lon: Double, bearing: Float): String =
-        """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"bearing":$bearing}}]}"""
-
     private fun emptyFc() = """{"type":"FeatureCollection","features":[]}"""
 
     // =================================================================
@@ -1673,6 +1709,26 @@ class MapFragment : Fragment() {
     private fun screenDistance(a: android.graphics.PointF, b: android.graphics.PointF): Float {
         val dx = a.x - b.x; val dy = a.y - b.y
         return sqrt(dx * dx + dy * dy)
+    }
+
+    /** Calcola il target di camera (punto che finirà al centro schermo) tale per cui [boatPos]
+     *  finisca invece a UiTuning.followBoatScreenYFraction dall'alto (regolabile da Dev Tools).
+     *  Usa la projection corrente (riflette bearing/zoom di questo fotogramma) — stessa tecnica
+     *  di centerPointInUpperScreen, qui applicata continuamente ad ogni fotogramma del follow
+     *  mode invece che una tantum. */
+    private fun followCameraTarget(map: MapLibreMap, boatPos: LatLng): LatLng {
+        val width = binding.mapView.width.toFloat()
+        val height = binding.mapView.height.toFloat()
+        if (width <= 0f || height <= 0f) return boatPos
+        val projection = map.projection
+        val currentScreenPos = projection.toScreenLocation(boatPos)
+        val screenCenter = android.graphics.PointF(width / 2f, height / 2f)
+        val desiredScreenPos = android.graphics.PointF(width / 2f, height * UiTuning.followBoatScreenYFraction)
+        val newTargetScreen = android.graphics.PointF(
+            currentScreenPos.x + screenCenter.x - desiredScreenPos.x,
+            currentScreenPos.y + screenCenter.y - desiredScreenPos.y
+        )
+        return projection.fromScreenLocation(newTargetScreen)
     }
 
     /** Sposta la camera in modo che "pos" finisca nella parte centro-alta dello schermo invece

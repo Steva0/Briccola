@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 49
-        versionName = "1.16-fix-scatti-angolo-numerico"
+        versionCode = 58
+        versionName = "1.25-offset-camera-70pct"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -47,6 +47,9 @@ dependencies {
 
     // Material Design
     implementation("com.google.android.material:material:1.11.0")
+
+    // Splash Screen API
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // MapLibre Native
     implementation("org.maplibre.gl:android-sdk:11.11.0")

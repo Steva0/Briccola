@@ -157,6 +157,7 @@ class DevToolsFragment : Fragment() {
             binding.tvTuneSavePlaceBtnScale.text = "Scala bottoni Salva: %.2fx".format(UiTuning.savePlaceBtnScale)
             binding.tvTuneDeletePlaceBtnScale.text = "Scala pulsante Elimina: %.2fx".format(UiTuning.deletePlaceBtnScale)
             binding.tvTuneSavePlaceTextScale.text = "Scala testi Salva: %.2fx".format(UiTuning.savePlaceTextScale)
+            binding.tvTuneFollowBoatScreenY.text = "Altezza barca su schermo (Centra): %.0f%% dall'alto".format(UiTuning.followBoatScreenYFraction * 100)
         }
 
         fun syncHudSpeedLinkedUi() {
@@ -188,6 +189,7 @@ class DevToolsFragment : Fragment() {
             binding.seekSavePlaceBtnScale.progress = (UiTuning.savePlaceBtnScale * 100).roundToInt().coerceIn(10, 200)
             binding.seekDeletePlaceBtnScale.progress = (UiTuning.deletePlaceBtnScale * 100).roundToInt().coerceIn(10, 200)
             binding.seekSavePlaceTextScale.progress = (UiTuning.savePlaceTextScale * 100).roundToInt().coerceIn(10, 200)
+            binding.seekFollowBoatScreenY.progress = (UiTuning.followBoatScreenYFraction * 100).roundToInt().coerceIn(0, 100)
             syncHudSpeedLinkedUi()
         }
 
@@ -240,6 +242,7 @@ class DevToolsFragment : Fragment() {
         onChangeUi(binding.seekSavePlaceBtnScale) { UiTuning.savePlaceBtnScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekDeletePlaceBtnScale) { UiTuning.deletePlaceBtnScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekSavePlaceTextScale) { UiTuning.savePlaceTextScale = it.coerceAtLeast(10) / 100f }
+        onChangeUi(binding.seekFollowBoatScreenY) { UiTuning.followBoatScreenYFraction = it / 100f }
 
         binding.switchHudSpeedLinked.setOnCheckedChangeListener { _, isChecked ->
             CameraTuning.hudRefreshLinkedToSpeed = isChecked
