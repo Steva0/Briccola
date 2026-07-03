@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Aggiungiamo molto padding per evitare che il logo sembri ritagliato -->
     <item
-        android:width="64dp"
-        android:height="64dp"
+        android:width="72dp"
+        android:height="72dp"
         android:gravity="center"
         android:drawable="@drawable/splash_logo" />
 </layer-list>

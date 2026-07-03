@@ -63,16 +63,15 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
 
-        // Mantieni la splash screen finché la mappa non è pronta o finché non scatta un timeout (5s)
+        // Mantieni la splash screen finché la mappa non è pronta o finché non scatta un timeout (2s)
         splashScreen.setKeepOnScreenCondition { !isMapReady }
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ isMapReady = true }, 5000L)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ isMapReady = true }, 2000L)
 
         // Personalizzazione dell'uscita della splash screen per un effetto "premium"
         splashScreen.setOnExitAnimationListener { splashScreenView ->
             val iconView = splashScreenView.iconView
 
             // Animazione di "scatto verso l'alto" con dissolvenza
-            // L'AnticipateInterpolator farà scendere leggermente l'icona prima di lanciarla verso l'alto
             val translationY = android.animation.ObjectAnimator.ofFloat(
                 iconView,
                 android.view.View.TRANSLATION_Y,
@@ -87,19 +86,19 @@ class MainActivity : AppCompatActivity() {
                 0f
             )
 
-            val set = android.animation.AnimatorSet()
-            set.playTogether(translationY, alpha)
-            set.duration = 600L
-            set.interpolator = android.view.animation.AnticipateInterpolator()
+            val exitSet = android.animation.AnimatorSet()
+            exitSet.playTogether(translationY, alpha)
+            exitSet.duration = 500L
+            exitSet.interpolator = android.view.animation.AnticipateInterpolator()
             
-            set.doOnEnd { splashScreenView.remove() }
-            set.start()
+            exitSet.doOnEnd { splashScreenView.remove() }
+            exitSet.start()
 
             // Scomparsa fluida dello sfondo azzurro
             splashScreenView.view.animate()
                 .alpha(0f)
-                .setDuration(400L)
-                .setStartDelay(200L)
+                .setDuration(300L)
+                .setStartDelay(100L)
                 .start()
         }
 

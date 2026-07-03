@@ -1,0 +1,17 @@
+<resources>
+    <!-- Un override values-v31 SOSTITUISCE per intero lo style con lo stesso nome (non lo
+         fonde con quello in values/themes.xml) — per questo qui sotto è ripetuto tutto il
+         contenuto della versione base, con in più windowSplashScreenBrandingImage: quell'attributo
+         è nativo della piattaforma da Android 12 (API 31) in su, non supportato dalla libreria
+         androidx core-splashscreen (che gestisce la splash screen sulle versioni precedenti) —
+         per questo va messo solo qui. Sotto Android 12 il pedice semplicemente non compare. -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo_small</item>
+        <item name="android:windowSplashScreenBrandingImage">@drawable/splash_branding</item>
+        <item name="postSplashScreenTheme">@style/Theme.OpenLagunaMaps</item>
+        <item name="android:statusBarColor">@color/splash_background</item>
+        <item name="android:navigationBarColor">@color/splash_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

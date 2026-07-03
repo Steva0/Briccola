@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 58
-        versionName = "1.25-offset-camera-70pct"
+        versionCode = 62
+        versionName = "1.29-splash-branding-testo"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -49,7 +49,7 @@ dependencies {
     implementation("com.google.android.material:material:1.11.0")
 
     // Splash Screen API
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.core:core-splashscreen:1.2.0")
 
     // MapLibre Native
     implementation("org.maplibre.gl:android-sdk:11.11.0")
