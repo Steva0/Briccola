@@ -487,29 +487,17 @@
                     android:layout_height="wrap_content"
                     android:max="100" />
 
-                <!-- Bottone CENTRA "intelligente": zoom ideale (x) + soglia sotto la quale
-                     scatta lo zoom-in (y). Sotto la soglia il tuo zoom resta invariato. -->
+                <!-- Bottone CENTRA "intelligente": distanza x. Se sei più lontano di x, zooma
+                     fino a x; se sei già più vicino di x, lo zoom resta invariato (centra solo). -->
                 <TextView
-                    android:id="@+id/tv_tune_recenter_ideal_zoom"
+                    android:id="@+id/tv_tune_recenter_zoom"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:textColor="@color/white"
                     android:textSize="10sp" />
                 <SeekBar
-                    android:id="@+id/seek_recenter_ideal_zoom"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:max="80" />
-
-                <TextView
-                    android:id="@+id/tv_tune_recenter_snap_below_zoom"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/white"
-                    android:textSize="10sp" />
-                <SeekBar
-                    android:id="@+id/seek_recenter_snap_below_zoom"
+                    android:id="@+id/seek_recenter_zoom"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:max="80" />

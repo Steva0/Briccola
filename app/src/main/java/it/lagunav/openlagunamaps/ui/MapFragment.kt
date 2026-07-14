@@ -1763,13 +1763,13 @@ class MapFragment : Fragment() {
             val map = mapLibre
             val lastFix = fixBuffer.lastOrNull()
             if (map != null && lastFix != null) {
-                // CENTRA "intelligente": se sei già zoomato quanto (o più di) la soglia
-                // recenterSnapBelowZoom, il tuo zoom resta invariato (l'hai scelto tu, non ha
-                // senso stravolgerlo). Solo se sei più lontano/zoomato-fuori di quella soglia,
-                // si zooma verso recenterIdealZoom invece di lasciarti a un livello scomodo.
+                // CENTRA "intelligente": se sei già zoomato quanto (o più di) la distanza x
+                // (CameraTuning.recenterZoom), lo zoom resta invariato — sei già più vicino di x,
+                // ha senso solo centrare sulla barca. Se invece sei più lontano di x, si zooma
+                // fino a x invece di lasciarti a un livello scomodo.
                 val currentZoom = map.cameraPosition.zoom
-                val zoom = if (currentZoom < CameraTuning.recenterSnapBelowZoom)
-                    CameraTuning.recenterIdealZoom else currentZoom
+                val zoom = if (currentZoom < CameraTuning.recenterZoom)
+                    CameraTuning.recenterZoom else currentZoom
                 val target = followCameraTarget(map, LatLng(lastFix.lat, lastFix.lon))
                 map.animateCamera(CameraUpdateFactory.newCameraPosition(
                     CameraPosition.Builder().target(target).zoom(zoom).bearing(smoothedCamBearing).build()

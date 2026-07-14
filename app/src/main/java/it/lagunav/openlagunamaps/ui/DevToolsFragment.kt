@@ -154,8 +154,7 @@ class DevToolsFragment : Fragment() {
             binding.tvTuneFps.text         = "FPS barca/camera: ${(1000.0 / CameraTuning.frameIntervalMs).roundToInt()}"
             binding.tvTuneHudRefresh.text  = "Refresh HUD (profondità/velocità/canale): ${(1000.0 / CameraTuning.hudIntervalMs).roundToInt()} Hz"
             binding.tvTuneCanalThreshold.text = "Soglia \"Fuori canale\": %.0f m".format(CameraTuning.canalLabelThresholdM)
-            binding.tvTuneRecenterIdealZoom.text = "Centra: zoom ideale (x): %.1f — più alto = più vicino".format(CameraTuning.recenterIdealZoom)
-            binding.tvTuneRecenterSnapBelowZoom.text = "Centra: sotto questo zoom riavvicina (y): %.1f".format(CameraTuning.recenterSnapBelowZoom)
+            binding.tvTuneRecenterZoom.text = "Centra: distanza x: %.1f — più alto = più vicino".format(CameraTuning.recenterZoom)
             binding.tvTuneGaugeScale.text      = "Scala tachimetro/altimetro: %.2fx".format(UiTuning.gaugeScale)
             binding.tvTuneCompassScale.text    = "Scala bussola: %.2fx".format(UiTuning.compassScale)
             binding.tvTuneGaugeOffset.text     = "Posizione tachimetro/altimetro: %.0f dp".format(UiTuning.gaugeOffsetYDp)
@@ -189,9 +188,7 @@ class DevToolsFragment : Fragment() {
             binding.seekFps.progress         = (1000.0 / CameraTuning.frameIntervalMs).roundToInt().coerceIn(1, 60)
             binding.seekHudRefresh.progress  = (1000.0 / CameraTuning.hudIntervalMs).roundToInt().coerceIn(1, 20)
             binding.seekCanalThreshold.progress = CameraTuning.canalLabelThresholdM.roundToInt().coerceIn(0, 300)
-            binding.seekRecenterIdealZoom.progress = ((CameraTuning.recenterIdealZoom - CameraTuning.RECENTER_ZOOM_MIN) * 10)
-                .roundToInt().coerceIn(0, 80)
-            binding.seekRecenterSnapBelowZoom.progress = ((CameraTuning.recenterSnapBelowZoom - CameraTuning.RECENTER_ZOOM_MIN) * 10)
+            binding.seekRecenterZoom.progress = ((CameraTuning.recenterZoom - CameraTuning.RECENTER_ZOOM_MIN) * 10)
                 .roundToInt().coerceIn(0, 80)
             binding.seekGaugeScale.progress      = (UiTuning.gaugeScale * 100).roundToInt().coerceIn(50, 200)
             binding.seekCompassScale.progress   = (UiTuning.compassScale * 100).roundToInt().coerceIn(50, 200)
@@ -246,8 +243,7 @@ class DevToolsFragment : Fragment() {
         onChange(binding.seekFps)         { CameraTuning.frameIntervalMs = (1000.0 / it.coerceAtLeast(1)).roundToInt().toLong() }
         onChange(binding.seekHudRefresh)  { CameraTuning.hudIntervalMs = (1000.0 / it.coerceAtLeast(1)).roundToInt().toLong() }
         onChange(binding.seekCanalThreshold) { CameraTuning.canalLabelThresholdM = it.toDouble() }
-        onChange(binding.seekRecenterIdealZoom) { CameraTuning.recenterIdealZoom = CameraTuning.RECENTER_ZOOM_MIN + it / 10.0 }
-        onChange(binding.seekRecenterSnapBelowZoom) { CameraTuning.recenterSnapBelowZoom = CameraTuning.RECENTER_ZOOM_MIN + it / 10.0 }
+        onChange(binding.seekRecenterZoom) { CameraTuning.recenterZoom = CameraTuning.RECENTER_ZOOM_MIN + it / 10.0 }
 
         onChangeUi(binding.seekGaugeScale)      { UiTuning.gaugeScale = it / 100f }
         onChangeUi(binding.seekCompassScale)    { UiTuning.compassScale = it.coerceAtLeast(10) / 100f }
