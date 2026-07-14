@@ -112,6 +112,20 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
 
+        // Nascondi Strumenti Dev per impostazione predefinita
+        val devToolsItem = binding.navView.menu.findItem(R.id.nav_devtools)
+        devToolsItem.isVisible = false
+
+        // Listener per abilitare gli strumenti dev con un long click sul logo
+        val headerView = binding.navView.getHeaderView(0)
+        val logo = headerView.findViewById<android.widget.ImageView>(R.id.nav_header_logo)
+        logo.setOnLongClickListener {
+            devToolsItem.isVisible = !devToolsItem.isVisible
+            val status = if (devToolsItem.isVisible) "abilitati" else "disabilitati"
+            Toast.makeText(this, "Strumenti Dev $status", Toast.LENGTH_SHORT).show()
+            true
+        }
+
         val toggle = ActionBarDrawerToggle(
             this, binding.drawerLayout, binding.toolbar,
             R.string.navigation_drawer_open, R.string.navigation_drawer_close

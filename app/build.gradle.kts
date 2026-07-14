@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 91
-        versionName = "1.58-fix-testo-bio-crediti"
+        versionCode = 92
+        versionName = "1.59-pagina-dona-paypal"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
