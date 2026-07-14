@@ -19,6 +19,8 @@ object CameraTuning {
     private const val KEY_HUD_INTERVAL_MS      = "tune_hud_interval_ms"
     private const val KEY_HUD_SPEED_LINKED     = "tune_hud_speed_linked"
     private const val KEY_CANAL_LABEL_THRESHOLD_M = "tune_canal_label_threshold_m"
+    private const val KEY_RECENTER_IDEAL_ZOOM      = "tune_recenter_ideal_zoom"
+    private const val KEY_RECENTER_SNAP_BELOW_ZOOM = "tune_recenter_snap_below_zoom"
 
     const val DEFAULT_RENDER_DELAY_MS          = 1200L
     const val DEFAULT_MIN_BEARING_DISP_M       = 1.5
@@ -29,6 +31,18 @@ object CameraTuning {
     const val DEFAULT_HUD_INTERVAL_MS          = 200L   // 5 Hz per profondità/velocità/canale
     const val DEFAULT_HUD_SPEED_LINKED         = true
     const val DEFAULT_CANAL_LABEL_THRESHOLD_M  = 100.0  // oltre: HUD mostra "Fuori canale"
+    // Bottone CENTRA "intelligente": se lo zoom attuale è già sotto (= più vicino di)
+    // RECENTER_SNAP_BELOW_ZOOM lo lascia invariato (l'utente aveva già scelto uno zoom che gli
+    // andava bene); solo se sei più lontano/zoomato-fuori di quella soglia scatta uno zoom-in
+    // fino a RECENTER_IDEAL_ZOOM. Di default coincidono (comportamento identico a prima:
+    // zoom minimo fisso a 14), i due slider permettono di separarli per avere una "zona morta".
+    // Range utile in navigazione: sotto zoom ~10 si vede a malapena la laguna, sopra ~18 sei a
+    // livello "singolo edificio". Di default una zona morta già sensata (non serve toccare gli
+    // slider per avere un comportamento utile: sotto zoom 11 va a 15, da 11 in su resta invariato).
+    const val RECENTER_ZOOM_MIN                = 10.0
+    const val RECENTER_ZOOM_MAX                = 18.0
+    const val DEFAULT_RECENTER_IDEAL_ZOOM      = 13.0
+    const val DEFAULT_RECENTER_SNAP_BELOW_ZOOM = 10.0
 
     var renderDelayMs: Long          = DEFAULT_RENDER_DELAY_MS
     var minBearingDisplacementM: Double = DEFAULT_MIN_BEARING_DISP_M
@@ -39,6 +53,8 @@ object CameraTuning {
     var hudIntervalMs: Long          = DEFAULT_HUD_INTERVAL_MS
     var hudRefreshLinkedToSpeed: Boolean = DEFAULT_HUD_SPEED_LINKED
     var canalLabelThresholdM: Double = DEFAULT_CANAL_LABEL_THRESHOLD_M
+    var recenterIdealZoom: Double      = DEFAULT_RECENTER_IDEAL_ZOOM
+    var recenterSnapBelowZoom: Double  = DEFAULT_RECENTER_SNAP_BELOW_ZOOM
 
     // Curva (lineare) velocità -> refresh HUD, usata solo se hudRefreshLinkedToSpeed=true.
     // Sotto HUD_SPEED_MIN_KN: refresh minimo (poco interessa aggiornare tanto da fermi).
@@ -76,6 +92,8 @@ object CameraTuning {
         hudIntervalMs           = p.getInt(KEY_HUD_INTERVAL_MS, hudIntervalMs.toInt()).toLong()
         hudRefreshLinkedToSpeed = p.getBoolean(KEY_HUD_SPEED_LINKED, hudRefreshLinkedToSpeed)
         canalLabelThresholdM    = p.getFloat(KEY_CANAL_LABEL_THRESHOLD_M, canalLabelThresholdM.toFloat()).toDouble()
+        recenterIdealZoom       = p.getFloat(KEY_RECENTER_IDEAL_ZOOM, recenterIdealZoom.toFloat()).toDouble()
+        recenterSnapBelowZoom   = p.getFloat(KEY_RECENTER_SNAP_BELOW_ZOOM, recenterSnapBelowZoom.toFloat()).toDouble()
     }
 
     fun save(context: Context) {
@@ -89,6 +107,8 @@ object CameraTuning {
             putInt(KEY_HUD_INTERVAL_MS, hudIntervalMs.toInt())
             putBoolean(KEY_HUD_SPEED_LINKED, hudRefreshLinkedToSpeed)
             putFloat(KEY_CANAL_LABEL_THRESHOLD_M, canalLabelThresholdM.toFloat())
+            putFloat(KEY_RECENTER_IDEAL_ZOOM, recenterIdealZoom.toFloat())
+            putFloat(KEY_RECENTER_SNAP_BELOW_ZOOM, recenterSnapBelowZoom.toFloat())
             apply()
         }
     }
@@ -103,6 +123,8 @@ object CameraTuning {
         hudIntervalMs           = DEFAULT_HUD_INTERVAL_MS
         hudRefreshLinkedToSpeed = DEFAULT_HUD_SPEED_LINKED
         canalLabelThresholdM    = DEFAULT_CANAL_LABEL_THRESHOLD_M
+        recenterIdealZoom       = DEFAULT_RECENTER_IDEAL_ZOOM
+        recenterSnapBelowZoom   = DEFAULT_RECENTER_SNAP_BELOW_ZOOM
         save(context)
     }
 }

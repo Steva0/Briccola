@@ -696,6 +696,23 @@ class RoutingEngine(private val context: Context) {
     fun getFixedDepthAt(p: LatLng): Float? = fixedDepthAreas.find { containsPoint(it.polygon, p) }?.depth
     fun isPointInNoGo(p: LatLng): Boolean = noGoAreas.any { containsPoint(it.polygon, p) }
     fun isInsideProject(p: LatLng): Boolean = projectBoundary?.let { containsPoint(it, p) } ?: true
+
+    /** Bounding box del perimetro di progetto (special:nav:boundary=project) allargato di
+     *  [marginMeters] su ogni lato — usato per definire la regione della mappa da scaricare
+     *  offline (laguna + margine di mare aperto). null se il perimetro non è ancora caricato. */
+    fun getProjectBoundsWithMargin(marginMeters: Double): Pair<LatLng, LatLng>? {
+        val boundary = projectBoundary?.takeIf { it.isNotEmpty() } ?: return null
+        val minLat = boundary.minOf { it.latitude }
+        val maxLat = boundary.maxOf { it.latitude }
+        val minLon = boundary.minOf { it.longitude }
+        val maxLon = boundary.maxOf { it.longitude }
+        val midLat = (minLat + maxLat) / 2.0
+        val latMarginDeg = marginMeters / 111_320.0
+        val lonMarginDeg = marginMeters / (111_320.0 * Math.cos(Math.toRadians(midLat)))
+        val southWest = LatLng(minLat - latMarginDeg, minLon - lonMarginDeg)
+        val northEast = LatLng(maxLat + latMarginDeg, maxLon + lonMarginDeg)
+        return southWest to northEast
+    }
     fun getNoGoAreas(): List<NoGoArea> = noGoAreas
     fun getSeaTips(): List<LatLng> = seaTips
 
@@ -748,6 +765,24 @@ class RoutingEngine(private val context: Context) {
         seaSegments.forEach { s -> getHInt(p.latitude, s.p1, s.p2)?.let { if (it <= p.longitude) maxSeaLon = max(maxSeaLon, it) } }
         lagunaSegments.forEach { s -> getHInt(p.latitude, s.p1, s.p2)?.let { if (it <= p.longitude) maxLagunaLon = max(maxLagunaLon, it) } }
         return if (maxSeaLon == -180.0 && maxLagunaLon == -180.0) false else maxSeaLon > maxLagunaLon
+    }
+
+    /** Distanza in metri dal confine laguna/mare aperto (seaSegments — la linea che separa la
+     *  laguna dal mare, usata anche da isAtSea): usata come "distanza dalla costa" per i limiti
+     *  di navigazione in mare aperto (patente/dotazioni di sicurezza, vedi CameraTuning-style
+     *  impostazioni in Settings). seaSegments è una linea di demarcazione, non l'intera costa,
+     *  ma per un punto già in mare aperto è una buona approssimazione di quanto ci si è
+     *  allontanati dalla laguna/costa. Nessun indice spaziale: pochi segmenti, chiamata solo
+     *  al ritmo dell'HUD (non ad ogni fotogramma).
+     */
+    fun distanceFromSeaBoundaryMeters(p: LatLng): Double {
+        var best = Double.MAX_VALUE
+        seaSegments.forEach { s ->
+            val closest = closestPointOnSegment(p, s.p1, s.p2)
+            val d = haversine(p.latitude, p.longitude, closest.latitude, closest.longitude)
+            if (d < best) best = d
+        }
+        return best
     }
 
     private fun getHInt(lat: Double, p1: LatLng, p2: LatLng): Double? {

@@ -149,42 +149,5 @@
             </RadioGroup>
         </androidx.cardview.widget.CardView>
 
-        <!-- MAP OPTIONS -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_map_options"
-            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-            android:textColor="@color/marine_blue_dark"
-            android:textStyle="bold" />
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="2dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="8dp">
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switch_night_mode"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Modalità Notte" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switch_offline_only"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Solo Offline" />
-
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
     </LinearLayout>
 </ScrollView>

@@ -2,7 +2,6 @@ package it.lagunav.openlagunamaps.ui
 
 import android.content.Context
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatDelegate
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,6 +9,7 @@ import android.widget.ArrayAdapter
 import androidx.fragment.app.Fragment
 import it.lagunav.openlagunamaps.R
 import it.lagunav.openlagunamaps.databinding.FragmentSettingsBinding
+import it.lagunav.openlagunamaps.engine.NavigationLimits
 import it.lagunav.openlagunamaps.engine.SpeedUnit
 import java.util.Locale
 
@@ -83,6 +83,19 @@ class SettingsFragment : Fragment() {
         )
         val equipAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, equipment)
         binding.spinnerEquipment.adapter = equipAdapter
+
+        binding.spinnerLicense.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, v: View?, position: Int, id: Long) {
+                NavigationLimits.setLicenseIndex(requireContext(), position)
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+        binding.spinnerEquipment.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, v: View?, position: Int, id: Long) {
+                NavigationLimits.setEquipmentIndex(requireContext(), position)
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
     }
 
     private fun loadSettings() {
@@ -92,20 +105,8 @@ class SettingsFragment : Fragment() {
         binding.sliderDraft.value = draft
         binding.tvDraftValue.text = String.format(Locale.getDefault(), "%.1f m", draft)
 
-        binding.switchNightMode.isChecked = prefs.getBoolean("night_mode", false)
-        binding.switchNightMode.setOnCheckedChangeListener { _, isChecked ->
-            saveSetting("night_mode", isChecked)
-            // Riapplica il tema: AppCompatDelegate.setDefaultNightMode riavvia l'Activity
-            // in modo pulito e tutte le view si adattano automaticamente tramite DayNight
-            AppCompatDelegate.setDefaultNightMode(
-                if (isChecked) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
-            )
-        }
-
-        binding.switchOfflineOnly.isChecked = prefs.getBoolean("offline_only", false)
-        binding.switchOfflineOnly.setOnCheckedChangeListener { _, isChecked ->
-            saveSetting("offline_only", isChecked)
-        }
+        binding.spinnerLicense.setSelection(NavigationLimits.getLicenseIndex(requireContext()))
+        binding.spinnerEquipment.setSelection(NavigationLimits.getEquipmentIndex(requireContext()))
     }
 
     private fun saveSetting(key: String, value: Any) {

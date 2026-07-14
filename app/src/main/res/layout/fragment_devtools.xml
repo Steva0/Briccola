@@ -475,6 +475,48 @@
                     android:layout_height="wrap_content"
                     android:max="100" />
 
+                <!-- Bottone CENTRA "intelligente": zoom ideale (x) + soglia sotto la quale
+                     scatta lo zoom-in (y). Sotto la soglia il tuo zoom resta invariato. -->
+                <TextView
+                    android:id="@+id/tv_tune_recenter_ideal_zoom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_recenter_ideal_zoom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="80" />
+
+                <TextView
+                    android:id="@+id/tv_tune_recenter_snap_below_zoom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_recenter_snap_below_zoom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="80" />
+
+                <!-- Larghezza massima "a nastro" dei canali (ChannelWidthEngine): il canale si
+                     allarga fino a questo valore SOLO dove la batimetria conferma acqua reale. -->
+                <TextView
+                    android:id="@+id/tv_tune_channel_max_width"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_channel_max_width"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="40" />
+
                 <Button
                     android:id="@+id/btn_reset_tuning"
                     android:layout_width="match_parent"
@@ -528,6 +570,64 @@
                     android:text="Reset dimensione schermo (100%)"
                     android:textSize="11sp"
                     app:backgroundTint="#CC333333" />
+            </LinearLayout>
+
+            <!-- Pannello "Mappa Offline": scarica/verifica la cache offline dei tile mappa -->
+            <LinearLayout
+                android:id="@+id/group_offline_map"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <Button
+                    android:id="@+id/btn_download_offline_region"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:text="Scarica regione offline (laguna + 35 km)"
+                    android:textSize="11sp"
+                    app:backgroundTint="#CC005580" />
+
+                <TextView
+                    android:id="@+id/tv_offline_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:fontFamily="monospace"
+                    android:text="Nessun pacchetto offline scaricato"
+                    android:textColor="#AAAAAA"
+                    android:textSize="9sp" />
+
+                <Button
+                    android:id="@+id/btn_refresh_offline_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:layout_marginTop="4dp"
+                    android:text="Aggiorna stato pacchetto (verifica se sta scaricando)"
+                    android:textSize="10sp"
+                    app:backgroundTint="#CC333333" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Solo cache offline scaricata (nasconde la cache locale del dispositivo, per verificare che il pacchetto basti da solo)"
+                        android:textColor="@color/white"
+                        android:textSize="10sp" />
+
+                    <Switch
+                        android:id="@+id/switch_offline_only_cache"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- Stato: info simulatore / debug -->

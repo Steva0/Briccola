@@ -1,6 +1,5 @@
 package it.lagunav.openlagunamaps
 
-import android.content.Context
 import android.os.Bundle
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.ActionBarDrawerToggle
@@ -10,6 +9,7 @@ import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
+import android.widget.Toast
 import com.google.android.material.navigation.NavigationView
 import it.lagunav.openlagunamaps.databinding.ActivityMainBinding
 import it.lagunav.openlagunamaps.ui.MapFragment
@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var currentFragment: Fragment? = null
     private var isMapReady = false
+    private var lastBackPressMs = 0L
 
     /**
      * Segnala che la mappa (o l'inizializzazione principale) è completata,
@@ -102,12 +103,9 @@ class MainActivity : AppCompatActivity() {
                 .start()
         }
 
-        // Applica night mode PRIMA di setContentView, così tutto il tema è coerente
-        val nightMode = getSharedPreferences("laguna_prefs", Context.MODE_PRIVATE)
-            .getBoolean("night_mode", false)
-        AppCompatDelegate.setDefaultNightMode(
-            if (nightMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
-        )
+        // Sempre tema giorno (modalità notte rimossa): forzato prima di setContentView, così
+        // il tema resta coerente indipendentemente dalla modalità scura di sistema.
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -142,15 +140,33 @@ class MainActivity : AppCompatActivity() {
         showFragment(R.id.nav_map, "Mappa") { MapFragment() }
         binding.navView.setCheckedItem(R.id.nav_map)
 
-        // Gestione tasto back moderno
+        // Gestione tasto back: prima chiude eventuali overlay aperti nella mappa (dettaglio
+        // punto, salva punto, pianificazione percorso, luoghi salvati, ricerca), poi torna alla
+        // Mappa se si è su un'altra voce di menu, e solo se già sulla Mappa "vuota" chiede
+        // conferma (doppio tocco) prima di uscire dall'app.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (binding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                    binding.drawerLayout.closeDrawer(GravityCompat.START)
-                } else {
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
-                    isEnabled = true
+                val drawer = binding.drawerLayout
+                val mapFragment = currentFragment as? MapFragment
+
+                when {
+                    drawer.isDrawerOpen(GravityCompat.START) -> drawer.closeDrawer(GravityCompat.START)
+                    mapFragment != null && mapFragment.handleBackPress() -> { /* overlay chiuso */ }
+                    mapFragment == null -> {
+                        showFragment(R.id.nav_map, "Mappa") { MapFragment() }
+                        binding.navView.setCheckedItem(R.id.nav_map)
+                    }
+                    else -> {
+                        val now = System.currentTimeMillis()
+                        if (now - lastBackPressMs < 2000L) {
+                            isEnabled = false
+                            onBackPressedDispatcher.onBackPressed()
+                            isEnabled = true
+                        } else {
+                            lastBackPressMs = now
+                            Toast.makeText(this@MainActivity, "Premi di nuovo per uscire", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             }
         })

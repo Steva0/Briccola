@@ -47,6 +47,11 @@ class DevToolsFragment : Fragment() {
     private var simAbStart: LatLng? = null
     private var simAbEnd: LatLng? = null
 
+    // Bbox dell'ultima regione offline scaricata (laguna + margine): il contorno va ridisegnato
+    // ogni volta che si ricarica lo stile (setOfflineVerificationMode), perché un reload crea un
+    // nuovo Style e la sorgente/layer del contorno aggiunti a quello vecchio non esistono più.
+    private var lastOfflineBounds: Pair<LatLng, LatLng>? = null
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -73,6 +78,7 @@ class DevToolsFragment : Fragment() {
         setupCameraSettingsPanel()
         setupPositionSourceToggle()
         setupScreenSimPanel()
+        setupOfflineMapPanel()
 
         // Il simulatore parte automaticamente: il joystick è sempre visibile in Dev Tools
         startSimulator()
@@ -88,7 +94,8 @@ class DevToolsFragment : Fragment() {
             "Test Punte (Tips)",
             "Simula Percorso A→B",
             "Settaggi Dev",
-            "Posizione"
+            "Posizione",
+            "Mappa Offline"
         )
         binding.spinnerDevMode.adapter =
             ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, modes)
@@ -100,6 +107,7 @@ class DevToolsFragment : Fragment() {
                 binding.groupSimAb.visibility          = if (position == 2) View.VISIBLE else View.GONE
                 binding.groupCameraSettings.visibility = if (position == 3) View.VISIBLE else View.GONE
                 binding.groupSetPosition.visibility    = if (position == 4) View.VISIBLE else View.GONE
+                binding.groupOfflineMap.visibility     = if (position == 5) View.VISIBLE else View.GONE
                 if (position != 2) { simAbStart = null; simAbEnd = null }
                 if (position == 0) binding.tvDevStatus.text = "Simulatore pronto — joystick per muovere"
             }
@@ -145,6 +153,9 @@ class DevToolsFragment : Fragment() {
             binding.tvTuneFps.text         = "FPS barca/camera: ${(1000.0 / CameraTuning.frameIntervalMs).roundToInt()}"
             binding.tvTuneHudRefresh.text  = "Refresh HUD (profondità/velocità/canale): ${(1000.0 / CameraTuning.hudIntervalMs).roundToInt()} Hz"
             binding.tvTuneCanalThreshold.text = "Soglia \"Fuori canale\": %.0f m".format(CameraTuning.canalLabelThresholdM)
+            binding.tvTuneRecenterIdealZoom.text = "Centra: zoom ideale (x): %.1f — più alto = più vicino".format(CameraTuning.recenterIdealZoom)
+            binding.tvTuneRecenterSnapBelowZoom.text = "Centra: sotto questo zoom riavvicina (y): %.1f".format(CameraTuning.recenterSnapBelowZoom)
+            binding.tvTuneChannelMaxWidth.text = "Larghezza massima canali: %.1f m".format(UiTuning.channelMaxWidthM)
             binding.tvTuneGaugeScale.text      = "Scala tachimetro/altimetro: %.2fx".format(UiTuning.gaugeScale)
             binding.tvTuneGaugeOffset.text     = "Posizione tachimetro/altimetro: %.0f dp".format(UiTuning.gaugeOffsetYDp)
             binding.tvTuneGaugeStackOffset.text = "Distanza altimetro sopra il tachimetro: %.0f dp".format(UiTuning.gaugeStackOffsetDp)
@@ -177,6 +188,11 @@ class DevToolsFragment : Fragment() {
             binding.seekFps.progress         = (1000.0 / CameraTuning.frameIntervalMs).roundToInt().coerceIn(1, 60)
             binding.seekHudRefresh.progress  = (1000.0 / CameraTuning.hudIntervalMs).roundToInt().coerceIn(1, 20)
             binding.seekCanalThreshold.progress = CameraTuning.canalLabelThresholdM.roundToInt().coerceIn(0, 300)
+            binding.seekRecenterIdealZoom.progress = ((CameraTuning.recenterIdealZoom - CameraTuning.RECENTER_ZOOM_MIN) * 10)
+                .roundToInt().coerceIn(0, 80)
+            binding.seekRecenterSnapBelowZoom.progress = ((CameraTuning.recenterSnapBelowZoom - CameraTuning.RECENTER_ZOOM_MIN) * 10)
+                .roundToInt().coerceIn(0, 80)
+            binding.seekChannelMaxWidth.progress = (UiTuning.channelMaxWidthM * 2).roundToInt().coerceIn(0, 40)
             binding.seekGaugeScale.progress      = (UiTuning.gaugeScale * 100).roundToInt().coerceIn(50, 200)
             binding.seekGaugeOffset.progress     = (UiTuning.gaugeOffsetYDp + 100).roundToInt().coerceIn(0, 150)
             binding.seekGaugeStackOffset.progress = UiTuning.gaugeStackOffsetDp.roundToInt().coerceIn(0, 300)
@@ -229,6 +245,8 @@ class DevToolsFragment : Fragment() {
         onChange(binding.seekFps)         { CameraTuning.frameIntervalMs = (1000.0 / it.coerceAtLeast(1)).roundToInt().toLong() }
         onChange(binding.seekHudRefresh)  { CameraTuning.hudIntervalMs = (1000.0 / it.coerceAtLeast(1)).roundToInt().toLong() }
         onChange(binding.seekCanalThreshold) { CameraTuning.canalLabelThresholdM = it.toDouble() }
+        onChange(binding.seekRecenterIdealZoom) { CameraTuning.recenterIdealZoom = CameraTuning.RECENTER_ZOOM_MIN + it / 10.0 }
+        onChange(binding.seekRecenterSnapBelowZoom) { CameraTuning.recenterSnapBelowZoom = CameraTuning.RECENTER_ZOOM_MIN + it / 10.0 }
 
         onChangeUi(binding.seekGaugeScale)      { UiTuning.gaugeScale = it / 100f }
         onChangeUi(binding.seekGaugeOffset)     { UiTuning.gaugeOffsetYDp = (it - 100).toFloat() }
@@ -243,6 +261,7 @@ class DevToolsFragment : Fragment() {
         onChangeUi(binding.seekDeletePlaceBtnScale) { UiTuning.deletePlaceBtnScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekSavePlaceTextScale) { UiTuning.savePlaceTextScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekFollowBoatScreenY) { UiTuning.followBoatScreenYFraction = it / 100f }
+        onChangeUi(binding.seekChannelMaxWidth) { UiTuning.channelMaxWidthM = it / 2f }
 
         binding.switchHudSpeedLinked.setOnCheckedChangeListener { _, isChecked ->
             CameraTuning.hudRefreshLinkedToSpeed = isChecked
@@ -306,6 +325,143 @@ class DevToolsFragment : Fragment() {
             binding.seekSimScreenWidth.progress = 100
             binding.seekSimScreenHeight.progress = 100
             refreshLabels(); applySim()
+        }
+    }
+
+    // =================================================================
+    // MAPPA OFFLINE — scarica il pacchetto (laguna + 35 km) e verifica la cache
+    // =================================================================
+
+    /** Legge quanti pacchetti offline sono già presenti e, per ciascuno, lo stato REALE letto
+     *  dal database (non dall'observer della sessione di download, che si perde se si cambia
+     *  schermata) — così si può controllare in ogni momento se un download è davvero in corso o
+     *  fermo, senza doverlo indovinare dal fatto che la mappa sembri nera o meno. */
+    private fun refreshOfflineRegionsStatus() {
+        org.maplibre.android.offline.OfflineManager.getInstance(requireContext()).listOfflineRegions(
+            object : org.maplibre.android.offline.OfflineManager.ListOfflineRegionsCallback {
+                override fun onList(offlineRegions: Array<org.maplibre.android.offline.OfflineRegion>?) {
+                    if (_binding == null) return
+                    val regions = offlineRegions ?: emptyArray()
+                    if (regions.isEmpty()) {
+                        binding.tvOfflineStatus.text = "Nessun pacchetto offline scaricato"
+                        return
+                    }
+                    binding.tvOfflineStatus.text = "Pacchetti offline: ${regions.size} — lettura stato..."
+                    regions.forEachIndexed { i, region ->
+                        region.getStatus(object : org.maplibre.android.offline.OfflineRegion.OfflineRegionStatusCallback {
+                            override fun onStatus(status: org.maplibre.android.offline.OfflineRegionStatus?) {
+                                if (_binding == null || status == null) return
+                                val sizeMb = status.completedResourceSize / 1_000_000.0
+                                val done = status.requiredResourceCount > 0 && status.completedResourceCount >= status.requiredResourceCount
+                                binding.tvOfflineStatus.text = "Pacchetto ${i + 1}/${regions.size}: " +
+                                        (if (done) "COMPLETO" else "in corso") +
+                                        " — ${status.completedResourceCount}/${status.requiredResourceCount} risorse, %.1f MB".format(sizeMb)
+                            }
+                            override fun onError(error: String?) {
+                                if (_binding == null) return
+                                binding.tvOfflineStatus.text = "Errore lettura stato pacchetto ${i + 1}: $error"
+                            }
+                        })
+                    }
+                }
+                override fun onError(error: String) {
+                    if (_binding == null) return
+                    binding.tvOfflineStatus.text = "Errore lettura pacchetti: $error"
+                }
+            }
+        )
+    }
+
+    private fun setupOfflineMapPanel() {
+        refreshOfflineRegionsStatus()
+        binding.btnRefreshOfflineStatus.setOnClickListener { refreshOfflineRegionsStatus() }
+
+        binding.btnDownloadOfflineRegion.setOnClickListener {
+            // Se prima era stato attivato lo switch "Solo cache offline" qui sotto,
+            // MapLibre.setConnected(false) blocca anche il download di un nuovo pacchetto
+            // (passa dalla stessa rete della libreria) — lo riattiviamo sempre esplicitamente
+            // prima di scaricare, indipendentemente da come è rimasto lo switch.
+            org.maplibre.android.MapLibre.setConnected(null)
+            if (binding.switchOfflineOnlyCache.isChecked) binding.switchOfflineOnlyCache.isChecked = false
+
+            val engine = childMap?.routingEngine
+            val bounds = engine?.getProjectBoundsWithMargin(35_000.0)
+            if (bounds == null) {
+                binding.tvOfflineStatus.text = "Perimetro di progetto non ancora caricato, riprova tra poco"
+                return@setOnClickListener
+            }
+            lastOfflineBounds = bounds
+            childMap?.showOfflineRegionBoundary(bounds)
+
+            val (sw, ne) = bounds
+            val latLngBounds = org.maplibre.android.geometry.LatLngBounds.Builder().include(sw).include(ne).build()
+            // minZoom 9 (non 0): a zoom molto basso un tile copre centinaia di km, quindi
+            // scaricando da zoom 0 si trascina dentro anche zone lontanissime dal bbox richiesto
+            // (visto testando: Innsbruck, Trieste, Bologna, Firenze comparivano scaricate insieme
+            // alla laguna). Da zoom 9 in su i tile sono abbastanza piccoli da restare vicini al
+            // bbox reale; in barca comunque non serve mai vedere l'intera Europa da zoom 0-8.
+            val definition = org.maplibre.android.offline.OfflineTilePyramidRegionDefinition(
+                STYLE_DAY, latLngBounds, 9.0, 16.0, resources.displayMetrics.density
+            )
+            binding.tvOfflineStatus.text = "Avvio download regione offline..."
+
+            org.maplibre.android.offline.OfflineManager.getInstance(requireContext()).createOfflineRegion(
+                definition, ByteArray(0),
+                object : org.maplibre.android.offline.OfflineManager.CreateOfflineRegionCallback {
+                    override fun onCreate(offlineRegion: org.maplibre.android.offline.OfflineRegion) {
+                        offlineRegion.setObserver(object : org.maplibre.android.offline.OfflineRegion.OfflineRegionObserver {
+                            override fun onStatusChanged(status: org.maplibre.android.offline.OfflineRegionStatus) {
+                                if (_binding == null) return
+                                val done = status.completedResourceCount >= status.requiredResourceCount && status.requiredResourceCount > 0
+                                val sizeMb = status.completedResourceSize / 1_000_000.0
+                                binding.tvOfflineStatus.text = if (done)
+                                    "Download completato: ${status.completedResourceCount} risorse, %.1f MB".format(sizeMb)
+                                else
+                                    "Download in corso: ${status.completedResourceCount}/${status.requiredResourceCount} — %.1f MB".format(sizeMb)
+                            }
+                            override fun onError(error: org.maplibre.android.offline.OfflineRegionError) {
+                                if (_binding == null) return
+                                binding.tvOfflineStatus.text = "Errore download: ${error.message}"
+                            }
+                            override fun mapboxTileCountLimitExceeded(limit: Long) {
+                                if (_binding == null) return
+                                binding.tvOfflineStatus.text = "Limite di ${limit} tile superato: riduci l'area o lo zoom massimo"
+                            }
+                        })
+                        offlineRegion.setDownloadState(org.maplibre.android.offline.OfflineRegion.STATE_ACTIVE)
+                    }
+                    override fun onError(error: String) {
+                        if (_binding == null) return
+                        binding.tvOfflineStatus.text = "Errore creazione regione: $error"
+                    }
+                }
+            )
+        }
+
+        binding.switchOfflineOnlyCache.setOnCheckedChangeListener { _, isChecked ->
+            // Sfondo nero + rete disattivata a livello SDK (MapLibre.setConnected(false)): non
+            // serve più la modalità aereo, le zone senza tile in cache restano semplicemente nere.
+            childMap?.setOfflineVerificationMode(isChecked)
+            childMap?.showOfflineRegionBoundary(lastOfflineBounds)
+
+            if (!isChecked) {
+                binding.tvOfflineStatus.text = "Cache locale di nuovo attiva (navigando si ricaricano i tile come al solito)"
+                return@setOnCheckedChangeListener
+            }
+            // Pulisce SOLO la cache "ambiente" (i tile scaricati navigando sul dispositivo): i
+            // pacchetti offline scaricati esplicitamente sopra non vengono toccati.
+            org.maplibre.android.offline.OfflineManager.getInstance(requireContext()).clearAmbientCache(
+                object : org.maplibre.android.offline.OfflineManager.FileSourceCallback {
+                    override fun onSuccess() {
+                        if (_binding == null) return
+                        binding.tvOfflineStatus.text = "Cache locale pulita e rete disattivata — vedi solo il pacchetto offline (nero = non scaricato)."
+                    }
+                    override fun onError(message: String) {
+                        if (_binding == null) return
+                        binding.tvOfflineStatus.text = "Errore pulizia cache: $message"
+                    }
+                }
+            )
         }
     }
 

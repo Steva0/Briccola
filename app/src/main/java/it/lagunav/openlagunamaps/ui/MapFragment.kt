@@ -41,15 +41,18 @@ import it.lagunav.openlagunamaps.R
 import it.lagunav.openlagunamaps.databinding.FragmentMapBinding
 import it.lagunav.openlagunamaps.engine.BathymetryEngine
 import it.lagunav.openlagunamaps.engine.CameraTuning
+import it.lagunav.openlagunamaps.engine.ChannelWidthEngine
 import it.lagunav.openlagunamaps.engine.GnssPositionProvider
 import it.lagunav.openlagunamaps.engine.PerfMonitor
 import it.lagunav.openlagunamaps.engine.PlaceType
 import it.lagunav.openlagunamaps.engine.PlacesStore
+import it.lagunav.openlagunamaps.engine.NavigationLimits
 import it.lagunav.openlagunamaps.engine.PositionProvider
 import it.lagunav.openlagunamaps.engine.RoutingEngine
 import it.lagunav.openlagunamaps.engine.SavedPlace
 import it.lagunav.openlagunamaps.engine.SimulatorHub
 import it.lagunav.openlagunamaps.engine.SpeedUnit
+import it.lagunav.openlagunamaps.engine.TideEngine
 import it.lagunav.openlagunamaps.engine.UiTuning
 import it.lagunav.openlagunamaps.engine.toLatLng
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +67,7 @@ import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.FillLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.*
@@ -81,10 +85,10 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 private const val PREFS_NAME            = "laguna_prefs"
-private const val KEY_NIGHT_MODE        = "night_mode"
 private const val KEY_MOB_PINS          = "mob_pins"
-private const val STYLE_DAY             = "https://tiles.openfreemap.org/styles/liberty"
-private const val STYLE_NIGHT           = "https://tiles.openfreemap.org/styles/dark"
+// Non privato: serve anche a DevToolsFragment per definire la regione da scaricare offline
+// con lo stesso identico stile usato dalla mappa (l'offline pack è specifico per styleURL).
+const val STYLE_DAY                     = "https://tiles.openfreemap.org/styles/liberty"
 private const val BOAT_ICON_ID          = "boat-nav-icon"
 private const val OFF_CANAL_THRESHOLD_M  = 30.0
 private const val SAVED_PLACE_TAP_RADIUS_DP = 28f  // tap entro questa distanza (in pixel schermo) da un pallino -> lo apre
@@ -137,6 +141,40 @@ class MapFragment : Fragment() {
         }
     }
 
+    /** Disegna (o rimuove, passando null) il rettangolo del confine della regione offline
+     *  scaricata — a zoom basso i tile coprono aree enormi (l'intera area visibile può
+     *  ricadere dentro tile che intersecano il bbox richiesto, anche se molto più grande della
+     *  laguna), quindi lo sfondo nero da solo non basta a capire cosa è stato davvero incluso:
+     *  questo contorno mostra il bbox esatto usato per il download, indipendentemente dallo zoom. */
+    fun showOfflineRegionBoundary(bounds: Pair<LatLng, LatLng>?) {
+        val geoJson = if (bounds != null) {
+            val (sw, ne) = bounds
+            val ring = listOf(
+                sw, LatLng(sw.latitude, ne.longitude), ne, LatLng(ne.latitude, sw.longitude), sw
+            )
+            val coords = JsonArray().also { arr -> ring.forEach { p -> arr.add(JsonArray().apply { add(p.longitude); add(p.latitude) }) } }
+            val feat = JsonObject().apply {
+                addProperty("type", "Feature"); add("properties", JsonObject())
+                add("geometry", JsonObject().apply { addProperty("type", "LineString"); add("coordinates", coords) })
+            }
+            JsonObject().apply { addProperty("type", "FeatureCollection"); add("features", JsonArray().apply { add(feat) }) }.toString()
+        } else emptyFc()
+
+        mapLibre?.getStyle { style ->
+            val existing = style.getSource(SOURCE_OFFLINE_BOUNDARY) as? GeoJsonSource
+            if (existing != null) {
+                existing.setGeoJson(geoJson)
+            } else {
+                style.addSource(GeoJsonSource(SOURCE_OFFLINE_BOUNDARY, geoJson))
+                style.addLayer(LineLayer(LAYER_OFFLINE_BOUNDARY, SOURCE_OFFLINE_BOUNDARY).withProperties(
+                    lineColor("#FF00FF"),
+                    lineWidth(3f),
+                    lineOpacity(0.9f)
+                ))
+            }
+        }
+    }
+
     /** Ultima posizione GPS/sim ricevuta — accessibile da DevToolsFragment. */
     var lastGpsLocation: Location? = null
         private set
@@ -147,10 +185,18 @@ class MapFragment : Fragment() {
     private lateinit var bathyEngine: BathymetryEngine
     lateinit var routingEngine: RoutingEngine
         private set
+
+    // Livello di marea corrente (metri sullo Zero di Punta della Salute), usato per correggere
+    // il valore di profondità mostrato in HUD. Aggiornato periodicamente in background: la
+    // chiamata è di rete (o lettura asset in fallback), quindi mai fatta in modo sincrono da
+    // updateHud che gira fino a ~20Hz.
+    private var cachedTideM = 0.0
+    private var lastTideFetchMs = 0L
+    private val TIDE_REFRESH_MS = 5 * 60_000L
     private lateinit var prefs: SharedPreferences
     private var mapLibre: MapLibreMap? = null
-    // Cache dello Style corrente, aggiornata nei due punti in cui viene caricato (setupMap,
-    // applyNightMode). Usata SOLO nel loop camera (runFrame, fino a ~45 volte al secondo): con
+    // Cache dello Style corrente, aggiornata quando viene caricato (setupMap). Usata SOLO nel
+    // loop camera (runFrame, fino a ~45 volte al secondo): con
     // map.getStyle{} invece della cache, ogni fotogramma metteva in coda una nuova callback
     // asincrona sul thread principale — a quella frequenza il backlog di callback in coda non
     // faceva mai in tempo a svuotarsi (ogni "cameraLoop.frame" costava già 8-30ms), causando
@@ -161,6 +207,10 @@ class MapFragment : Fragment() {
     private var gnssProvider: PositionProvider? = null
     private val SOURCE_PREVIEW = "preview-route-source"
     private val LAYER_PREVIEW  = "preview-route-layer"
+    private val SOURCE_OFFLINE_BOUNDARY = "offline-boundary-source"
+    private val LAYER_OFFLINE_BOUNDARY  = "offline-boundary-layer"
+    private val SOURCE_CHANNELS = "canali-larghi-source"
+    private val LAYER_CHANNELS  = "canali-larghi-layer"
 
     // Buffer dei fix GPS reali (posizione + istante). Nessun sensore esterno: solo posizione.
     private data class Fix(val t: Long, val lat: Double, val lon: Double)
@@ -213,10 +263,6 @@ class MapFragment : Fragment() {
     private val locationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> if (granted) startGnss() }
-
-    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == KEY_NIGHT_MODE) applyNightMode()
-    }
 
     // Callback registrato su SimulatorHub
     private val simCallback: (Location) -> Unit = { onGpsFix(it) }
@@ -288,6 +334,8 @@ class MapFragment : Fragment() {
                 (style.getLayer("$LAYER_SAVED_PLACES-${type.name}") as? SymbolLayer)
                     ?.setProperties(iconSize(UiTuning.savedPlaceScale))
             }
+            (style.getSource(SOURCE_CHANNELS) as? GeoJsonSource)
+                ?.setGeoJson(ChannelWidthEngine.buildRibbonPolygons(UiTuning.channelMaxWidthM))
         }
     }
 
@@ -345,8 +393,7 @@ class MapFragment : Fragment() {
             // così possiamo gestire il tap per uscire da follow mode + reset nord.
             map.uiSettings.isCompassEnabled = false
 
-            val styleUrl = if (prefs.getBoolean(KEY_NIGHT_MODE, false)) STYLE_NIGHT else STYLE_DAY
-            map.setStyle(Style.Builder().fromUri(styleUrl)) { style ->
+            map.setStyle(Style.Builder().fromUri(STYLE_DAY)) { style ->
                 mapStyle = style
                 setupAllLayers(style)
                 // Notifica alla MainActivity che la mappa è carica per togliere la splash screen
@@ -403,14 +450,6 @@ class MapFragment : Fragment() {
 
     private fun Int.dpToPx(ctx: Context): Int =
         (this * ctx.resources.displayMetrics.density).toInt()
-
-    private fun applyNightMode() {
-        val night = prefs.getBoolean(KEY_NIGHT_MODE, false)
-        mapLibre?.setStyle(Style.Builder().fromUri(if (night) STYLE_NIGHT else STYLE_DAY)) { style ->
-            mapStyle = style
-            setupAllLayers(style)
-        }
-    }
 
     // =================================================================
     // LAYER
@@ -594,12 +633,16 @@ class MapFragment : Fragment() {
             val buf     = requireContext().assets.open("laguna_vettoriale.json").readBytes()
             val geoJson = String(buf, Charset.forName("UTF-8"))
             style.addSource(GeoJsonSource("laguna-source", geoJson))
-            style.addLayer(LineLayer("canals-casing", "laguna-source")
-                .withFilter(eq(get("type"), literal("canal")))
-                .withProperties(lineColor(resources.getColor(R.color.white, null)), lineWidth(6f), lineOpacity(0.4f)))
-            style.addLayer(LineLayer("canals-layer", "laguna-source")
-                .withFilter(eq(get("type"), literal("canal")))
-                .withProperties(lineColor(resources.getColor(R.color.marine_blue, null)), lineWidth(3.5f)))
+
+            // Canali: poligono "a nastro" a larghezza variabile (ChannelWidthEngine), non più
+            // semplici linee sottili. La larghezza reale disponibile per lato è precalcolata
+            // dalla pipeline Python campionando la batimetria; qui si applica solo il cap
+            // corrente (UiTuning.channelMaxWidthM, regolabile da Dev Tools).
+            ChannelWidthEngine.load(requireContext())
+            style.addSource(GeoJsonSource(SOURCE_CHANNELS, ChannelWidthEngine.buildRibbonPolygons(UiTuning.channelMaxWidthM)))
+            style.addLayer(FillLayer(LAYER_CHANNELS, SOURCE_CHANNELS)
+                .withProperties(fillColor(resources.getColor(R.color.marine_blue, null)), fillOpacity(0.55f)))
+
             style.addLayer(LineLayer("rocks-layer", "laguna-source")
                 .withFilter(eq(get("type"), literal("rock")))
                 .withProperties(lineColor(Color.parseColor("#8B4513")), lineWidth(4f)))
@@ -833,6 +876,29 @@ class MapFragment : Fragment() {
      *  invece di scoprire un loop di camera "fantasma" rimasto attivo per sempre. Idempotente
      *  (vedi startCameraLoop/startGnss), quindi sicuro da richiamare anche se la cascata
      *  normale ha già fatto il suo lavoro. */
+    /** Modalità di verifica per Dev Tools > Mappa Offline: forza MapLibre a non scaricare
+     *  nulla via rete (org.maplibre.android.MapLibre.setConnected(false), lo stesso meccanismo
+     *  usato da Mapbox/MapLibre per i test offline) — niente colori artificiali aggiunti, si
+     *  vede semplicemente la mappa così com'è nella cache, senza poter scaricare altro online.
+     *
+     *  Ricarica anche lo stile da zero: senza questo, i tile già decodificati in memoria in
+     *  questa sessione (indipendenti dalla cache su disco) restano a schermo comunque, rendendo
+     *  il test inutile — sembra che "non cambi niente" anche quando la rete è davvero disattivata.
+     *
+     *  Il loop camera (~45Hz) tocca lo stile corrente ad ogni fotogramma (icona barca, ecc.):
+     *  se lasciato girare durante il reload, arriva a chiamare metodi sullo Style vecchio proprio
+     *  mentre MapLibre lo sta invalidando, e crasha. Va fermato prima e riavviato solo a
+     *  caricamento completato (setupAllLayers finito). */
+    fun setOfflineVerificationMode(enabled: Boolean) {
+        org.maplibre.android.MapLibre.setConnected(if (enabled) false else null)
+        stopCameraLoop()
+        mapLibre?.setStyle(Style.Builder().fromUri(STYLE_DAY)) { style ->
+            mapStyle = style
+            setupAllLayers(style)
+            startCameraLoop()
+        }
+    }
+
     fun pauseTracking() {
         stopPositionTracking()
         stopCameraLoop()
@@ -847,10 +913,29 @@ class MapFragment : Fragment() {
     // HUD
     // =================================================================
 
+    /** Rilancia il fetch della marea in background se il valore in cache è troppo vecchio;
+     *  non blocca mai updateHud, che nel frattempo continua a usare l'ultimo valore noto
+     *  (0.0 finché il primo fetch non è ancora arrivato). */
+    private fun refreshTideIfNeeded() {
+        val now = System.currentTimeMillis()
+        if (now - lastTideFetchMs < TIDE_REFRESH_MS) return
+        lastTideFetchMs = now
+        viewLifecycleOwner.lifecycleScope.launch {
+            val data = withContext(Dispatchers.IO) { TideEngine.fetch(requireContext().applicationContext) }
+            if (data != null) cachedTideM = data.nowM
+        }
+    }
+
     private fun updateHud(pos: LatLng) {
+        refreshTideIfNeeded()
         val isAtSea    = PerfMonitor.trace("routingEngine.isAtSea") { routingEngine.isAtSea(pos) }
         val isNoGo     = PerfMonitor.trace("routingEngine.isPointInNoGo") { routingEngine.isPointInNoGo(pos) }
         val fixedDepth = PerfMonitor.trace("routingEngine.getFixedDepthAt") { routingEngine.getFixedDepthAt(pos) }
+        // Limite di distanza dalla costa in mare aperto (patente/dotazioni di sicurezza, vedi
+        // Impostazioni > Profilo Barca): calcolato solo se già in mare, non ha senso in laguna.
+        val overDistanceLimit = isAtSea && PerfMonitor.trace("routingEngine.distanceFromSeaBoundaryMeters") {
+            routingEngine.distanceFromSeaBoundaryMeters(pos) > NavigationLimits.maxDistanceMeters(requireContext())
+        }
 
         val locationText: String; val depthValue: Float; val hudColor: Int
         when {
@@ -859,14 +944,19 @@ class MapFragment : Fragment() {
                 depthValue   = 0f
                 hudColor     = resources.getColor(android.R.color.holo_red_dark, null)
             }
+            overDistanceLimit -> {
+                locationText = "Oltre limite"
+                depthValue   = 12f
+                hudColor     = resources.getColor(android.R.color.holo_red_dark, null)
+            }
             fixedDepth != null -> {
                 locationText = if (isAtSea) "Mare" else canalLocationLabel(pos)
-                depthValue   = fixedDepth.toFloat()
+                depthValue   = (fixedDepth + cachedTideM).toFloat()
                 hudColor     = resources.getColor(R.color.marine_blue_dark, null)
             }
             isAtSea -> {
                 locationText = "Mare"
-                depthValue   = 12f
+                depthValue   = (12f + cachedTideM).toFloat()
                 hudColor     = resources.getColor(R.color.marine_blue_dark, null)
             }
             else -> {
@@ -874,8 +964,12 @@ class MapFragment : Fragment() {
                     bathyEngine.getDepthAt(pos.latitude, pos.longitude, routingEngine.getNoGoAreas())
                 }
                 locationText = canalLocationLabel(pos)
-                depthValue   = d
-                hudColor     = if (d in 0.1f..1.2f) resources.getColor(android.R.color.holo_red_dark, null)
+                // La marea corregge la profondità solo dove c'è davvero acqua: bathyEngine
+                // ritorna 0 anche per la terraferma (non solo per i poligoni isNoGo sopra), e in
+                // quel caso il valore deve restare 0 a prescindere dalla marea, non diventare
+                // negativo/positivo per un pezzo di terra.
+                depthValue   = if (d > 0f) (d + cachedTideM).toFloat() else 0f
+                hudColor     = if (depthValue in 0.1f..1.2f) resources.getColor(android.R.color.holo_red_dark, null)
                                else resources.getColor(R.color.marine_blue_dark, null)
             }
         }
@@ -997,6 +1091,22 @@ class MapFragment : Fragment() {
         binding.cardRoutePlanning.visibility == View.VISIBLE ||
         binding.cardSavePlace.visibility == View.VISIBLE ||
         binding.cardSavedPlaces.visibility == View.VISIBLE
+
+    /** Chiude la schermata/overlay attualmente in primo piano, dal più "interno" al più
+     *  "esterno" (dettaglio punto → salva punto → pianificazione percorso → luoghi salvati →
+     *  lista ricerca). Ritorna true se ha chiuso qualcosa (il tasto indietro va considerato
+     *  gestito), false se la mappa è già nello stato base e il tasto indietro deve fare
+     *  altro (es. tornare alla voce di menu precedente, o uscire dall'app). */
+    fun handleBackPress(): Boolean {
+        return when {
+            binding.cardPlaceDetail.visibility == View.VISIBLE -> { closePlaceDetail(); true }
+            binding.cardSavePlace.visibility == View.VISIBLE -> { closeSavePlaceScreen(); true }
+            binding.cardRoutePlanning.visibility == View.VISIBLE -> { closeRoutePlanning(); true }
+            binding.cardSavedPlaces.visibility == View.VISIBLE -> { closeSavedPlacesScreen(); true }
+            binding.cardPlaces.visibility == View.VISIBLE -> { hidePlacesList(); true }
+            else -> false
+        }
+    }
 
     fun showPlaceDetail(pos: LatLng, name: String) {
         if (isMapInteractionLocked()) return
@@ -1656,7 +1766,13 @@ class MapFragment : Fragment() {
             val map = mapLibre
             val lastFix = fixBuffer.lastOrNull()
             if (map != null && lastFix != null) {
-                val zoom = map.cameraPosition.zoom.coerceAtLeast(14.0)
+                // CENTRA "intelligente": se sei già zoomato quanto (o più di) la soglia
+                // recenterSnapBelowZoom, il tuo zoom resta invariato (l'hai scelto tu, non ha
+                // senso stravolgerlo). Solo se sei più lontano/zoomato-fuori di quella soglia,
+                // si zooma verso recenterIdealZoom invece di lasciarti a un livello scomodo.
+                val currentZoom = map.cameraPosition.zoom
+                val zoom = if (currentZoom < CameraTuning.recenterSnapBelowZoom)
+                    CameraTuning.recenterIdealZoom else currentZoom
                 val target = followCameraTarget(map, LatLng(lastFix.lat, lastFix.lon))
                 map.animateCamera(CameraUpdateFactory.newCameraPosition(
                     CameraPosition.Builder().target(target).zoom(zoom).bearing(smoothedCamBearing).build()
@@ -1928,7 +2044,6 @@ class MapFragment : Fragment() {
     override fun onStart() {
         super.onStart()
         binding.mapView.onStart()
-        prefs.registerOnSharedPreferenceChangeListener(prefsListener)
     }
 
     override fun onResume() {
@@ -1966,7 +2081,6 @@ class MapFragment : Fragment() {
     override fun onStop() {
         super.onStop()
         binding.mapView.onStop()
-        prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
     }
 
     override fun onSaveInstanceState(out: Bundle) { super.onSaveInstanceState(out); binding.mapView.onSaveInstanceState(out) }

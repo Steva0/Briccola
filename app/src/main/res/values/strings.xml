@@ -14,7 +14,6 @@
     <string name="settings_draft_label">Pescaggio (metri)</string>
     <string name="settings_license_label">Patente Nautica</string>
     <string name="settings_equipment_label">Dotazioni di Sicurezza</string>
-    <string name="settings_map_options">Mappa e Navigazione</string>
 
     <string name="license_none">Senza Patente (Entro 6mg / 11km)</string>
     <string name="license_12">Entro 12 Miglia (22 km)</string>
