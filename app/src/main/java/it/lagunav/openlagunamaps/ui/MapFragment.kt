@@ -641,7 +641,7 @@ class MapFragment : Fragment() {
             ChannelWidthEngine.load(requireContext())
             style.addSource(GeoJsonSource(SOURCE_CHANNELS, ChannelWidthEngine.buildRibbonPolygons(UiTuning.channelMaxWidthM)))
             style.addLayer(FillLayer(LAYER_CHANNELS, SOURCE_CHANNELS)
-                .withProperties(fillColor(resources.getColor(R.color.marine_blue, null)), fillOpacity(0.55f)))
+                .withProperties(fillColor(Color.parseColor("#FF00FF")), fillOpacity(0.55f)))
 
             style.addLayer(LineLayer("rocks-layer", "laguna-source")
                 .withFilter(eq(get("type"), literal("rock")))

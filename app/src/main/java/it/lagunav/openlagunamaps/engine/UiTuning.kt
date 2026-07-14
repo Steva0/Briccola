@@ -43,7 +43,7 @@ object UiTuning {
     const val DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION = 0.7f
     // Larghezza massima "a nastro" dei canali in mappa (vedi ChannelWidthEngine): il canale si
     // allarga fino a questo valore SOLO dove i dati di batimetria confermano acqua reale.
-    const val DEFAULT_CHANNEL_MAX_WIDTH_M = 10f
+    const val DEFAULT_CHANNEL_MAX_WIDTH_M = 18f
 
     // Tachimetro e altimetro sono specchiati (stessa dimensione/posizione, solo lato opposto):
     // un solo slider per ciascuno basta per entrambi.
