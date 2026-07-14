@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 88
-        versionName = "1.55-devtools-colori-mappa"
+        versionCode = 89
+        versionName = "1.56-union-canali-percorso-verde"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -56,6 +56,9 @@ dependencies {
     
     // Serialization (per caricare il grafo JSON)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+    // Geometria: union dei poligoni canale che si sovrappongono (ChannelWidthEngine), altrimenti
+    // con opacità <1 l'alpha si somma dove più canali si toccano/incrociano.
+    implementation("org.locationtech.jts:jts-core:1.19.0")
     // Coroutines (per network calls Nominatim in background)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 

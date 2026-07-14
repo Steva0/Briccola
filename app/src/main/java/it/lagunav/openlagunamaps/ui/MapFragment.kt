@@ -619,7 +619,7 @@ class MapFragment : Fragment() {
         // Tratto rimanente (blu)
         style.addSource(GeoJsonSource(SOURCE_ROUTE, emptyFc()))
         style.addLayer(LineLayer(LAYER_ROUTE, SOURCE_ROUTE).withProperties(
-            lineColor("#00008B"), lineWidth(5f), lineOpacity(0.9f),
+            lineColor("#00CC44"), lineWidth(5f), lineOpacity(1f),
             lineCap(Property.LINE_CAP_ROUND), lineJoin(Property.LINE_JOIN_ROUND)
         ))
     }

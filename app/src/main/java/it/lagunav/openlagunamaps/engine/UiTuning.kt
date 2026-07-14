@@ -56,8 +56,8 @@ object UiTuning {
     // NB trasparenza: dove più canali si toccano/incrociano i poligoni si sovrappongono, quindi
     // con opacità <1 l'alpha si somma proprio lì (effetto "evidenziatore" più scuro/saturo) — è
     // un limite noto del rendering a poligoni separati, non un bug dello slider in sé.
-    val DEFAULT_CHANNEL_FILL_COLOR: Int   = android.graphics.Color.parseColor("#FF00FF")
-    const val DEFAULT_CHANNEL_FILL_OPACITY = 1f
+    val DEFAULT_CHANNEL_FILL_COLOR: Int   = android.graphics.Color.parseColor("#1976D2")
+    const val DEFAULT_CHANNEL_FILL_OPACITY = 0.6f
     val DEFAULT_BRICCOLE_COLOR: Int       = android.graphics.Color.parseColor("#003366")
 
     // Tachimetro e altimetro sono specchiati (stessa dimensione/posizione, solo lato opposto):

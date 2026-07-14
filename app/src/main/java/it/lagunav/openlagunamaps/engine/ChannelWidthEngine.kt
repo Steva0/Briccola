@@ -4,6 +4,11 @@ import android.content.Context
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import org.json.JSONObject
+import org.locationtech.jts.geom.Coordinate
+import org.locationtech.jts.geom.Geometry
+import org.locationtech.jts.geom.GeometryFactory
+import org.locationtech.jts.geom.Polygon
+import org.locationtech.jts.operation.union.CascadedPolygonUnion
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -21,6 +26,7 @@ private data class Channel(val id: String, val points: List<ChannelWidthPoint>)
 object ChannelWidthEngine {
     private var channels: List<Channel> = emptyList()
     private var loaded = false
+    private val geometryFactory = GeometryFactory()
 
     fun load(context: Context) {
         if (loaded) return
@@ -52,32 +58,79 @@ object ChannelWidthEngine {
     /** GeoJSON (stringa) pronto per una GeoJsonSource: un poligono per canale, largo per lato
      *  min(larghezza reale precalcolata, maxWidthM) ma non meno di minWidthM — senza un minimo,
      *  i tratti dove la batimetria non dà spazio (es. rii stretti tra due rive, o dati mancanti)
-     *  collasserebbero a una linea invisibile invece che restare un canale sottile ma visibile. */
+     *  collasserebbero a una linea invisibile invece che restare un canale sottile ma visibile.
+     *
+     *  I poligoni dei canali vicini spesso si toccano/sovrappongono (incroci, rii paralleli):
+     *  con un riempimento semi-trasparente, poligoni sovrapposti separati sommerebbero l'alpha
+     *  proprio lì (effetto "evidenziatore" più scuro). Si fa quindi l'UNION geometrico di tutti
+     *  i poligoni (JTS) prima di esportarli: il risultato copre la stessa area ma senza zone
+     *  doppie, quindi la trasparenza resta uniforme ovunque. */
     fun buildRibbonPolygons(maxWidthM: Float, minWidthM: Float): String {
-        val features = JsonArray()
+        val rawPolygons = ArrayList<Polygon>(channels.size)
         channels.forEach { channel ->
             if (channel.points.size < 2) return@forEach
             val ring = buildRing(channel.points, maxWidthM, minWidthM)
-            val coords = JsonArray()
-            ring.forEach { (lon, lat) ->
-                coords.add(JsonArray().apply { add(lon); add(lat) })
-            }
-            val polygonCoords = JsonArray().apply { add(coords) }
-            val geometry = JsonObject().apply {
-                addProperty("type", "Polygon")
-                add("coordinates", polygonCoords)
-            }
-            val feature = JsonObject().apply {
-                addProperty("type", "Feature")
-                add("properties", JsonObject())
-                add("geometry", geometry)
-            }
-            features.add(feature)
+            buildValidPolygon(ring)?.let { flattenPolygons(it, rawPolygons) }
         }
+
+        val unionedPolygons = ArrayList<Polygon>(rawPolygons.size)
+        try {
+            flattenPolygons(CascadedPolygonUnion(rawPolygons).union(), unionedPolygons)
+        } catch (_: Exception) {
+            // Se l'union fallisce per qualche geometria degenere, meglio mostrare i poligoni
+            // separati (col difetto noto agli incroci) che non mostrare nulla.
+            unionedPolygons.addAll(rawPolygons)
+        }
+
+        val features = JsonArray()
+        unionedPolygons.forEach { features.add(polygonToFeature(it)) }
         return JsonObject().apply {
             addProperty("type", "FeatureCollection")
             add("features", features)
         }.toString()
+    }
+
+    /** Costruisce un Polygon JTS valido dall'anello: buffer(0) "sana" le auto-intersezioni minori
+     *  (frequenti quando left/right collassano quasi a zero in un tratto strettissimo), tecnica
+     *  standard in JTS invece di scartare la geometria. */
+    private fun buildValidPolygon(ring: List<Pair<Double, Double>>): Geometry? {
+        if (ring.size < 4) return null
+        return try {
+            val coords = ring.map { Coordinate(it.first, it.second) }.toMutableList()
+            if (coords.first() != coords.last()) coords.add(Coordinate(coords.first()))
+            val poly = geometryFactory.createPolygon(coords.toTypedArray())
+            if (poly.isValid) poly else poly.buffer(0.0)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun flattenPolygons(geom: Geometry, out: MutableList<Polygon>) {
+        for (i in 0 until geom.numGeometries) {
+            val g = geom.getGeometryN(i)
+            if (g is Polygon) { if (!g.isEmpty) out.add(g) } else flattenPolygons(g, out)
+        }
+    }
+
+    private fun polygonToFeature(poly: Polygon): JsonObject {
+        fun ringToCoords(coords: Array<Coordinate>): JsonArray {
+            val arr = JsonArray()
+            coords.forEach { c -> arr.add(JsonArray().apply { add(c.x); add(c.y) }) }
+            return arr
+        }
+        val rings = JsonArray().apply {
+            add(ringToCoords(poly.exteriorRing.coordinates))
+            for (i in 0 until poly.numInteriorRing) add(ringToCoords(poly.getInteriorRingN(i).coordinates))
+        }
+        val geometry = JsonObject().apply {
+            addProperty("type", "Polygon")
+            add("coordinates", rings)
+        }
+        return JsonObject().apply {
+            addProperty("type", "Feature")
+            add("properties", JsonObject())
+            add("geometry", geometry)
+        }
     }
 
     /** Costruisce l'anello (lon,lat) del poligono a nastro: bordo sinistro in avanti + bordo
