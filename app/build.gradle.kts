@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 85
-        versionName = "1.52-canali-magenta-18m-smoothing"
+        versionCode = 86
+        versionName = "1.53-canali-larghezza-minima"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

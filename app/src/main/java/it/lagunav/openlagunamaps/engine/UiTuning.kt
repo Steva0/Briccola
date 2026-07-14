@@ -22,6 +22,7 @@ object UiTuning {
     private const val KEY_DELETE_PLACE_BTN_SCALE = "ui_delete_place_btn_scale"
     private const val KEY_FOLLOW_BOAT_SCREEN_Y   = "ui_follow_boat_screen_y_fraction"
     private const val KEY_CHANNEL_MAX_WIDTH_M    = "ui_channel_max_width_m"
+    private const val KEY_CHANNEL_MIN_WIDTH_M    = "ui_channel_min_width_m"
 
     const val DEFAULT_GAUGE_SCALE         = 0.72f  // tachimetro/altimetro un po' più piccoli
     const val DEFAULT_GAUGE_OFFSET_Y      = -78f   // e un po' più in alto (negativo = su)
@@ -44,6 +45,10 @@ object UiTuning {
     // Larghezza massima "a nastro" dei canali in mappa (vedi ChannelWidthEngine): il canale si
     // allarga fino a questo valore SOLO dove i dati di batimetria confermano acqua reale.
     const val DEFAULT_CHANNEL_MAX_WIDTH_M = 18f
+    // Larghezza minima per lato, sempre garantita anche dove la batimetria non dà spazio (0):
+    // senza questo, i tratti senza dati collassavano a linea invisibile invece che a un canale
+    // sottile ma visibile.
+    const val DEFAULT_CHANNEL_MIN_WIDTH_M = 1.5f
 
     // Tachimetro e altimetro sono specchiati (stessa dimensione/posizione, solo lato opposto):
     // un solo slider per ciascuno basta per entrambi.
@@ -62,6 +67,7 @@ object UiTuning {
     var deletePlaceBtnScale: Float = DEFAULT_DELETE_PLACE_BTN_SCALE
     var followBoatScreenYFraction: Float = DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION
     var channelMaxWidthM: Float = DEFAULT_CHANNEL_MAX_WIDTH_M
+    var channelMinWidthM: Float = DEFAULT_CHANNEL_MIN_WIDTH_M
 
     private var loaded = false
 
@@ -83,6 +89,7 @@ object UiTuning {
         deletePlaceBtnScale = p.getFloat(KEY_DELETE_PLACE_BTN_SCALE, deletePlaceBtnScale)
         followBoatScreenYFraction = p.getFloat(KEY_FOLLOW_BOAT_SCREEN_Y, followBoatScreenYFraction)
         channelMaxWidthM = p.getFloat(KEY_CHANNEL_MAX_WIDTH_M, channelMaxWidthM)
+        channelMinWidthM = p.getFloat(KEY_CHANNEL_MIN_WIDTH_M, channelMinWidthM)
     }
 
     fun save(context: Context) {
@@ -101,6 +108,7 @@ object UiTuning {
             putFloat(KEY_DELETE_PLACE_BTN_SCALE, deletePlaceBtnScale)
             putFloat(KEY_FOLLOW_BOAT_SCREEN_Y, followBoatScreenYFraction)
             putFloat(KEY_CHANNEL_MAX_WIDTH_M, channelMaxWidthM)
+            putFloat(KEY_CHANNEL_MIN_WIDTH_M, channelMinWidthM)
             apply()
         }
     }
@@ -120,6 +128,7 @@ object UiTuning {
         deletePlaceBtnScale = DEFAULT_DELETE_PLACE_BTN_SCALE
         followBoatScreenYFraction = DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION
         channelMaxWidthM = DEFAULT_CHANNEL_MAX_WIDTH_M
+        channelMinWidthM = DEFAULT_CHANNEL_MIN_WIDTH_M
         save(context)
     }
 }

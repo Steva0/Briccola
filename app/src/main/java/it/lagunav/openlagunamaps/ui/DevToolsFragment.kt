@@ -156,6 +156,7 @@ class DevToolsFragment : Fragment() {
             binding.tvTuneRecenterIdealZoom.text = "Centra: zoom ideale (x): %.1f — più alto = più vicino".format(CameraTuning.recenterIdealZoom)
             binding.tvTuneRecenterSnapBelowZoom.text = "Centra: sotto questo zoom riavvicina (y): %.1f".format(CameraTuning.recenterSnapBelowZoom)
             binding.tvTuneChannelMaxWidth.text = "Larghezza massima canali: %.1f m".format(UiTuning.channelMaxWidthM)
+            binding.tvTuneChannelMinWidth.text = "Larghezza minima canali: %.2f m".format(UiTuning.channelMinWidthM)
             binding.tvTuneGaugeScale.text      = "Scala tachimetro/altimetro: %.2fx".format(UiTuning.gaugeScale)
             binding.tvTuneGaugeOffset.text     = "Posizione tachimetro/altimetro: %.0f dp".format(UiTuning.gaugeOffsetYDp)
             binding.tvTuneGaugeStackOffset.text = "Distanza altimetro sopra il tachimetro: %.0f dp".format(UiTuning.gaugeStackOffsetDp)
@@ -193,6 +194,7 @@ class DevToolsFragment : Fragment() {
             binding.seekRecenterSnapBelowZoom.progress = ((CameraTuning.recenterSnapBelowZoom - CameraTuning.RECENTER_ZOOM_MIN) * 10)
                 .roundToInt().coerceIn(0, 80)
             binding.seekChannelMaxWidth.progress = (UiTuning.channelMaxWidthM * 2).roundToInt().coerceIn(0, 40)
+            binding.seekChannelMinWidth.progress = (UiTuning.channelMinWidthM * 4).roundToInt().coerceIn(0, 20)
             binding.seekGaugeScale.progress      = (UiTuning.gaugeScale * 100).roundToInt().coerceIn(50, 200)
             binding.seekGaugeOffset.progress     = (UiTuning.gaugeOffsetYDp + 100).roundToInt().coerceIn(0, 150)
             binding.seekGaugeStackOffset.progress = UiTuning.gaugeStackOffsetDp.roundToInt().coerceIn(0, 300)
@@ -262,6 +264,7 @@ class DevToolsFragment : Fragment() {
         onChangeUi(binding.seekSavePlaceTextScale) { UiTuning.savePlaceTextScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekFollowBoatScreenY) { UiTuning.followBoatScreenYFraction = it / 100f }
         onChangeUi(binding.seekChannelMaxWidth) { UiTuning.channelMaxWidthM = it / 2f }
+        onChangeUi(binding.seekChannelMinWidth) { UiTuning.channelMinWidthM = it / 4f }
 
         binding.switchHudSpeedLinked.setOnCheckedChangeListener { _, isChecked ->
             CameraTuning.hudRefreshLinkedToSpeed = isChecked

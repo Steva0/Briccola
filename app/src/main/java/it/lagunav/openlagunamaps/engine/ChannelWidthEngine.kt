@@ -49,15 +49,15 @@ object ChannelWidthEngine {
         }
     }
 
-    /** GeoJSON (stringa) pronto per una GeoJsonSource: un poligono per canale, largo
-     *  min(larghezza reale precalcolata, maxWidthM) per lato in ogni punto. Dove la larghezza
-     *  reale è 0 (niente spazio, es. rii stretti tra due rive a Venezia) il bordo di quel lato
-     *  collassa sul centro-linea: il canale resta stretto lì a prescindere dal cap impostato. */
-    fun buildRibbonPolygons(maxWidthM: Float): String {
+    /** GeoJSON (stringa) pronto per una GeoJsonSource: un poligono per canale, largo per lato
+     *  min(larghezza reale precalcolata, maxWidthM) ma non meno di minWidthM — senza un minimo,
+     *  i tratti dove la batimetria non dà spazio (es. rii stretti tra due rive, o dati mancanti)
+     *  collasserebbero a una linea invisibile invece che restare un canale sottile ma visibile. */
+    fun buildRibbonPolygons(maxWidthM: Float, minWidthM: Float): String {
         val features = JsonArray()
         channels.forEach { channel ->
             if (channel.points.size < 2) return@forEach
-            val ring = buildRing(channel.points, maxWidthM)
+            val ring = buildRing(channel.points, maxWidthM, minWidthM)
             val coords = JsonArray()
             ring.forEach { (lon, lat) ->
                 coords.add(JsonArray().apply { add(lon); add(lat) })
@@ -84,7 +84,7 @@ object ChannelWidthEngine {
      *  destro invertito all'indietro, chiuso sul primo punto sinistro. Tangente/perpendicolare
      *  calcolate in un piano metrico locale approssimato (equirettangolare, accettabile alla
      *  scala della laguna e con punti già ravvicinati dal ricampionamento a passo fisso). */
-    private fun buildRing(points: List<ChannelWidthPoint>, maxWidthM: Float): List<Pair<Double, Double>> {
+    private fun buildRing(points: List<ChannelWidthPoint>, maxWidthM: Float, minWidthM: Float): List<Pair<Double, Double>> {
         val lat0 = points[points.size / 2].lat
         val mPerDegLat = 111_320.0
         val mPerDegLon = 111_320.0 * cos(Math.toRadians(lat0))
@@ -107,8 +107,8 @@ object ChannelWidthEngine {
             val perpLx = -uy; val perpLy = ux   // perpendicolare sinistra
             val perpRx = uy; val perpRy = -ux    // perpendicolare destra
 
-            val leftEff = min(points[i].leftM, maxWidthM).toDouble()
-            val rightEff = min(points[i].rightM, maxWidthM).toDouble()
+            val leftEff = min(points[i].leftM, maxWidthM).coerceAtLeast(minWidthM).toDouble()
+            val rightEff = min(points[i].rightM, maxWidthM).coerceAtLeast(minWidthM).toDouble()
 
             val lx = px + perpLx * leftEff; val ly = py + perpLy * leftEff
             val rx = px + perpRx * rightEff; val ry = py + perpRy * rightEff

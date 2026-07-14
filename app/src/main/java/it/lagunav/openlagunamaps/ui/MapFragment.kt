@@ -335,7 +335,7 @@ class MapFragment : Fragment() {
                     ?.setProperties(iconSize(UiTuning.savedPlaceScale))
             }
             (style.getSource(SOURCE_CHANNELS) as? GeoJsonSource)
-                ?.setGeoJson(ChannelWidthEngine.buildRibbonPolygons(UiTuning.channelMaxWidthM))
+                ?.setGeoJson(ChannelWidthEngine.buildRibbonPolygons(UiTuning.channelMaxWidthM, UiTuning.channelMinWidthM))
         }
     }
 
@@ -639,7 +639,7 @@ class MapFragment : Fragment() {
             // dalla pipeline Python campionando la batimetria; qui si applica solo il cap
             // corrente (UiTuning.channelMaxWidthM, regolabile da Dev Tools).
             ChannelWidthEngine.load(requireContext())
-            style.addSource(GeoJsonSource(SOURCE_CHANNELS, ChannelWidthEngine.buildRibbonPolygons(UiTuning.channelMaxWidthM)))
+            style.addSource(GeoJsonSource(SOURCE_CHANNELS, ChannelWidthEngine.buildRibbonPolygons(UiTuning.channelMaxWidthM, UiTuning.channelMinWidthM)))
             style.addLayer(FillLayer(LAYER_CHANNELS, SOURCE_CHANNELS)
                 .withProperties(fillColor(Color.parseColor("#FF00FF")), fillOpacity(0.55f)))
 
