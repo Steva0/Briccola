@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 100
-        versionName = "1.67-default-distanza-centra-17"
+        versionCode = 101
+        versionName = "1.68-mappa-offline-precotta-nel-pacchetto"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

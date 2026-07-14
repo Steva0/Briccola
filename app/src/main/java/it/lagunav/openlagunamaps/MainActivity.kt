@@ -20,6 +20,7 @@ import android.net.Uri
 import it.lagunav.openlagunamaps.ui.AboutFragment
 import it.lagunav.openlagunamaps.ui.DonateFragment
 import it.lagunav.openlagunamaps.ui.DevToolsFragment
+import it.lagunav.openlagunamaps.engine.OfflinePackInstaller
 
 class MainActivity : AppCompatActivity() {
 
@@ -71,9 +72,12 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
 
-        // Mantieni la splash screen finché la mappa non è pronta o finché non scatta un timeout (2s)
+        // Mantieni la splash screen finché la mappa non è pronta o finché non scatta un timeout.
+        // Il timeout è più alto del solito 2s perché la prima volta include anche la copia del
+        // pacchetto mappa offline precotto (~150MB) nello storage interno, prima che la mappa
+        // possa essere creata (vedi OfflinePackInstaller).
         splashScreen.setKeepOnScreenCondition { !isMapReady }
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ isMapReady = true }, 2000L)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ isMapReady = true }, 8000L)
 
         // Personalizzazione dell'uscita della splash screen per un effetto "premium"
         splashScreen.setOnExitAnimationListener { splashScreenView ->
@@ -148,9 +152,14 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        // Schermata iniziale: Mappa (con GPS reale)
-        showFragment(R.id.nav_map, "Mappa") { MapFragment() }
-        binding.navView.setCheckedItem(R.id.nav_map)
+        // Schermata iniziale: Mappa (con GPS reale). La creazione va rimandata a dopo la copia
+        // del pacchetto offline precotto (se non già presente): MapLibre apre/crea il proprio
+        // database non appena la prima MapView viene istanziata, quindi la copia deve avvenire
+        // prima, non dopo.
+        OfflinePackInstaller.installIfNeeded(applicationContext) {
+            showFragment(R.id.nav_map, "Mappa") { MapFragment() }
+            binding.navView.setCheckedItem(R.id.nav_map)
+        }
 
         // Gestione tasto back: prima chiude eventuali overlay aperti nella mappa (dettaglio
         // punto, salva punto, pianificazione percorso, luoghi salvati, ricerca), poi torna alla
