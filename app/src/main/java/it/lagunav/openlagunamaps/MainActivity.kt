@@ -58,7 +58,14 @@ class MainActivity : AppCompatActivity() {
             currentFragment = newFragment
         }
         transaction.commit()
-        supportActionBar?.title = title
+    }
+
+    /**
+     * Apre il drawer laterale. Chiamata dai fragment (es. MapFragment) 
+     * che integrano il pulsante menu nella propria UI.
+     */
+    fun openDrawer() {
+        binding.drawerLayout.openDrawer(GravityCompat.START)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -110,8 +117,6 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setSupportActionBar(binding.toolbar)
-
         // Nascondi Strumenti Dev per impostazione predefinita
         val devToolsItem = binding.navView.menu.findItem(R.id.nav_devtools)
         devToolsItem.isVisible = false
@@ -125,13 +130,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Strumenti Dev $status", Toast.LENGTH_SHORT).show()
             true
         }
-
-        val toggle = ActionBarDrawerToggle(
-            this, binding.drawerLayout, binding.toolbar,
-            R.string.navigation_drawer_open, R.string.navigation_drawer_close
-        )
-        binding.drawerLayout.addDrawerListener(toggle)
-        toggle.syncState()
 
         binding.navView.setNavigationItemSelectedListener { menuItem ->
             val factory: (() -> Fragment)? = when (menuItem.itemId) {

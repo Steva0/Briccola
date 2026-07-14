@@ -33,11 +33,17 @@
     <string name="credits_openfreemap">Tile della mappa forniti da OpenFreeMap</string>
     <string name="credits_maplibre">Motore cartografico: MapLibre GL Native</string>
     <string name="license_details">PolyForm Noncommercial License 1.0.0\n\nThe software is provided under this license, which allows you to use, modify, and share the software, but you may not use it for commercial purposes.\n\n1. Grant of Rights\nSubject to the terms and conditions of this license, the contributor grants you a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to use, reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute the software.\n\n2. Commercial Use Restriction\nYou may not make the software available to others for a fee.\n\n3. No Warranty\nThe software is provided \"as is\", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.</string>
-    <string name="donate_placeholder">Se l\'app ti è utile e vuoi supportarne lo sviluppo, ogni contributo è molto apprezzato. Grazie!</string>
-    <string name="btn_paypal">Dona con PayPal</string>
+    <string name="donate_title">Supporta LagunaNav</string>
+    <string name="donate_subtitle">Aiutaci a mantenere la rotta</string>
+    <string name="donate_description">LagunaNav è un progetto indipendente e gratuito. \n\nLe donazioni aiutano a coprire i costi dei server per le mappe, le API del meteo e il tempo dedicato allo sviluppo di nuove funzionalità. \n\nOgni contributo, anche piccolo come un caffè, fa la differenza per garantire un servizio affidabile a tutta la comunità dei naviganti veneziani.</string>
+    <string name="donate_coffee_text">Offri un caffè allo sviluppatore</string>
+    <string name="btn_paypal">Dona ora con PayPal</string>
 
     <string name="about_dev_title">Lo Sviluppatore</string>
     <string name="about_dev_bio">Michele Stevanin\nLaureato in Informatica presso l\'Università degli Studi di Padova e attualmente iscritto al corso di Laurea Magistrale in Cybersecurity presso lo stesso ateneo. Il mio percorso accademico mi ha permesso di costruire una solida base nell\'ambito dello sviluppo software e dell\'architettura dei sistemi, con un forte interesse verso la protezione delle infrastrutture digitali e la ricerca di vulnerabilità.</string>
     <string name="btn_github">GitHub</string>
     <string name="btn_cv">Il mio CV</string>
+    <string name="logo_desc">Logo LagunaNav</string>
+    <string name="donate_thanks">Grazie per il tuo supporto! ⛵</string>
+    <string name="open_menu">Apri Menu</string>
 </resources>

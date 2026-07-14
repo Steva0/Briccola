@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 92
-        versionName = "1.59-pagina-dona-paypal"
+        versionCode = 93
+        versionName = "1.60-bussola-grande-nord-centrato"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

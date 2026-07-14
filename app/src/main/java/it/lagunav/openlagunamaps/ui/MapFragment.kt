@@ -1506,6 +1506,9 @@ class MapFragment : Fragment() {
         }
 
         // Schermata "Luoghi salvati"
+        binding.btnMenu.setOnClickListener {
+            (activity as? it.lagunav.openlagunamaps.MainActivity)?.openDrawer()
+        }
         binding.btnSavedPlacesBack.setOnClickListener { closeSavedPlacesScreen() }
         binding.btnFilterBerth.setOnClickListener { toggleSavedPlacesFilter(PlaceType.BERTH) }
         binding.btnFilterFavorite.setOnClickListener { toggleSavedPlacesFilter(PlaceType.FAVORITE) }
@@ -1779,14 +1782,30 @@ class MapFragment : Fragment() {
             setFollowMode(true)
         }
 
-        // Bussola custom: tap → esci da follow mode e resetta la mappa verso nord
+        // Bussola custom: se sei in modalità Segui, resta centrata sulla barca e riporta solo
+        // il bearing a nord (senza uscire dal follow mode); altrimenti (camera libera) resetta
+        // solo il nord senza spostare il centro attuale.
         binding.cardCompass.setOnClickListener {
-            setFollowMode(false)
-            mapLibre?.animateCamera(
-                CameraUpdateFactory.newCameraPosition(
-                    CameraPosition.Builder().bearing(0.0).build()
-                ), 500
-            )
+            if (followMode) {
+                // smoothedCamBearing è lo stato che il loop camera continua a leggere ad ogni
+                // frame: va aggiornato anche lui, altrimenti il prossimo fotogramma annullerebbe
+                // subito lo snap a nord tornando verso il vecchio valore.
+                smoothedCamBearing = 0.0
+                val map = mapLibre
+                val lastFix = fixBuffer.lastOrNull()
+                if (map != null && lastFix != null) {
+                    val target = followCameraTarget(map, LatLng(lastFix.lat, lastFix.lon))
+                    map.animateCamera(CameraUpdateFactory.newCameraPosition(
+                        CameraPosition.Builder().target(target).bearing(0.0).zoom(map.cameraPosition.zoom).build()
+                    ), 400)
+                }
+            } else {
+                mapLibre?.animateCamera(
+                    CameraUpdateFactory.newCameraPosition(
+                        CameraPosition.Builder().bearing(0.0).build()
+                    ), 500
+                )
+            }
         }
 
         binding.btnNavChipClose.setOnClickListener { cancelRoute() }
