@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 98
-        versionName = "1.65-fix-loop-camera-non-tocca-zoom"
+        versionCode = 99
+        versionName = "1.66-fix-centra-scatto-istantaneo"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

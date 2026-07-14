@@ -1763,8 +1763,13 @@ class MapFragment : Fragment() {
         // CENTRA: visibile solo quando NON stai seguendo la barca
         _binding?.layoutCentra?.visibility = if (active) View.GONE else View.VISIBLE
 
-        // Rientro in follow mode (tasto CENTRA o nuova rotta): transizione dolce invece di uno
-        // scatto istantaneo verso la posizione/bearing della barca.
+        // Rientro in follow mode (tasto CENTRA o nuova rotta): il loop camera (~45Hz, sempre
+        // attivo in follow mode) chiama map.moveCamera() ad ogni fotogramma, e moveCamera()
+        // cancella SEMPRE qualunque animateCamera() in corso (Transform.moveCamera() chiama
+        // cancelTransitions() internamente) — un'animazione qui veniva quindi cancellata dopo
+        // un solo fotogramma (~22ms su 500ms), prima che lo zoom potesse davvero cambiare: lo
+        // slider "distanza x" sembrava non avere alcun effetto. Serve quindi uno scatto istantaneo
+        // (moveCamera), coerente con come il loop stesso già muove la camera.
         if (reentering) {
             val map = mapLibre
             val lastFix = fixBuffer.lastOrNull()
@@ -1777,9 +1782,9 @@ class MapFragment : Fragment() {
                 val zoom = if (currentZoom < CameraTuning.recenterZoom)
                     CameraTuning.recenterZoom else currentZoom
                 val target = followCameraTarget(map, LatLng(lastFix.lat, lastFix.lon))
-                map.animateCamera(CameraUpdateFactory.newCameraPosition(
+                map.moveCamera(CameraUpdateFactory.newCameraPosition(
                     CameraPosition.Builder().target(target).zoom(zoom).bearing(smoothedCamBearing).build()
-                ), 500)
+                ))
             }
         }
     }
