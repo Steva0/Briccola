@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 96
-        versionName = "1.63-centra-singola-distanza-x"
+        versionCode = 97
+        versionName = "1.64-fix-zoom-floor-loop-camera"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

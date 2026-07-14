@@ -801,7 +801,11 @@ class MapFragment : Fragment() {
                         // schermo ma a FOLLOW_BOAT_SCREEN_Y_FRACTION dall'alto (2/5 dal basso),
                         // per lasciare più mappa visibile davanti alla direzione di marcia.
                         if (followMode) {
-                            val zoom = map.cameraPosition.zoom.coerceAtLeast(14.0)
+                            // Niente floor fisso qui: lo zoom in follow mode è già quello deciso
+                            // dal pulsante CENTRA (CameraTuning.recenterZoom) o dall'utente con
+                            // le dita — un coerceAtLeast qui lo sovrascriveva ad ogni fotogramma
+                            // (~45 volte al secondo), annullando di fatto lo slider "distanza x".
+                            val zoom = map.cameraPosition.zoom
                             val target = followCameraTarget(map, interpPos)
                             map.moveCamera(CameraUpdateFactory.newCameraPosition(
                                 CameraPosition.Builder().target(target).zoom(zoom).bearing(smoothedCamBearing).build()
