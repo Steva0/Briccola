@@ -801,14 +801,16 @@ class MapFragment : Fragment() {
                         // schermo ma a FOLLOW_BOAT_SCREEN_Y_FRACTION dall'alto (2/5 dal basso),
                         // per lasciare più mappa visibile davanti alla direzione di marcia.
                         if (followMode) {
-                            // Niente floor fisso qui: lo zoom in follow mode è già quello deciso
-                            // dal pulsante CENTRA (CameraTuning.recenterZoom) o dall'utente con
-                            // le dita — un coerceAtLeast qui lo sovrascriveva ad ogni fotogramma
-                            // (~45 volte al secondo), annullando di fatto lo slider "distanza x".
-                            val zoom = map.cameraPosition.zoom
+                            // Niente .zoom(...) qui di proposito: il Builder di MapLibre usa -1.0
+                            // come "non toccare lo zoom attuale" quando non lo si specifica. Prima
+                            // veniva riletto e riapplicato ogni fotogramma (~45Hz) — che si trattasse
+                            // del valore corrente o di un floor fisso, il risultato era lo stesso:
+                            // quel moveCamera continuo cancellava sul nascere qualunque animazione
+                            // di zoom avviata altrove (es. il pulsante CENTRA), riapplicando lo zoom
+                            // "attuale" prima ancora che l'animazione potesse spostarlo.
                             val target = followCameraTarget(map, interpPos)
                             map.moveCamera(CameraUpdateFactory.newCameraPosition(
-                                CameraPosition.Builder().target(target).zoom(zoom).bearing(smoothedCamBearing).build()
+                                CameraPosition.Builder().target(target).bearing(smoothedCamBearing).build()
                             ))
                         }
 
