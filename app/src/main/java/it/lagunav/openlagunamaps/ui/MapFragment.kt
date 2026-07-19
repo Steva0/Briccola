@@ -1317,8 +1317,20 @@ class MapFragment : Fragment() {
     /** Aggiorna la riga "Da: ..." e nasconde il bottone "Partenza" quando l'origine non è la
      *  posizione reale — non ha senso avviare una navigazione vera da un punto dove non sei. */
     private fun updateRouteOriginUi() {
-        binding.tvRouteOrigin.text = "Da: $planningOriginName ✎"
+        binding.tvRouteOrigin.text = "Da: $planningOriginName"
         binding.btnRoutePlanningStart.visibility = if (planningOrigin == null) View.VISIBLE else View.GONE
+        // La X per tornare alla posizione attuale ha senso solo quando l'origine è già stata
+        // cambiata — con quella di default non c'è nulla da "annullare".
+        binding.btnRouteOriginClear.visibility = if (planningOrigin != null) View.VISIBLE else View.GONE
+    }
+
+    /** Riporta l'origine alla posizione attuale senza dover rifare la ricerca — l'unico modo
+     *  che c'era prima era scegliere di nuovo un punto, niente per tornare al default. */
+    private fun clearPlanningOrigin() {
+        planningOrigin = null
+        planningOriginName = "la tua posizione attuale"
+        updateRouteOriginUi()
+        recalcPlanningRoute()
     }
 
     /** Avvia la scelta di un punto di partenza diverso dalla posizione attuale: nasconde
@@ -1655,6 +1667,7 @@ class MapFragment : Fragment() {
         binding.btnRoutePlanningClose.setOnClickListener { closeRoutePlanning() }
         binding.btnRoutePlanningStart.setOnClickListener { startPlannedRoute() }
         binding.tvRouteOrigin.setOnClickListener { startPickingOrigin() }
+        binding.btnRouteOriginClear.setOnClickListener { clearPlanningOrigin() }
     }
 
     // =================================================================

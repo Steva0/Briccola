@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 107
-        versionName = "1.74-pianifica-percorso-da-punto-scelto"
+        versionCode = 108
+        versionName = "1.75-fix-ux-origine-percorso"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
