@@ -1438,6 +1438,12 @@ class MapFragment : Fragment() {
                 binding.tvRoutePlanningDist.text = routingEngine.lastRoutingError
                 return@launch
             }
+            // Se arriviamo qui da uno stato "fuori area" (origine precedente non valida, poi
+            // corretta scegliendo un punto di partenza dentro la laguna), la card normale va
+            // ripristinata: recalcPlanningRoute() prima d'ora toccava queste visibility solo
+            // nel ramo di fallimento, lasciando l'avviso a schermo anche a percorso trovato.
+            binding.layoutRoutePlanningNormal.visibility = View.VISIBLE
+            binding.layoutRoutePlanningOutsideArea.visibility = View.GONE
             val etaMin = routingEngine.calculateEstimatedTimeMinutes(route)
             val distKm = routingEngine.calculateTotalDistance(route) / 1000.0
             binding.tvRoutePlanningTime.text = "%d min".format(etaMin)
@@ -1716,6 +1722,7 @@ class MapFragment : Fragment() {
         // Pianificazione percorso
         binding.btnRoutePlanningCancel.setOnClickListener { closeRoutePlanning() }
         binding.btnRoutePlanningClose.setOnClickListener { closeRoutePlanning() }
+        binding.btnRoutePlanningPickOrigin.setOnClickListener { startPickingOrigin() }
         binding.btnRoutePlanningStart.setOnClickListener { startPlannedRoute() }
         binding.tvRouteOrigin.setOnClickListener { startPickingOrigin() }
         binding.btnRouteOriginClear.setOnClickListener { clearPlanningOrigin() }

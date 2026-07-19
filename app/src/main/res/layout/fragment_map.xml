@@ -399,27 +399,42 @@
                 android:id="@+id/layout_route_planning_outside_area"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:visibility="gone">
 
-                <TextView
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Per avviare la navigazione devi trovarti all'interno della laguna di Venezia."
-                    android:textColor="#222222"
-                    android:textSize="15sp" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <ImageButton
-                    android:id="@+id/btn_route_planning_close"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="8dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Chiudi"
-                    android:src="@android:drawable/ic_menu_close_clear_cancel"
-                    app:tint="#444444" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Il punto di partenza (la tua posizione attuale) non è dentro la laguna di Venezia. Per navigare davvero serve trovarsi in laguna, ma puoi comunque scegliere un altro punto di partenza per provare un percorso."
+                        android:textColor="#222222"
+                        android:textSize="15sp" />
+
+                    <ImageButton
+                        android:id="@+id/btn_route_planning_close"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginStart="8dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Chiudi"
+                        android:src="@android:drawable/ic_menu_close_clear_cancel"
+                        app:tint="#444444" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btn_route_planning_pick_origin"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Scegli un altro punto di partenza"
+                    android:textColor="@color/marine_blue" />
             </LinearLayout>
 
             <LinearLayout
