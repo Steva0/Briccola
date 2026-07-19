@@ -399,6 +399,62 @@ class MapFragment : Fragment() {
     // MAPPA
     // =================================================================
 
+    // Diagnostica temporanea per il bug "pacchetto offline non usato al primo avvio offline":
+    // stampa tutto quello che potrebbe spiegare perché lo stile non si carica da cache quando
+    // manca la connessione, invece di continuare a indovinare a scatola chiusa.
+    private fun logOfflineDebugState(momento: String) {
+        val ctx = context ?: return
+        try {
+            val dbFile = java.io.File(ctx.filesDir, "mbgl-offline.db")
+            Log.d(
+                "OfflineDebug",
+                "[$momento] mbgl-offline.db exists=${dbFile.exists()} size=${if (dbFile.exists()) dbFile.length() else -1} path=${dbFile.absolutePath}"
+            )
+        } catch (e: Exception) {
+            Log.e("OfflineDebug", "[$momento] errore leggendo mbgl-offline.db", e)
+        }
+        try {
+            val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val net = cm.activeNetwork
+            val caps = net?.let { cm.getNetworkCapabilities(it) }
+            val hasInternet = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+            val validated = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+            Log.d("OfflineDebug", "[$momento] rete: activeNetwork=$net hasInternet=$hasInternet validated=$validated")
+        } catch (e: Exception) {
+            Log.e("OfflineDebug", "[$momento] errore leggendo stato rete", e)
+        }
+        try {
+            org.maplibre.android.offline.OfflineManager.getInstance(ctx).listOfflineRegions(
+                object : org.maplibre.android.offline.OfflineManager.ListOfflineRegionsCallback {
+                    override fun onList(offlineRegions: Array<org.maplibre.android.offline.OfflineRegion>?) {
+                        Log.d("OfflineDebug", "[$momento] OfflineManager vede ${offlineRegions?.size ?: 0} regioni")
+                        offlineRegions?.forEachIndexed { i, region ->
+                            region.getStatus(object : org.maplibre.android.offline.OfflineRegion.OfflineRegionStatusCallback {
+                                override fun onStatus(status: org.maplibre.android.offline.OfflineRegionStatus?) {
+                                    Log.d(
+                                        "OfflineDebug",
+                                        "[$momento] regione #$i: completa=${status?.isComplete} " +
+                                            "completedResourceCount=${status?.completedResourceCount} " +
+                                            "requiredResourceCount=${status?.requiredResourceCount} " +
+                                            "completedResourceSize=${status?.completedResourceSize}"
+                                    )
+                                }
+                                override fun onError(error: String?) {
+                                    Log.e("OfflineDebug", "[$momento] regione #$i: errore status: $error")
+                                }
+                            })
+                        }
+                    }
+                    override fun onError(error: String) {
+                        Log.e("OfflineDebug", "[$momento] errore listOfflineRegions: $error")
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            Log.e("OfflineDebug", "[$momento] errore chiamando listOfflineRegions", e)
+        }
+    }
+
     private fun setupMap(savedInstanceState: Bundle?) {
         binding.mapView.onCreate(savedInstanceState)
         binding.mapView.getMapAsync { map ->
@@ -410,7 +466,17 @@ class MapFragment : Fragment() {
             // così possiamo gestire il tap per uscire da follow mode + reset nord.
             map.uiSettings.isCompassEnabled = false
 
+            // Prima di questo listener, un fallimento nel caricamento dello stile (es. offline con
+            // cache non valida) era totalmente silenzioso: nessun log, nessuna callback, schermo
+            // bianco per sempre. MapLibre chiama questo listener con il motivo esatto del fallimento.
+            binding.mapView.addOnDidFailLoadingMapListener { errorMessage ->
+                Log.e("OfflineDebug", "Caricamento mappa/stile fallito: $errorMessage")
+                logOfflineDebugState("dopo fallimento setStyle")
+            }
+            logOfflineDebugState("prima di setStyle")
+
             map.setStyle(Style.Builder().fromUri(STYLE_DAY)) { style ->
+                Log.d("OfflineDebug", "setStyle: callback di successo invocata, stile caricato")
                 mapStyle = style
                 setupAllLayers(style)
                 // Notifica alla MainActivity che la mappa è carica per togliere la splash screen

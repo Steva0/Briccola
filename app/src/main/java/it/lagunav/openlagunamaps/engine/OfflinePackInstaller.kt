@@ -29,19 +29,26 @@ object OfflinePackInstaller {
             return
         }
         Thread {
+            val startedAt = System.currentTimeMillis()
             try {
+                val assetList = context.assets.list("")?.toList() ?: emptyList()
+                Log.d(TAG, "Asset in root: $assetList (contiene $ASSET_NAME? ${assetList.contains(ASSET_NAME)})")
+                Log.d(TAG, "filesDir=${context.filesDir.absolutePath} spazio libero=${context.filesDir.freeSpace} byte")
+
                 val assetSize = context.assets.openFd(ASSET_NAME).use { it.length }
+                Log.d(TAG, "Asset $ASSET_NAME apribile via AssetFileDescriptor, size dichiarata=$assetSize byte")
                 context.assets.open(ASSET_NAME).use { input ->
                     dest.outputStream().use { output -> input.copyTo(output, bufferSize = 1 shl 20) }
                 }
+                val elapsedMs = System.currentTimeMillis() - startedAt
                 // Verifica esplicita invece di assumere che "nessuna eccezione" = copia integra:
                 // un asset di queste dimensioni (~150MB) è proprio il caso in cui Android può
                 // troncare/fallire la lettura senza sollevare un'eccezione chiara.
                 if (dest.length() != assetSize) {
-                    Log.e(TAG, "Copia incompleta: attesi $assetSize byte, copiati ${dest.length()}")
+                    Log.e(TAG, "Copia incompleta: attesi $assetSize byte, copiati ${dest.length()} in ${elapsedMs}ms")
                     dest.delete()
                 } else {
-                    Log.d(TAG, "Pacchetto copiato correttamente (${dest.length()} byte)")
+                    Log.d(TAG, "Pacchetto copiato correttamente (${dest.length()} byte) in ${elapsedMs}ms")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Errore copiando il pacchetto offline", e)

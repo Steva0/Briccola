@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 111
-        versionName = "1.78-fix-nocompress-pacchetto-offline"
+        versionCode = 112
+        versionName = "1.79-debug-pacchetto-offline"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

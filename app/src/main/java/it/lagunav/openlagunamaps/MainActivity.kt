@@ -156,7 +156,9 @@ class MainActivity : AppCompatActivity() {
         // del pacchetto offline precotto (se non già presente): MapLibre apre/crea il proprio
         // database non appena la prima MapView viene istanziata, quindi la copia deve avvenire
         // prima, non dopo.
+        android.util.Log.d("OfflineDebug", "MainActivity.onCreate: avvio OfflinePackInstaller.installIfNeeded")
         OfflinePackInstaller.installIfNeeded(applicationContext) {
+            android.util.Log.d("OfflineDebug", "OfflinePackInstaller: onDone, creo MapFragment")
             showFragment(R.id.nav_map, "Mappa") { MapFragment() }
             binding.navView.setCheckedItem(R.id.nav_map)
         }
