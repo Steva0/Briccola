@@ -378,8 +378,11 @@ override fun onCreateView(
 
         // Contorno dell'area bundlata (laguna + 35km): oltre questo bordo la mappa dipende dalla
         // cache online dinamica (se disponibile), non dal pacchetto sempre presente nell'APK.
-        val bounds = childMap?.routingEngine?.getProjectBoundsWithMargin(35_000.0)
-        childMap?.showOfflineRegionBoundary(bounds)
+        // Se routingEngine non è ancora pronto (Dev Tools aperta subito dopo l'avvio dell'app),
+        // niente contorno per questa volta invece di far crashare tutto.
+        childMap?.getProjectBoundsWithMarginIfReady(35_000.0)?.let { bounds ->
+            childMap?.showOfflineRegionBoundary(bounds)
+        }
     }
 
     // =================================================================

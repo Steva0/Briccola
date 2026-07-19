@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 116
-        versionName = "1.83-contorno-area-e-limite-cache"
+        versionCode = 117
+        versionName = "1.84-fix-crash-devtools-e-zoom-basso"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

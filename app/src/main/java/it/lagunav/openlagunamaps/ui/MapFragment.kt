@@ -143,6 +143,11 @@ class MapFragment : Fragment() {
         }
     }
 
+    /** routingEngine è lateinit e si carica in modo asincrono: esposto per DevToolsFragment,
+     *  che non può controllare ::routingEngine.isInitialized da fuori questa classe. */
+    fun getProjectBoundsWithMarginIfReady(marginMeters: Double): Pair<LatLng, LatLng>? =
+        if (::routingEngine.isInitialized) routingEngine.getProjectBoundsWithMargin(marginMeters) else null
+
     /** Disegna (o rimuove, passando null) il rettangolo del confine dell'area mappa offline
      *  bundlata (laguna + 35km) — solo per Dev Tools, per capire subito dove finisce la
      *  copertura garantita anche senza connessione (oltre, la mappa dipende dalla cache online
