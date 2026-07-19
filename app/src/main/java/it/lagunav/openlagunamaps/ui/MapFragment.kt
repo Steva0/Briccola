@@ -545,6 +545,9 @@ class MapFragment : Fragment() {
             style.addLayer(LineLayer("debug-gates-layer", "laguna-source")
                 .withFilter(eq(get("special:nav:gate"), "sea"))
                 .withProperties(lineColor("#00FF00"), lineWidth(3f)))
+            style.addLayer(LineLayer("boundary-layer", "laguna-source")
+                .withFilter(eq(get("special:nav:boundary"), literal("project")))
+                .withProperties(lineColor(Color.parseColor("#90EE90")), lineWidth(6f), lineOpacity(0.35f)))
         } catch (_: Exception) {}
     }
 
@@ -702,9 +705,6 @@ class MapFragment : Fragment() {
             style.addLayer(LineLayer("rocks-layer", "laguna-source")
                 .withFilter(eq(get("type"), literal("rock")))
                 .withProperties(lineColor(Color.parseColor("#8B4513")), lineWidth(4f)))
-            style.addLayer(LineLayer("boundary-layer", "laguna-source")
-                .withFilter(eq(get("special:nav:boundary"), literal("project")))
-                .withProperties(lineColor(Color.parseColor("#90EE90")), lineWidth(6f), lineOpacity(0.35f)))
             val briccole = CircleLayer("briccole-layer", "laguna-source")
                 .withFilter(eq(get("type"), literal("briccola")))
                 .withProperties(
