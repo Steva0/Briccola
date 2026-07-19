@@ -30,7 +30,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="top"
         android:layout_marginHorizontal="12dp"
-        android:layout_marginTop="84dp"
+        android:layout_marginTop="96dp"
         app:cardBackgroundColor="#DD111111"
         app:cardCornerRadius="8dp"
         app:cardElevation="6dp">
@@ -699,26 +699,5 @@
                 android:textSize="11sp" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
-
-    <!-- Floating Menu Button -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/btn_menu"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_margin="16dp"
-        android:clickable="true"
-        android:focusable="true"
-        app:cardBackgroundColor="@color/white"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="6dp">
-
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="12dp"
-            android:src="@drawable/ic_hamburger"
-            android:contentDescription="@string/open_menu"
-            app:tint="@color/black" />
-    </com.google.android.material.card.MaterialCardView>
 
 </FrameLayout>

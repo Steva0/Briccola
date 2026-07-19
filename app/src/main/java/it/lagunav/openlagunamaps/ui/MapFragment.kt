@@ -14,6 +14,8 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.location.Location
 import android.location.LocationManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -1599,7 +1601,7 @@ class MapFragment : Fragment() {
             container.addView(TextView(ctx).apply {
                 text = "Recenti"
                 textSize = 11f
-                setTextColor(Color.LTGRAY)
+                setTextColor(Color.parseColor("#888888"))
                 setPadding(32, 20, 32, 4)
             })
             recents.forEach { rec -> addPlaceRow(container, rec.name, "Recente") { selectPlace(rec) } }
@@ -1628,11 +1630,25 @@ class MapFragment : Fragment() {
         // l'utente smetta di scrivere per un attimo prima di partire con la richiesta di rete.
         searchDebounceJob?.cancel()
         if (query.length < 3) return
+
+        // Senza questo controllo, un fallimento della richiesta Nominatim (compreso "niente
+        // internet") restituiva silenziosamente una lista vuota — indistinguibile da "nessun
+        // risultato trovato". Meglio dirlo esplicitamente invece di far sembrare che la ricerca
+        // semplicemente non trovi nulla.
+        if (!hasInternetConnection()) {
+            addPlaceRow(container, "📡 Ricerca online non disponibile", "Nessuna connessione — mostro solo i luoghi salvati") {}
+            return
+        }
+
         searchDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
             delay(450L)
             val results = withContext(Dispatchers.IO) { searchNominatimMulti(query) }
             if (_binding == null) return@launch
             if (binding.etSearch.text?.toString()?.trim() != query) return@launch  // testo cambiato nel frattempo
+            if (results.isEmpty()) {
+                addPlaceRow(container, "Nessun risultato online", "Prova con un altro nome") {}
+                return@launch
+            }
             results.forEach { (pos, name) ->
                 addPlaceRow(container, name, "Nuovo luogo") {
                     hideKeyboard()
@@ -1641,6 +1657,15 @@ class MapFragment : Fragment() {
                 }
             }
         }
+    }
+
+    /** true se il dispositivo ha una connessione con accesso a internet in questo momento
+     *  (non garantisce che Nominatim specificamente sia raggiungibile, solo che la rete c'è). */
+    private fun hasInternetConnection(): Boolean {
+        val cm = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun hidePlacesList() {
@@ -1679,10 +1704,7 @@ class MapFragment : Fragment() {
             .filter { it.type in savedPlacesTypeFilter }
             .sortedBy { it.type.ordinal }
             .forEach { place ->
-                addPlaceRow(
-                    container, "${place.type.icon} ${place.name}", place.type.label,
-                    titleColor = Color.parseColor("#222222"), subtitleColor = Color.parseColor("#888888")
-                ) {
+                addPlaceRow(container, "${place.type.icon} ${place.name}", place.type.label) {
                     closeSavedPlacesScreen()
                     editSavedPlace(place)
                 }
@@ -1711,12 +1733,20 @@ class MapFragment : Fragment() {
 
     private fun addPlaceRow(
         container: LinearLayout, title: String, subtitle: String,
-        titleColor: Int = Color.WHITE, subtitleColor: Int = Color.LTGRAY,
+        titleColor: Int = Color.parseColor("#222222"), subtitleColor: Int = Color.parseColor("#888888"),
         onClick: () -> Unit
     ) {
         val ctx = requireContext()
         val outValue = TypedValue()
         ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+        // Divisore sottile sopra ogni riga tranne la prima: separa le voci senza dover disegnare
+        // bordi su ciascuna, coerente con lo stile "lista pulita" del resto dell'app.
+        if (container.childCount > 0) {
+            container.addView(View(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+                setBackgroundColor(Color.parseColor("#EEEEEE"))
+            })
+        }
         val row = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 24, 32, 24)

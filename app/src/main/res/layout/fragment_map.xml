@@ -112,8 +112,8 @@
         android:layout_marginHorizontal="12dp"
         android:layout_marginTop="96dp"
         android:visibility="gone"
-        app:cardBackgroundColor="#DD111111"
-        app:cardCornerRadius="12dp"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="16dp"
         app:cardElevation="6dp">
 
         <LinearLayout

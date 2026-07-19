@@ -14,8 +14,8 @@ android {
         applicationId = "it.lagunav.openlagunamaps"
         minSdk = 24
         targetSdk = 36
-        versionCode = 103
-        versionName = "1.70-devtools-nascondi-pannello"
+        versionCode = 104
+        versionName = "1.71-ricerca-stile-chiaro-e-offline"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
