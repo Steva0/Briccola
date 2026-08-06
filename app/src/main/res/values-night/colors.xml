@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- In night mode: gli sfondi chiari diventano navy scuro -->
+    <color name="sea_white">#0D1F33</color>
+    <!-- Il blu scuro usato come testo su sfondo chiaro diventa azzurro chiaro su sfondo scuro -->
+    <color name="marine_blue_dark">#88BBEE</color>
+    <color name="splash_background">#ADCDE6</color>
+</resources>

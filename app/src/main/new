@@ -1,0 +1,126 @@
+import xml.etree.ElementTree as ET
+import json
+import networkx as nx
+import math
+import rasterio
+from pyproj import Transformer
+import numpy as np
+
+# --- CONFIGURAZIONE ---
+OSM_FILE = r"D:\download\mappa\laguna_pulita.osm"
+TIF_FILE = r"D:\download\mappa\lagoonVe_2002_GBe.tif"
+OUTPUT_GRAPH = "graph.json"
+
+# Inizializziamo il trasformatore di coordinate (da GPS WGS84 a Gauss-Boaga 3004)
+# Serve per "chiedere" al TIF la profondità usando i gradi del GPS
+transformer = Transformer.from_crs("EPSG:4326", "EPSG:3004", always_xy=True)
+
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2)**2
+    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+def get_depth_at(dataset, lon, lat):
+    """Legge la profondità dal TIF nel punto specificato"""
+    # Trasformiamo Lon/Lat in coordinate X/Y del TIF (metri)
+    x, y = transformer.transform(lon, lat)
+    # Troviamo la riga/colonna corrispondente nel file
+    row, col = dataset.index(x, y)
+    
+    # Controlliamo di essere dentro i limiti del file
+    if 0 <= row < dataset.height and 0 <= col < dataset.width:
+        val = dataset.read(1)[row, col]
+        # Se è un valore NoData (molto basso o NaN), restituiamo 0
+        if val < -1000 or np.isnan(val): return 0.0
+        return abs(float(val)) # Restituiamo il valore assoluto (profondità positiva)
+    return 0.0
+
+def build_enriched_graph():
+    print("Apertura file batimetrico TIF...")
+    with rasterio.open(TIF_FILE) as tif_ds:
+        
+        print("Caricamento file OSM...")
+        tree = ET.parse(OSM_FILE)
+        root = tree.getroot()
+
+        nodes = {}
+        print("Lettura nodi...")
+        for node in root.findall('node'):
+            nodes[node.get('id')] = {
+                'lat': float(node.get('lat')),
+                'lon': float(node.get('lon')),
+                'tags': {tag.get('k'): tag.get('v') for tag in node.findall('tag')}
+            }
+
+        G = nx.Graph()
+        no_go_areas = []
+
+        print("Elaborazione canali e campionamento profondità...")
+        for way in root.findall('way'):
+            tags = {tag.get('k'): tag.get('v') for tag in way.findall('tag')}
+            node_refs = [nd.get('ref') for nd in way.findall('nd')]
+            
+            if len(node_refs) < 2: continue
+
+            if tags.get('waterway') == 'canal':
+                for i in range(len(node_refs) - 1):
+                    u_id, v_id = node_refs[i], node_refs[i+1]
+                    if u_id in nodes and v_id in nodes:
+                        u, v = nodes[u_id], nodes[v_id]
+                        
+                        dist = haversine(u['lat'], u['lon'], v['lat'], v['lon'])
+                        
+                        # Campioniamo la profondità in 3 punti del segmento (inizio, metà, fine)
+                        # per essere sicuri di non perdere secche improvvise
+                        d1 = get_depth_at(tif_ds, u['lon'], u['lat'])
+                        d2 = get_depth_at(tif_ds, (u['lon']+v['lon'])/2, (u['lat']+v['lat'])/2)
+                        d3 = get_depth_at(tif_ds, v['lon'], v['lat'])
+                        
+                        min_depth = round(min(d1, d2, d3), 2)
+
+                        G.add_edge(u_id, v_id, 
+                                   length=round(dist, 2),
+                                   depth=min_depth,
+                                   name=tags.get('name', 'Canale'),
+                                   maxspeed=tags.get('maxspeed'))
+
+            elif tags.get('nav:area') == 'no_go':
+                coords = [[round(nodes[nid]['lat'], 6), round(nodes[nid]['lon'], 6)] for nid in node_refs if nid in nodes]
+                no_go_areas.append({'id': way.get('id'), 'nodes': coords})
+
+        # Preparazione JSON
+        output = {
+            "metadata": {"version": "1.1", "unit_depth": "meters", "unit_dist": "meters"},
+            "nodes": {},
+            "edges": [],
+            "no_go_areas": no_go_areas
+        }
+
+        for nid in G.nodes():
+            output["nodes"][nid] = {
+                "lat": round(nodes[nid]["lat"], 6),
+                "lon": round(nodes[nid]["lon"], 6),
+                "gate": nodes[nid]['tags'].get('nav:gate')
+            }
+
+        for u, v, d in G.edges(data=True):
+            output["edges"].append({
+                "u": u, "v": v,
+                "n": d["name"],
+                "l": d["length"],
+                "d": d["depth"], # PROFONDITÀ MINIMA DEL SEGMENTO
+                "s": d["maxspeed"]
+            })
+
+        with open(OUTPUT_GRAPH, 'w', encoding='utf-8') as f:
+            json.dump(output, f, indent=2, ensure_ascii=False)
+        
+        print(f"\nCOMPLETATO!")
+        print(f"File {OUTPUT_GRAPH} generato con profondità campionate dal TIF.")
+        print(f"Nodi: {len(output['nodes'])}, Archi: {len(output['edges'])}")
+
+if __name__ == "__main__":
+    build_enriched_graph()

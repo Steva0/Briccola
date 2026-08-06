@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Briccola — Informativa sulla privacy</title>
+<style>
+  :root {
+    --ink: #0b2033;
+    --ink-soft: #2c4258;
+    --navy-deep: #0a1e33;
+    --navy: #0f4c75;
+    --brass: #ad8a44;
+    --brass-deep: #8a6c30;
+    --paper: #eef3f1;
+    --paper-raised: #ffffff;
+    --line: rgba(11, 32, 51, 0.14);
+    --line-strong: rgba(11, 32, 51, 0.28);
+    --focus: #1f6fa8;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e9eef1;
+      --ink-soft: #b7c4cd;
+      --navy-deep: #050f1a;
+      --navy: #6fb3dd;
+      --brass: #d3ac66;
+      --brass-deep: #e9c98a;
+      --paper: #0d2233;
+      --paper-raised: #122c40;
+      --line: rgba(233, 238, 241, 0.14);
+      --line-strong: rgba(233, 238, 241, 0.26);
+      --focus: #8fc4e8;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.65;
+  }
+
+  a { color: var(--navy); text-decoration-color: var(--line-strong); text-underline-offset: 2px; }
+  a:hover { text-decoration-color: currentColor; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 2px; }
+
+  .masthead {
+    background: var(--navy-deep);
+    color: #eef3f1;
+    padding: 3rem 1.5rem 2.5rem;
+  }
+
+  .masthead-inner {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  .mark {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .mark svg { flex: none; }
+
+  .mark span {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: 1.05rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #cfe0ea;
+  }
+
+  h1 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(1.9rem, 4.5vw, 2.5rem);
+    line-height: 1.15;
+    margin: 0 0 0.85rem;
+    text-wrap: balance;
+    color: #ffffff;
+  }
+
+  .masthead p {
+    margin: 0;
+    color: #a9c0cf;
+    font-size: 0.95rem;
+    max-width: 46ch;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.5rem;
+    margin-top: 1.5rem;
+    font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    color: var(--brass-deep);
+  }
+
+  .meta b { color: #e7d5ae; font-weight: 600; }
+
+  main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 2.75rem 1.5rem 5rem;
+  }
+
+  .lede {
+    font-size: 1.08rem;
+    color: var(--ink-soft);
+    border-left: 3px solid var(--brass);
+    padding-left: 1.1rem;
+    margin: 0 0 3rem;
+  }
+
+  section {
+    margin-bottom: 2.6rem;
+    padding-top: 0.2rem;
+  }
+
+  section + section { border-top: 1px solid var(--line); padding-top: 2.4rem; }
+
+  h2 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-weight: 400;
+    font-size: 1.4rem;
+    color: var(--navy);
+    margin: 0 0 0.2rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+
+  h2 .bearing {
+    font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+    font-size: 0.72rem;
+    color: var(--brass-deep);
+    letter-spacing: 0.04em;
+  }
+
+  p { margin: 0.8rem 0; max-width: 65ch; }
+
+  ul, ol { margin: 0.8rem 0; padding-left: 1.3rem; max-width: 62ch; }
+  li { margin: 0.4rem 0; }
+
+  .card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1.3rem;
+    margin: 1rem 0;
+  }
+
+  .service {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.15rem 1rem;
+    align-items: baseline;
+  }
+
+  .service dt {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    color: var(--navy);
+    white-space: nowrap;
+  }
+
+  .service dd { margin: 0 0 0.9rem; color: var(--ink-soft); }
+  .service dd:last-child { margin-bottom: 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+    margin: 1rem 0;
+  }
+
+  .table-wrap { overflow-x: auto; }
+
+  th, td {
+    text-align: left;
+    padding: 0.55rem 0.7rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+
+  .pill {
+    display: inline-block;
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+
+  .contact {
+    background: var(--navy-deep);
+    color: #dbe6ec;
+    border-radius: 12px;
+    padding: 1.6rem 1.5rem;
+    margin-top: 1rem;
+  }
+
+  .contact h2 { color: #fff; }
+  .contact a { color: var(--brass-deep); }
+  .contact p { color: #a9c0cf; }
+
+  footer {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 1.5rem 3rem;
+    color: var(--ink-soft);
+    font-size: 0.82rem;
+  }
+
+  footer a { color: inherit; }
+
+  @media (max-width: 480px) {
+    .masthead { padding: 2.2rem 1.25rem 2rem; }
+    main { padding: 2.2rem 1.25rem 3.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="mark">
+      <svg width="34" height="34" viewBox="0 0 34 34" fill="none" aria-hidden="true">
+        <circle cx="17" cy="17" r="15.5" stroke="#7f9db0" stroke-width="1"/>
+        <circle cx="17" cy="17" r="1.6" fill="#d3ac66"/>
+        <path d="M17 4.5 L19.3 15.6 L30.5 17 L19.3 18.4 L17 29.5 L14.7 18.4 L3.5 17 L14.7 15.6 Z" fill="#d3ac66" opacity="0.9"/>
+      </svg>
+      <span>Briccola</span>
+    </div>
+    <h1>Informativa sulla privacy</h1>
+    <p>Come Briccola tratta la tua posizione e i tuoi dati mentre navighi in laguna — spiegato senza giri di parole.</p>
+    <div class="meta">
+      <span>Ultimo aggiornamento: <b>6 agosto 2026</b></span>
+      <span>Versione informativa: <b>1.0</b></span>
+    </div>
+    <!-- Aggiornamento release 1.2.0 -->
+  </div>
+</header>
+
+<main>
+  <p class="lede">
+    In breve: Briccola non ha un server, non ha un account utente e non vende né condivide
+    i tuoi dati con nessuno. La tua posizione GPS viene usata solo sul tuo telefono, per mostrarti
+    dove sei sulla mappa e calcolare i percorsi. Qui sotto trovi il dettaglio completo.
+  </p>
+
+  <section>
+    <h2><span class="bearing">§1</span> Titolare del trattamento</h2>
+    <p>
+      Briccola è sviluppata e mantenuta da Michele Stevanin, sviluppatore indipendente.
+      Per qualunque domanda su questa informativa o sui tuoi dati puoi scrivere a
+      <a href="mailto:michele.stevanin@gmail.com">michele.stevanin@gmail.com</a>.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="bearing">§2</span> Cosa raccoglie l'app, e cosa no</h2>
+    <p>
+      Briccola è pensata per funzionare offline il più possibile: la mappa della laguna e
+      dei canali è già inclusa nell'app al momento dell'installazione. Questo è ciò che l'app
+      tratta durante l'uso normale:
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Dato</th><th>Uso</th><th>Dove resta</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Posizione GPS</td>
+            <td>Mostrare la tua barca sulla mappa, calcolare rotta e distanza</td>
+            <td>Solo sul dispositivo, mai trasmessa</td>
+          </tr>
+          <tr>
+            <td>Luoghi salvati, preferenze</td>
+            <td>Ritrovare i punti che hai segnato, ricordare le tue impostazioni</td>
+            <td>Solo sul dispositivo</td>
+          </tr>
+          <tr>
+            <td>Testo di ricerca (canale/luogo)</td>
+            <td>Trovare un indirizzo o un nome quando sei online</td>
+            <td>Inviato al servizio di ricerca indicato al §3, non salvato da noi</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Non ti chiediamo di creare un account, non raccogliamo identificativi pubblicitari e non
+      integriamo strumenti di profilazione o analisi del comportamento.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="bearing">§3</span> Servizi di terze parti usati quando sei online</h2>
+    <p>
+      Quando il telefono ha connessione, l'app può contattare due servizi esterni per restare
+      aggiornata al di fuori dell'area già scaricata. Questi servizi ricevono la richiesta
+      direttamente dal tuo dispositivo (non passa dai nostri server, perché non ne abbiamo) e la
+      gestiscono secondo le proprie informative:
+    </p>
+    <div class="card">
+      <dl class="service">
+        <dt>OpenFreeMap</dt>
+        <dd>Fornisce i riquadri di mappa (tile) per le zone al di fuori dell'area di laguna
+          già inclusa nell'app. Riceve solo le coordinate del riquadro richiesto.
+          <a href="https://openfreemap.org" target="_blank" rel="noopener">openfreemap.org</a></dd>
+        <dt>OpenStreetMap / Nominatim</dt>
+        <dd>Usato per la ricerca di canali e luoghi per nome: il testo digitato viene inviato al
+          servizio per trovare la posizione corrispondente.
+          <a href="https://osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">informativa OSMF</a></dd>
+      </dl>
+    </div>
+    <p>
+      Questi servizi sono gestiti da organizzazioni indipendenti dallo sviluppatore di
+      Briccola; per le condizioni sui dati che gestiscono loro stessi (es. indirizzo IP
+      della richiesta) fai riferimento ai rispettivi link.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="bearing">§4</span> Permessi richiesti dall'app</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Permesso</th><th>Perché serve</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="pill">Posizione precisa</span></td>
+            <td>Seguire la tua barca sulla mappa e calcolare rotte in tempo reale — è la
+              funzione centrale dell'app</td>
+          </tr>
+          <tr>
+            <td><span class="pill">Internet</span></td>
+            <td>Scaricare aree di mappa non ancora presenti sul telefono e cercare luoghi (§3)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Puoi negare o revocare il permesso di posizione in qualsiasi momento dalle Impostazioni di
+      Android: l'app te lo richiederà di nuovo solo se provi a usare una funzione che ne ha
+      bisogno, e continuerà a funzionare per tutto il resto (consultare la mappa già scaricata,
+      pianificare un percorso manualmente, ecc.).
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="bearing">§5</span> Conservazione e cancellazione</h2>
+    <p>
+      Non essendoci un server, non c'è nulla da cancellare "da remoto": tutti i tuoi dati
+      (luoghi salvati, impostazioni, mappa scaricata) vivono esclusivamente nella memoria del
+      tuo telefono. Disinstallando l'app, o cancellandone i dati dalle Impostazioni di Android,
+      tutto viene rimosso immediatamente e in modo definitivo.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="bearing">§6</span> I tuoi diritti</h2>
+    <p>
+      Dato che nessun dato personale è conservato al di fuori del tuo dispositivo, i diritti di
+      accesso, rettifica e cancellazione (artt. 15-17 GDPR) si esercitano direttamente da te,
+      in ogni momento, senza bisogno di richiederli a noi:
+    </p>
+    <ul>
+      <li><strong>Accesso e rettifica</strong> — apri l'app: luoghi salvati e impostazioni sono
+        lì, modificabili liberamente.</li>
+      <li><strong>Cancellazione</strong> — disinstalla l'app o cancellane i dati dalle
+        Impostazioni Android.</li>
+      <li><strong>Revoca del consenso alla posizione</strong> — Impostazioni Android → App →
+        Briccola → Permessi.</li>
+    </ul>
+    <p>
+      Per qualunque domanda che questi passaggi non risolvano, scrivici (§1): rispondiamo
+      direttamente, senza intermediari.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="bearing">§7</span> Minori</h2>
+    <p>
+      Briccola non è rivolta specificamente a minori di 13 anni e non raccoglie
+      consapevolmente dati che li riguardino in modo diverso da quanto descritto sopra per
+      qualunque utente.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="bearing">§8</span> Modifiche a questa informativa</h2>
+    <p>
+      Se cambierà il modo in cui l'app tratta i dati, questa pagina verrà aggiornata e la data
+      in cima verrà rivista di conseguenza. Ti consigliamo di ricontrollarla se installi un
+      aggiornamento importante dell'app.
+    </p>
+  </section>
+
+  <section class="contact">
+    <h2>Contatti</h2>
+    <p>Domande, segnalazioni o richieste relative ai tuoi dati:</p>
+    <p><a href="mailto:michele.stevanin@gmail.com">michele.stevanin@gmail.com</a></p>
+  </section>
+</main>
+
+<footer>
+  <p>Briccola — navigazione per la laguna di Venezia. Questa informativa vale per l'app
+    distribuita da Michele Stevanin.</p>
+</footer>
+
+</body>
+</html>

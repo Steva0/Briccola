@@ -1,0 +1,28 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+/build
+**/build/
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.jks
+*.keystore
+keystore.properties
+
+# Claude Code workspace
+.claude/
+
+# Kotlin compiler cache
+.kotlin/
+
+# Database mappa offline (>100MB, oltre il limite di GitHub): rigenerato dalla pipeline
+# Python (genera_tiles_offline.py / BUILD_ALL.py in D:\download), non versionato.
+app/src/main/assets/tiles_vector.mbtiles
+app/src/main/assets/mbgl-offline.db
+
+# Chiave di firma release: MAI committare, va conservata solo in locale/password manager.
+RELEASE_KEYSTORE_PASSWORD_DO_NOT_COMMIT.txt

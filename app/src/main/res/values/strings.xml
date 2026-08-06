@@ -1,0 +1,61 @@
+<resources>
+    <string name="app_name">Briccola</string>
+    <string name="navigation_drawer_open">Apri menu navigazione</string>
+    <string name="navigation_drawer_close">Chiudi menu navigazione</string>
+
+    <string name="menu_map">Mappa</string>
+    <string name="menu_weather">Meteo</string>
+    <string name="menu_settings">Impostazioni</string>
+    <string name="menu_devtools">Strumenti Dev</string>
+    <string name="menu_about">Crediti e Licenza</string>
+    <string name="menu_donate">Sostieni il progetto</string>
+
+    <string name="settings_boat_profile">Profilo Barca</string>
+    <string name="settings_draft_label">Pescaggio (metri)</string>
+    <string name="settings_license_label">Patente Nautica</string>
+    <string name="settings_equipment_label">Dotazioni di Sicurezza</string>
+
+    <string name="license_none">Senza Patente (Entro 6mg / 11km)</string>
+    <string name="license_12">Entro 12 Miglia (22 km)</string>
+    <string name="license_unlimited">Senza Limiti (Oltre 22 km)</string>
+
+    <string name="equip_1">Entro 1 Miglio (1.8 km)</string>
+    <string name="equip_3">Entro 3 Miglia (5.5 km)</string>
+    <string name="equip_6">Entro 6 Miglia (11.1 km)</string>
+    <string name="equip_12">Entro 12 Miglia (22.2 km)</string>
+    <string name="equip_50">Entro 50 Miglia (92.6 km)</string>
+    <string name="equip_unlimited">Oltre 50 Miglia (Senza Limiti)</string>
+
+    <string name="about_title">Crediti e Missione</string>
+    <string name="about_description">Briccola nasce da un\'idea semplice: la navigazione in laguna deve essere accessibile a tutti. \n\nStanco di vedere app costose che spesso vendono dati gratuiti (come quelli di OpenStreetMap), ho deciso di creare uno strumento completo — con navigazione, meteo e maree — e di renderlo totalmente gratuito. \n\nÈ un progetto dedicato a chi ama il mare e la nostra laguna, pensato specialmente per i giovani diportisti che cercano uno strumento professionale senza barriere economiche.</string>
+    <string name="credits_title">Riconoscimenti Tecnici</string>
+    <string name="credits_osm">Dati cartografici © OpenStreetMap contributors</string>
+    <string name="credits_openfreemap">Tile della mappa forniti da OpenFreeMap</string>
+    <string name="credits_maplibre">Motore cartografico: MapLibre GL Native</string>
+    <string name="license_details">PolyForm Noncommercial License 1.0.0\n\nThe software is provided under this license, which allows you to use, modify, and share the software, but you may not use it for commercial purposes.\n\n1. Grant of Rights\nSubject to the terms and conditions of this license, the contributor grants you a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to use, reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute the software.\n\n2. Commercial Use Restriction\nYou may not make the software available to others for a fee.\n\n3. No Warranty\nThe software is provided \"as is\", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software.</string>
+    <string name="donate_title">Supporta Briccola</string>
+    <string name="donate_subtitle">Aiutaci a mantenere la rotta</string>
+    <string name="donate_description">Briccola è un progetto indipendente e gratuito. \n\nLe donazioni aiutano a coprire i costi dei server per le mappe, le API del meteo e il tempo dedicato allo sviluppo di nuove funzionalità. \n\nOgni contributo, anche piccolo come un caffè, fa la differenza per garantire un servizio affidabile a tutta la comunità dei naviganti veneziani.</string>
+    <string name="donate_coffee_text">Offri un caffè allo sviluppatore</string>
+    <string name="btn_paypal">Dona ora con PayPal</string>
+
+    <string name="about_dev_title">Lo Sviluppatore</string>
+    <string name="about_dev_bio">Michele Stevanin\nLaureato in Informatica presso l\'Università degli Studi di Padova e attualmente iscritto al corso di Laurea Magistrale in Cybersecurity presso lo stesso ateneo. Il mio percorso accademico mi ha permesso di costruire una solida base nell\'ambito dello sviluppo software e dell\'architettura dei sistemi, con un forte interesse verso la protezione delle infrastrutture digitali e la ricerca di vulnerabilità.</string>
+    <string name="btn_github">GitHub</string>
+    <string name="btn_cv">Il mio CV</string>
+    <string name="btn_privacy_policy">Informativa sulla privacy</string>
+    <string name="logo_desc">Logo Briccola</string>
+    <string name="donate_thanks">Grazie per il tuo supporto! ⛵</string>
+    <string name="open_menu">Apri Menu</string>
+    <string name="close_menu">Chiudi</string>
+    <string name="app_subtitle">Navigatore della laguna</string>
+    <string name="privacy_welcome">Benvenuto su Briccola</string>
+    <string name="privacy_intro">Prima di iniziare, vogliamo che tu sappia come gestiamo i tuoi dati.</string>
+    <string name="privacy_body">Briccola usa la tua posizione GPS solo sul telefono per mostrarti sulla mappa e calcolare le rotte: non viene mai inviata ai nostri server.\n\nQuando sei online, i servizi di ricerca e mappa passano da OpenStreetMap e OpenFreeMap.</string>
+    <string name="privacy_accept">Accetto e continua</string>
+    <string name="privacy_read_more">Leggi l\'informativa completa</string>
+    <string name="privacy_exit">Esci dall\'app</string>
+    <string name="route_planning_outside_title">Fuori laguna</string>
+    <string name="route_planning_outside_desc">Il punto di partenza (la tua posizione attuale) non è dentro la laguna di Venezia. Per navigare davvero serve trovarsi in laguna, ma puoi comunque scegliere un altro punto di partenza per provare un percorso.</string>
+    <string name="route_planning_pick_origin">SCEGLI UN ALTRO PUNTO DI PARTENZA</string>
+</resources>

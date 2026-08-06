@@ -1,0 +1,665 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Area di simulazione schermo: il rettangolo esterno rappresenta lo schermo reale del
+         dispositivo; map_container_dev viene ridimensionato a runtime (vedi i due slider
+         larghezza/altezza in Settaggi Dev) come percentuale di quest'area, per vedere come si
+         adatta la UI su schermi più piccoli/grandi senza dover cambiare dispositivo. -->
+    <FrameLayout
+        android:id="@+id/layout_screen_sim_area"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#1A1A1A">
+
+        <!-- MapFragment embedded con debugMode=true -->
+        <FrameLayout
+            android:id="@+id/map_container_dev"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center" />
+    </FrameLayout>
+
+    <!-- Pannello debug: spostato sotto la barra di ricerca della mappa incorporata, così resta
+         cliccabile anche in Dev Tools. -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_debug_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="96dp"
+        app:cardBackgroundColor="#DD111111"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="6dp">
+
+        <!-- Compatto quando il contenuto ci sta (es. poche voci), scorrevole solo oltre
+             maxHeight (es. pannello Settaggi Dev con molti slider). -->
+        <com.briccola.app.ui.MaxHeightScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxHeight="420dp"
+            android:scrollbars="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <!-- Toggle sempre visibile: posizione simulata (joystick) o GPS reale del telefono -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingBottom="4dp">
+
+                <TextView
+                    android:id="@+id/tv_position_source_label"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Posizione: simulata (joystick)"
+                    android:textColor="@color/white"
+                    android:textSize="11sp" />
+
+                <Switch
+                    android:id="@+id/switch_real_gps"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <!-- Spinner modalità -->
+            <Spinner
+                android:id="@+id/spinner_dev_mode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:backgroundTint="@color/white" />
+
+            <!-- Bottoni modalità "Percorso" -->
+            <LinearLayout
+                android:id="@+id/group_route_buttons"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal"
+                android:visibility="visible">
+
+                <Button
+                    android:id="@+id/btn_set_end"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="4dp"
+                    android:text="Imposta Fine"
+                    android:textSize="11sp"
+                    app:backgroundTint="#CC880000" />
+
+                <Button
+                    android:id="@+id/btn_cancel_route_dev"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:text="Cancella"
+                    android:textSize="11sp"
+                    app:backgroundTint="#CC333333" />
+            </LinearLayout>
+
+            <!-- Bottone modalità "Test Tips" -->
+            <Button
+                android:id="@+id/btn_test_tips"
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:layout_marginTop="6dp"
+                android:text="Test Tips (bocche di porto)"
+                android:textSize="11sp"
+                android:visibility="gone"
+                app:backgroundTint="#CC005580" />
+
+            <!-- Bottoni modalità "Simula Percorso A→B" -->
+            <LinearLayout
+                android:id="@+id/group_sim_ab"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btn_set_a"
+                        android:layout_width="0dp"
+                        android:layout_height="36dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="4dp"
+                        android:text="Segna A"
+                        android:textSize="11sp"
+                        app:backgroundTint="#CC005500" />
+
+                    <Button
+                        android:id="@+id/btn_set_b"
+                        android:layout_width="0dp"
+                        android:layout_height="36dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="4dp"
+                        android:text="Segna B"
+                        android:textSize="11sp"
+                        app:backgroundTint="#CC550000" />
+
+                    <Button
+                        android:id="@+id/btn_calc_ab"
+                        android:layout_width="0dp"
+                        android:layout_height="36dp"
+                        android:layout_weight="1"
+                        android:text="Calcola"
+                        android:textSize="11sp"
+                        app:backgroundTint="#CC003366" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_ab_result"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:fontFamily="monospace"
+                    android:text="Segna A e B, poi Calcola"
+                    android:textColor="#AAAAAA"
+                    android:textSize="9sp" />
+            </LinearLayout>
+
+            <!-- Bottone modalità "Posizione": teletrasporta la barca al centro schermo -->
+            <LinearLayout
+                android:id="@+id/group_set_position"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <Button
+                    android:id="@+id/btn_set_boat_position"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:text="Posiziona barca al centro"
+                    android:textSize="11sp"
+                    app:backgroundTint="#CC005580" />
+            </LinearLayout>
+
+            <!-- Pannello "Impostazioni Camera": slider per tarare a runtime lo smoothing -->
+            <LinearLayout
+                android:id="@+id/group_camera_settings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tv_tune_render_delay"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_render_delay"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="60" />
+
+                <TextView
+                    android:id="@+id/tv_tune_min_disp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_min_disp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="150" />
+
+                <TextView
+                    android:id="@+id/tv_tune_icon_lerp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_icon_lerp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="50" />
+
+                <TextView
+                    android:id="@+id/tv_tune_dead_zone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_dead_zone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="30" />
+
+                <TextView
+                    android:id="@+id/tv_tune_cam_lerp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_cam_lerp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="30" />
+
+                <TextView
+                    android:id="@+id/tv_tune_fps"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_fps"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="60" />
+
+                <TextView
+                    android:id="@+id/tv_tune_hud_refresh"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_hud_refresh"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="20" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Refresh HUD legato alla velocità (5-20Hz, 3-15kn)"
+                        android:textColor="@color/white"
+                        android:textSize="10sp" />
+
+                    <Switch
+                        android:id="@+id/switch_hud_speed_linked"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_tune_canal_threshold"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_canal_threshold"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <!-- Tachimetro/Altimetro sono specchiati (stessa dimensione/posizione, lato
+                     opposto): un solo slider per ciascuno vale per entrambi. -->
+                <TextView
+                    android:id="@+id/tv_tune_gauge_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_gauge_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/tv_tune_compass_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_compass_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/tv_tune_gauge_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_gauge_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="150" />
+
+                <TextView
+                    android:id="@+id/tv_tune_gauge_stack_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_gauge_stack_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <TextView
+                    android:id="@+id/tv_tune_saved_place_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_saved_place_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <TextView
+                    android:id="@+id/tv_tune_follow_btn_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_follow_btn_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="600" />
+
+                <TextView
+                    android:id="@+id/tv_tune_follow_btn_offset_x"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_follow_btn_offset_x"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="600" />
+
+                <TextView
+                    android:id="@+id/tv_tune_follow_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_follow_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <TextView
+                    android:id="@+id/tv_tune_map_object_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_map_object_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <TextView
+                    android:id="@+id/tv_tune_hud_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_hud_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="150" />
+
+                <TextView
+                    android:id="@+id/tv_tune_save_place_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_save_place_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/tv_tune_delete_place_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_delete_place_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/tv_tune_save_place_text_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_save_place_text_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/tv_tune_follow_boat_screen_y"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_follow_boat_screen_y"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100" />
+
+                <!-- Bottone CENTRA "intelligente": distanza x. Se sei più lontano di x, zooma
+                     fino a x; se sei già più vicino di x, lo zoom resta invariato (centra solo). -->
+                <TextView
+                    android:id="@+id/tv_tune_recenter_zoom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_recenter_zoom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="80" />
+
+                <!-- Colori Mappa: tavolozza colore briccole -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Colori Mappa"
+                    android:textColor="@color/white"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Colore briccole"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <LinearLayout
+                    android:id="@+id/layout_briccole_color_swatches"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal" />
+
+                <Button
+                    android:id="@+id/btn_reset_tuning"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:layout_marginTop="4dp"
+                    android:text="Reset valori default"
+                    android:textSize="11sp"
+                    app:backgroundTint="#CC333333" />
+
+                <!-- Simula schermi diversi: ridimensiona (in %, non valori fissi) l'area della
+                     mappa incorporata dentro il rettangolo grigio scuro che rappresenta lo
+                     schermo reale, per vedere come si adatta la UI su schermi più piccoli/grandi
+                     senza cambiare dispositivo. -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Simula dimensione schermo"
+                    android:textColor="@color/white"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_tune_sim_screen_width"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_sim_screen_width"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100" />
+
+                <TextView
+                    android:id="@+id/tv_tune_sim_screen_height"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_sim_screen_height"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100" />
+
+                <Button
+                    android:id="@+id/btn_reset_sim_screen"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:layout_marginTop="4dp"
+                    android:text="Reset dimensione schermo (100%)"
+                    android:textSize="11sp"
+                    app:backgroundTint="#CC333333" />
+            </LinearLayout>
+
+            <!-- Stato mappa offline locale: tile/sprite/glifi sono sempre bundlati nell'APK e
+                 serviti da un server locale (LocalTileServer), niente più da scaricare a runtime. -->
+            <LinearLayout
+                android:id="@+id/group_offline_map"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tv_offline_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:text="Mappa locale: verifica in corso..."
+                    android:textColor="#AAAAAA"
+                    android:textSize="9sp" />
+            </LinearLayout>
+
+            <!-- Stato: info simulatore / debug -->
+            <TextView
+                android:id="@+id/tv_dev_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:fontFamily="monospace"
+                android:text="Simulatore pronto — muovi la barca col joystick"
+                android:textColor="#FF00FF"
+                android:textSize="9sp" />
+        </LinearLayout>
+        </com.briccola.app.ui.MaxHeightScrollView>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Joystick simulatore: SEMPRE visibile in Dev Tools (fondo centro) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_sim"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="12dp"
+        app:cardBackgroundColor="#CC111111"
+        app:cardCornerRadius="100dp"
+        app:cardElevation="4dp">
+
+        <com.briccola.app.ui.JoystickView
+            android:id="@+id/joystick"
+            android:layout_width="160dp"
+            android:layout_height="160dp" />
+    </androidx.cardview.widget.CardView>
+
+    <!-- Nasconde il pannello debug (spinner/slider) per testare l'app più comodamente, senza
+         doverlo chiudere manualmente ogni volta -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="12dp"
+        app:cardBackgroundColor="#CC111111"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp">
+
+            <CheckBox
+                android:id="@+id/checkbox_hide_panel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Nascondi pannello"
+                android:textColor="@color/white"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+</FrameLayout>

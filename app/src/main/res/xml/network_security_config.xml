@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Di default Android (targetSdk 28+) blocca il traffico HTTP non cifrato, anche verso
+    127.0.0.1 — confermato in log reali: "CLEARTEXT communication to 127.0.0.1 not permitted
+    by network security policy". Il nostro LocalTileServer serve tile/sprite/glifi via HTTP
+    semplice sullo stesso dispositivo (mai su una vera rete esterna), quindi qui l'eccezione
+    è sicura: riguarda solo il loopback locale, non traffico verso l'esterno.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>
