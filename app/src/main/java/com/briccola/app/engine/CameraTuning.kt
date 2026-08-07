@@ -69,8 +69,9 @@ object CameraTuning {
         return (1000.0 / hz).roundToLong()
     }
 
-    /** Il buffer dei fix deve coprire almeno il ritardo di rendering + un margine di sicurezza. */
-    val fixBufferMaxMs: Long get() = renderDelayMs + 3000L
+    /** Il buffer dei fix deve coprire almeno il ritardo di rendering + un margine di sicurezza.
+     *  Aumentato a 10s per gestire meglio i momenti in cui il GPS fatica a dare nuovi fix (es. al chiuso). */
+    val fixBufferMaxMs: Long get() = renderDelayMs + 10000L
 
     private var loaded = false
 

@@ -995,9 +995,9 @@ class MapFragment : Fragment() {
     private fun bracketFixes(renderTime: Long): Triple<Fix, Fix, Double>? {
         if (fixBuffer.isEmpty()) return null
         
-        // Se il tempo richiesto per il rendering è superiore di 10 secondi rispetto all'ultimo
+        // Se il tempo richiesto per il rendering è superiore di 30 secondi rispetto all'ultimo
         // fix ricevuto, consideriamo la posizione obsoleta (segnale perso o GPS spento).
-        if (renderTime > fixBuffer.last().t + 10000L) return null
+        if (renderTime > fixBuffer.last().t + 30000L) return null
 
         if (fixBuffer.size == 1) { val f = fixBuffer.first(); return Triple(f, f, 0.0) }
         if (renderTime <= fixBuffer.first().t) { val f = fixBuffer.first(); return Triple(f, f, 0.0) }
