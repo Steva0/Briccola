@@ -408,10 +408,18 @@ class MapFragment : Fragment() {
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val statusBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
             val navBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom
-            val extraMargin = (12 * resources.displayMetrics.density).toInt()
+            val extraMargin = (16 * resources.displayMetrics.density).toInt() // Aumentato a 16dp per respiro
             
             binding.cardSearch.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight + extraMargin
+            }
+            binding.cardPlaces.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                // Posiziona i suggerimenti esattamente sotto la search bar (56dp altezza + 8dp gap)
+                topMargin = statusBarHeight + extraMargin + (64 * resources.displayMetrics.density).toInt()
+            }
+            binding.cardSavedPlaces.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                // Il pannello dei luoghi salvati scende un po' di più per non coprire tutto
+                topMargin = statusBarHeight + (64 * resources.displayMetrics.density).toInt()
             }
             binding.cardGpsDisabled.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight + (96 * resources.displayMetrics.density).toInt()
@@ -1027,17 +1035,33 @@ class MapFragment : Fragment() {
                 // --- LOGICA POSIZIONE ---
                 val bracket = bracketFixes(now - CameraTuning.renderDelayMs)
                 
-                if (bracket != null) {
-                    // POSIZIONE ATTIVA: Mostra strumenti
-                    _binding?.let { b ->
-                        b.speedometer.visibility = View.VISIBLE
-                        b.altitudeView.visibility = View.VISIBLE
-                        // Centra appare solo se NON siamo in follow mode
-                        b.layoutCentra.visibility = if (followMode) View.GONE else View.VISIBLE
-                        // HUD canale visibile solo se non stiamo navigando
-                        if (activeRoute == null) b.cvHud.visibility = View.VISIBLE
+                // --- AGGIORNAMENTO VISIBILITÀ UI ---
+                // Centralizziamo qui la visibilità degli strumenti (velocità, profondità, HUD, nav)
+                // in modo che spariscano quando un overlay (es. salvataggio punto) è aperto.
+                _binding?.let { b ->
+                    val overlayOpen = isAnyOverlayOpen()
+                    val gpsActive = bracket != null
+                    
+                    // Strumenti principali (tachimetro, altimetro)
+                    val instrumentsVisible = if (gpsActive && !overlayOpen) View.VISIBLE else View.GONE
+                    b.speedometer.visibility = instrumentsVisible
+                    b.altitudeView.visibility = instrumentsVisible
+                    
+                    // Pulsante Recentra/Segui
+                    b.layoutCentra.visibility = if (gpsActive && !followMode && !overlayOpen) View.VISIBLE else View.GONE
+                    
+                    // HUD Canale (solo se non stiamo navigando)
+                    b.cvHud.visibility = if (gpsActive && activeRoute == null && !overlayOpen) View.VISIBLE else View.GONE
+                    
+                    // Overlay Navigazione (se attiva)
+                    if (activeRoute != null) {
+                        val navVisible = if (!overlayOpen) View.VISIBLE else View.GONE
+                        b.cardNavBanner.visibility = navVisible
+                        b.cardNavChip.visibility   = navVisible
                     }
+                }
 
+                if (bracket != null) {
                     val (fixA, fixB, frac) = bracket
                     val interpLat = fixA.lat + (fixB.lat - fixA.lat) * frac
                     val interpLon = fixA.lon + (fixB.lon - fixA.lon) * frac
@@ -1092,17 +1116,9 @@ class MapFragment : Fragment() {
                         }
                     }
                 } else {
-                    // POSIZIONE ASSENTE: Nascondi strumenti
-                    _binding?.let { b ->
-                        b.speedometer.visibility = View.GONE
-                        b.altitudeView.visibility = View.GONE
-                        b.layoutCentra.visibility = View.GONE
-                        b.cvHud.visibility = View.GONE
-                        
-                        // Nascondi anche l'icona della barca se non c'è posizione
-                        mapStyle?.let { style ->
-                            (style.getSource(SOURCE_GPS) as? GeoJsonSource)?.setGeoJson(emptyFc())
-                        }
+                    // POSIZIONE ASSENTE: visibilità già gestita dal blocco sopra (overlayOpen/gpsActive)
+                    mapStyle?.let { style ->
+                        (style.getSource(SOURCE_GPS) as? GeoJsonSource)?.setGeoJson(emptyFc())
                     }
                 }
                 cameraHandler.postDelayed(this, CameraTuning.frameIntervalMs)
@@ -1324,14 +1340,26 @@ class MapFragment : Fragment() {
     // o tap sulla mappa) — intercetta le stesse azioni che normalmente aprono altri popup.
     private var pickingOrigin = false
 
+    private fun isAnyOverlayOpen(): Boolean =
+        _binding?.let { b ->
+            b.cardPlaceDetail.visibility == View.VISIBLE ||
+            b.cardRoutePlanning.visibility == View.VISIBLE ||
+            b.cardSavePlace.visibility == View.VISIBLE ||
+            b.cardSavedPlaces.visibility == View.VISIBLE ||
+            b.cardPlaces.visibility == View.VISIBLE ||
+            pickingOrigin
+        } ?: false
+
     /** true se c'è già un popup/schermata di pianificazione aperta o una navigazione attiva:
      *  in quel caso un nuovo tap lungo sulla mappa deve restare inerte finché non si chiude. */
     private fun isMapInteractionLocked(): Boolean =
         activeRoute != null ||
+        pickingOrigin ||
         binding.cardPlaceDetail.visibility == View.VISIBLE ||
         binding.cardRoutePlanning.visibility == View.VISIBLE ||
         binding.cardSavePlace.visibility == View.VISIBLE ||
-        binding.cardSavedPlaces.visibility == View.VISIBLE
+        binding.cardSavedPlaces.visibility == View.VISIBLE ||
+        binding.cardPlaces.visibility == View.VISIBLE
 
     /** Chiude la schermata/overlay attualmente in primo piano, dal più "interno" al più
      *  "esterno" (dettaglio punto → salva punto → pianificazione percorso → luoghi salvati →
