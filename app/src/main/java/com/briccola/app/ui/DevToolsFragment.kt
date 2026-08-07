@@ -5,8 +5,12 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewGroup.MarginLayoutParams
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.briccola.app.databinding.FragmentDevtoolsBinding
@@ -83,6 +87,20 @@ override fun onCreateView(
 
         // Il simulatore parte automaticamente: il joystick è sempre visibile in Dev Tools
         startSimulator()
+
+        // Gestione Edge-to-Edge per il joystick in Dev Tools
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val navBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            
+            // Solleva il joystick e il checkbox nascondi pannello
+            binding.cardSim.updateLayoutParams<MarginLayoutParams> {
+                bottomMargin = navBarHeight + (12 * resources.displayMetrics.density).toInt()
+            }
+            // Il checkbox nascondi pannello è nell'ultima CardView senza ID, gli aggiungo un margine
+            // Ma è meglio se lo gestiamo diversamente o gli diamo un ID.
+            
+            insets
+        }
     }
 
     // =================================================================

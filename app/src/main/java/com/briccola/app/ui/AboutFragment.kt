@@ -10,6 +10,8 @@ import android.widget.Button
 import androidx.fragment.app.Fragment
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
+import android.view.ViewGroup.MarginLayoutParams
 import com.briccola.app.MainActivity
 import com.briccola.app.R
 
@@ -44,7 +46,15 @@ class AboutFragment : Fragment() {
         // Padding per Edge-to-Edge nella schermata Crediti
         ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
             val statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            val navBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            
             v.setPadding(0, statusBarHeight, 0, 0)
+            
+            // Aggiunge spazio in fondo per non far coprire i link legali dai tasti di sistema
+            view.findViewById<View>(R.id.scroll_about)?.updateLayoutParams<MarginLayoutParams> {
+                bottomMargin = navBarHeight
+            }
+
             insets
         }
     }

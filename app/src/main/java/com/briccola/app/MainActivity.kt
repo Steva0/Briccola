@@ -201,6 +201,8 @@ class MainActivity : AppCompatActivity() {
      * Il fragment che esce di scena resta vivo ma nascosto in background.
      */
     private fun showFragment(itemId: Int, title: CharSequence?, factory: () -> Fragment) {
+        if (isFinishing || isDestroyed) return
+
         val tag = "menu_fragment_$itemId"
         val fm = supportFragmentManager
         val transaction = fm.beginTransaction()
@@ -215,18 +217,19 @@ class MainActivity : AppCompatActivity() {
             transaction.add(R.id.fragment_container, newFragment, tag)
             currentFragment = newFragment
         }
-        transaction.commit()
+        transaction.commitAllowingStateLoss()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
-
-        // Abilita Edge-to-Edge per avere la barra di stato trasparente e il contenuto che scorre dietro
-        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
         
-        // Assicura icone scure per massima leggibilità su sfondo chiaro
-        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
+        super.onCreate(savedInstanceState)
+        
+        // Abilita Edge-to-Edge moderno (gestisce automaticamente barra stato e navigazione)
+        enableEdgeToEdge()
+
+        // Forza la scomparsa della ActionBar se presente per errore del tema
+        supportActionBar?.hide()
 
         // Forza il tema Giorno
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
@@ -270,10 +273,6 @@ class MainActivity : AppCompatActivity() {
                 .start()
         }
 
-        // Sempre tema giorno (modalità notte rimossa)
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-        
-        super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 

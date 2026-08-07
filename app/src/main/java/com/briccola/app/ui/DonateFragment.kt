@@ -10,6 +10,8 @@ import android.widget.Button
 import androidx.fragment.app.Fragment
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
+import android.view.ViewGroup.MarginLayoutParams
 import com.briccola.app.R
 
 class DonateFragment : Fragment() {
@@ -39,7 +41,15 @@ class DonateFragment : Fragment() {
         // Padding per Edge-to-Edge nella schermata Donazioni
         ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
             val statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            val navBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            
             v.setPadding(0, statusBarHeight, 0, 0)
+            
+            // Aggiunge spazio in fondo per non far coprire il testo finale dai tasti di sistema
+            view.findViewById<View>(R.id.scroll_donate)?.updateLayoutParams<MarginLayoutParams> {
+                bottomMargin = navBarHeight
+            }
+
             insets
         }
     }

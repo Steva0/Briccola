@@ -16,6 +16,8 @@ import com.briccola.app.engine.MapDownloader
 import com.briccola.app.engine.NavigationLimits
 import com.briccola.app.engine.SpeedUnit
 import kotlinx.coroutines.launch
+import androidx.core.view.updateLayoutParams
+import android.view.ViewGroup.MarginLayoutParams
 import java.io.File
 import java.util.Locale
 
@@ -49,7 +51,15 @@ class SettingsFragment : Fragment() {
         // Padding per Edge-to-Edge nelle impostazioni
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val statusBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
+            val navBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom
+            
             v.setPadding(0, statusBarHeight, 0, 0)
+            
+            // Aggiunge spazio in fondo alla ScrollView per non far coprire l'ultima opzione
+            binding.scrollSettings.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                bottomMargin = navBarHeight
+            }
+
             insets
         }
     }

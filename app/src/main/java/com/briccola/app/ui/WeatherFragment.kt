@@ -22,6 +22,8 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.core.view.updateLayoutParams
+import android.view.ViewGroup.MarginLayoutParams
 
 class WeatherFragment : Fragment() {
 
@@ -61,7 +63,15 @@ class WeatherFragment : Fragment() {
         // Padding per Edge-to-Edge nella schermata Meteo
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val statusBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
+            val navBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom
+            
             v.setPadding(0, statusBarHeight, 0, 0)
+            
+            // Aggiunge spazio in fondo alla ScrollView per non far coprire il tasto Aggiorna
+            binding.layoutWeatherContent.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                bottomMargin = navBarHeight
+            }
+
             insets
         }
     }

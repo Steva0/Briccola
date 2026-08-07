@@ -9,7 +9,7 @@
         <item name="colorSecondary">@color/lagoon_teal</item>
         <item name="colorSecondaryVariant">@color/lagoon_teal</item>
         <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
+
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
         <!-- Customize your theme here. -->
@@ -19,8 +19,7 @@
         <item name="windowSplashScreenBackground">@color/splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo_small</item>
         <item name="postSplashScreenTheme">@style/Theme.Briccola</item>
-        <item name="android:statusBarColor">@color/splash_background</item>
-        <item name="android:navigationBarColor">@color/splash_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>

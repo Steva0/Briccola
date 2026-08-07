@@ -246,6 +246,8 @@ class MapFragment : Fragment() {
 
     // Follow mode: la camera segue la barca
     private var followMode = false
+    // Flag per gestire il centramento automatico solo alla prima ricezione della posizione
+    private var hasInitialCentered = false
 
     // Navigazione attiva
     private var activeRoute: List<LatLng>? = null
@@ -305,7 +307,11 @@ class MapFragment : Fragment() {
         setupMap(savedInstanceState)
         setupSearch()
         setupButtons()
-        setFollowMode(true)  // di default la visuale segue la barca (anche alla prima apertura)
+        
+        // Al primo avvio, non attiviamo subito il "Segui" (rotazione/zoom automatico).
+        // L'app aspettera' il primo fix GPS per centrare la visuale (vedi startCameraLoop).
+        setFollowMode(false) 
+
         // Etichetta versione/build: solo in Dev Tools (debugMode), non nella Mappa normale —
         // serve solo a noi per verificare a colpo d'occhio quale build è installata.
         if (debugMode) {
@@ -317,9 +323,11 @@ class MapFragment : Fragment() {
         applyUiTuning()
 
         // Gestione Edge-to-Edge: aggiunge padding alla barra di ricerca e alla bussola 
-        // per non farle finire sotto la status bar.
+        // per non farle finire sotto la status bar, e solleva gli strumenti in basso 
+        // per non farli coprire dalla barra di navigazione.
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val statusBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
+            val navBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom
             val extraMargin = (12 * resources.displayMetrics.density).toInt()
             
             binding.cardSearch.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
@@ -334,6 +342,25 @@ class MapFragment : Fragment() {
             binding.cardNavBanner.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight + extraMargin
             }
+
+            // Solleva gli strumenti in basso
+            val bottomPadding = navBarHeight + (16 * resources.displayMetrics.density).toInt()
+            binding.speedometer.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                bottomMargin = bottomPadding
+            }
+            binding.altitudeView.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                bottomMargin = bottomPadding
+            }
+            binding.layoutCentra.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                bottomMargin = navBarHeight + (12 * resources.displayMetrics.density).toInt()
+            }
+            binding.cvHud.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                bottomMargin = navBarHeight + (80 * resources.displayMetrics.density).toInt()
+            }
+            binding.cardNavChip.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                bottomMargin = navBarHeight + (30 * resources.displayMetrics.density).toInt()
+            }
+
             insets
         }
     }
@@ -422,7 +449,9 @@ class MapFragment : Fragment() {
         if (debugMode) startPositionTracking()
         binding.mapView.onResume()
         startCameraLoop()
-        setFollowMode(true)  // ad ogni cambio schermata la visuale torna centrata sulla barca
+        
+        // Manteniamo lo stato di follow precedente: se l'utente lo aveva staccato per guardare
+        // un altro punto della mappa prima di cambiare schermata, al rientro non deve scattare.
         applyUiTuning()
         refreshSavedPlacesLayer()
     }
@@ -930,6 +959,12 @@ class MapFragment : Fragment() {
                     val interpLat = fixA.lat + (fixB.lat - fixA.lat) * frac
                     val interpLon = fixA.lon + (fixB.lon - fixA.lon) * frac
                     val interpPos = LatLng(interpLat, interpLon)
+
+                    // Centramento automatico iniziale al primo fix ricevuto
+                    if (!hasInitialCentered) {
+                        hasInitialCentered = true
+                        map.moveCamera(CameraUpdateFactory.newLatLng(interpPos))
+                    }
 
                     // HUD e Navigazione
                     val speedKn = (lastGpsLocation?.speed ?: 0f) * 3600.0 / 1852.0
