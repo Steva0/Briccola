@@ -114,7 +114,8 @@ override fun onCreateView(
             "Simula Percorso A→B",
             "Settaggi Dev",
             "Posizione",
-            "Mappa Offline"
+            "Mappa Offline",
+            "Test isAtSea (Laguna/Mare)"
         )
         binding.spinnerDevMode.adapter =
             ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, modes)
@@ -127,9 +128,14 @@ override fun onCreateView(
                 binding.groupCameraSettings.visibility = if (position == 3) View.VISIBLE else View.GONE
                 binding.groupSetPosition.visibility    = if (position == 4) View.VISIBLE else View.GONE
                 binding.groupOfflineMap.visibility     = if (position == 5) View.VISIBLE else View.GONE
+                
+                // Visualizzazione debug laguna/mare
+                childMap?.showSeaLagunaDebugGrid(position == 6)
+                
                 if (position == 5) setupOfflineMapPanel()
                 if (position != 2) { simAbStart = null; simAbEnd = null }
                 if (position == 0) binding.tvDevStatus.text = "Simulatore pronto — joystick per muovere"
+                if (position == 6) binding.tvDevStatus.text = "Giallo = Laguna, Blu = Mare"
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }

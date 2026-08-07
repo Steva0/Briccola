@@ -8,7 +8,38 @@ import kotlin.math.*
 
 data class Node(val id: String, val lat: Double, val lon: Double)
 data class Edge(val u: String, val v: String, val lengthM: Double, val depthM: Double, val speedKmh: Double)
-data class NoGoArea(val id: String, val polygon: List<LatLng>, val isRock: Boolean)
+data class BBox(val minLat: Double, val maxLat: Double, val minLon: Double, val maxLon: Double)
+
+data class NoGoArea(val id: String, val polygon: List<LatLng>, val isRock: Boolean) {
+    val minLat: Double
+    val maxLat: Double
+    val minLon: Double
+    val maxLon: Double
+
+    init {
+        var miLa = Double.MAX_VALUE; var maLa = -Double.MAX_VALUE
+        var miLo = Double.MAX_VALUE; var maLo = -Double.MAX_VALUE
+        for (p in polygon) {
+            if (p.latitude < miLa) miLa = p.latitude
+            if (p.latitude > maLa) maLa = p.latitude
+            if (p.longitude < miLo) miLo = p.longitude
+            if (p.longitude > maLo) maLo = p.longitude
+        }
+        minLat = miLa; maxLat = maLa; minLon = miLo; maxLon = maLo
+    }
+
+    fun overlaps(b: BBox): Boolean {
+        return !(maxLat < b.minLat || minLat > b.maxLat || maxLon < b.minLon || minLon > b.maxLon)
+    }
+
+    fun segmentMaybeIntersects(a: LatLng, b: LatLng): Boolean {
+        val sMinLat = min(a.latitude, b.latitude)
+        val sMaxLat = max(a.latitude, b.latitude)
+        val sMinLon = min(a.longitude, b.longitude)
+        val sMaxLon = max(a.longitude, b.longitude)
+        return !(maxLat < sMinLat || minLat > sMaxLat || maxLon < sMinLon || minLon > sMaxLon)
+    }
+}
 data class Segment(val p1: LatLng, val p2: LatLng)
 data class FixedDepthArea(val depth: Float, val polygon: List<LatLng>)
 data class NamedSegment(val name: String, val a: LatLng, val b: LatLng)
@@ -469,7 +500,7 @@ class RoutingEngine(private val context: Context) {
         }
 
         val vPoints = mutableListOf(start, end)
-        obstacles.filter { it.isRock }.forEach { area -> vPoints.addAll(area.polygon.dropLast(1)) }
+        obstacles.forEach { area -> vPoints.addAll(area.polygon.dropLast(1)) }
         vPoints.addAll(relevantGuidePoints(start, end))
         val n = vPoints.size
 
@@ -477,23 +508,36 @@ class RoutingEngine(private val context: Context) {
         val prev = IntArray(n) { -1 }
         val visited = BooleanArray(n)
         dist[0] = 0.0
-        val pq = PriorityQueue<Pair<Int, Double>>(compareBy { it.second })
-        pq.add(0 to 0.0)
+        
+        // A* PriorityQueue con euristica (distanza residua stimata)
+        val pq = PriorityQueue<Triple<Int, Double, Double>>(compareBy { it.third })
+        pq.add(Triple(0, 0.0, haversine(start.latitude, start.longitude, end.latitude, end.longitude)))
 
         while (pq.isNotEmpty()) {
-            val (u, d) = pq.poll()!!
+            val (u, d, _) = pq.poll()!!
             if (visited[u]) continue
             visited[u] = true
             if (u == 1) break
 
             for (v in 0 until n) {
                 if (v == u || visited[v]) continue
-                if (obstacles.any { isSegmentBlocked(vPoints[u], vPoints[v], it.polygon) }) continue
-                val nd = d + haversine(vPoints[u].latitude, vPoints[u].longitude, vPoints[v].latitude, vPoints[v].longitude)
+                
+                val pU = vPoints[u]
+                val pV = vPoints[v]
+                
+                // Ottimizzazione: se u e v sono vertici dello stesso ostacolo, 
+                // spesso la linea tra loro passa dentro. Ma il controllo intersection è lento.
+                // Facciamo prima un controllo veloce di distanza se necessario o passiamo al blocco.
+                
+                if (obstacles.any { it.segmentMaybeIntersects(pU, pV) && isSegmentBlocked(pU, pV, it.polygon) }) continue
+                
+                val stepDist = haversine(pU.latitude, pU.longitude, pV.latitude, pV.longitude)
+                val nd = d + stepDist
                 if (nd < dist[v]) {
                     dist[v] = nd
                     prev[v] = u
-                    pq.add(v to nd)
+                    val h = haversine(pV.latitude, pV.longitude, end.latitude, end.longitude)
+                    pq.add(Triple(v, nd, nd + h))
                 }
             }
         }
@@ -512,12 +556,9 @@ class RoutingEngine(private val context: Context) {
         return path
     }
 
-    /** Limita gli ostacoli da considerare a quelli la cui bounding box è vicina al segmento partenza-arrivo. */
     private fun relevantObstacles(start: LatLng, end: LatLng): List<NoGoArea> {
-        val (minLat, maxLat, minLon, maxLon) = boundingBoxWithMargin(start, end)
-        return noGoAreas.filter { area ->
-            area.polygon.any { it.latitude in minLat..maxLat && it.longitude in minLon..maxLon }
-        }
+        val pathBBox = boundingBoxWithMargin(start, end)
+        return noGoAreas.filter { it.overlaps(pathBBox) }
     }
 
     /** Punti delle linee guida costiere vicini al segmento partenza-arrivo, candidati come waypoint. */
@@ -526,10 +567,10 @@ class RoutingEngine(private val context: Context) {
         return seaBypassLines.flatten().filter { it.latitude in minLat..maxLat && it.longitude in minLon..maxLon }
     }
 
-    private data class BBox(val minLat: Double, val maxLat: Double, val minLon: Double, val maxLon: Double)
+
 
     private fun boundingBoxWithMargin(start: LatLng, end: LatLng): BBox {
-        val marginDeg = 0.02 // ~2 km a queste latitudini
+        val marginDeg = 0.05 // ~5.5 km a queste latitudini - aumentato per catturare più waypoint
         return BBox(
             min(start.latitude, end.latitude) - marginDeg,
             max(start.latitude, end.latitude) + marginDeg,
@@ -538,13 +579,19 @@ class RoutingEngine(private val context: Context) {
         )
     }
 
-    /** Vero se il segmento a-b attraversa l'interno del poligono (bordi/vertici condivisi non contano). */
     private fun isSegmentBlocked(a: LatLng, b: LatLng, poly: List<LatLng>): Boolean {
+        var isBoundaryEdge = false
         for (i in 0 until poly.size - 1) {
             val p1 = poly[i]; val p2 = poly[i + 1]
+            // Se il segmento è esattamente un bordo del poligono, lo consideriamo libero
+            if ((p1 == a && p2 == b) || (p1 == b && p2 == a)) {
+                isBoundaryEdge = true
+            }
             if (p1 == a || p1 == b || p2 == a || p2 == b) continue
             if (segmentsIntersect(a, b, p1, p2)) return true
         }
+        if (isBoundaryEdge) return false
+
         for (step in 1..9) {
             val f = step / 10.0
             val p = LatLng(a.latitude + (b.latitude - a.latitude) * f, a.longitude + (b.longitude - a.longitude) * f)

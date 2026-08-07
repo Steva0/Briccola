@@ -86,6 +86,7 @@ import java.nio.charset.Charset
 import java.util.Locale
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -151,6 +152,81 @@ class MapFragment : Fragment() {
      *  che non può controllare ::routingEngine.isInitialized da fuori questa classe. */
     fun getProjectBoundsWithMarginIfReady(marginMeters: Double): Pair<LatLng, LatLng>? =
         if (::routingEngine.isInitialized) routingEngine.getProjectBoundsWithMargin(marginMeters) else null
+
+    fun showSeaLagunaDebugGrid(show: Boolean) {
+        showDebugGrid = show
+        if (!show) {
+            mapLibre?.getStyle { style ->
+                (style.getSource(SOURCE_DEBUG_GRID) as? GeoJsonSource)?.setGeoJson(emptyFc())
+            }
+        } else {
+            updateDebugGrid()
+        }
+    }
+
+    private fun updateDebugGrid() {
+        if (!showDebugGrid) return
+        val map = mapLibre ?: return
+        
+        // Calcoliamo i limiti della vista attuale per far stare tutti i pallini nello schermo
+        val bounds = map.projection.visibleRegion.latLngBounds
+        val latSpan = bounds.latitudeNorth - bounds.latitudeSouth
+        val lonSpan = bounds.longitudeEast - bounds.longitudeWest
+        
+        // Margine interno del 10% per non avere pallini proprio sui bordi
+        val startLat = bounds.latitudeSouth + latSpan * 0.1
+        val startLon = bounds.longitudeWest + lonSpan * 0.1
+        
+        // Aumentiamo la densità: griglia 30x30 invece di 16x16
+        val gridCount = 30
+        val latStep = (latSpan * 0.8) / gridCount.toDouble()
+        val lonStep = (lonSpan * 0.8) / gridCount.toDouble()
+        
+        val features = JsonArray()
+        for (r in 0..gridCount) {
+            for (c in 0..gridCount) {
+                val p = LatLng(startLat + r * latStep, startLon + c * lonStep)
+                val atSea = routingEngine.isAtSea(p)
+                
+                features.add(JsonObject().apply {
+                    addProperty("type", "Feature")
+                    add("properties", JsonObject().apply {
+                        addProperty("atSeaInt", if (atSea) 1 else 0)
+                    })
+                    add("geometry", JsonObject().apply {
+                        addProperty("type", "Point")
+                        add("coordinates", JsonArray().apply { add(p.longitude); add(p.latitude) })
+                    })
+                })
+            }
+        }
+        
+        val geoJson = JsonObject().apply {
+            addProperty("type", "FeatureCollection")
+            add("features", features)
+        }.toString()
+
+        map.getStyle { style ->
+            val source = style.getSource(SOURCE_DEBUG_GRID) as? GeoJsonSource
+            if (source != null) {
+                source.setGeoJson(geoJson)
+            } else {
+                style.addSource(GeoJsonSource(SOURCE_DEBUG_GRID, geoJson))
+                style.addLayer(CircleLayer(LAYER_DEBUG_GRID, SOURCE_DEBUG_GRID).withProperties(
+                    circleColor(
+                        step(get("atSeaInt"), 
+                            color(Color.YELLOW), // 0 = Laguna
+                            stop(1, color(Color.BLUE)) // 1 = Mare
+                        )
+                    ),
+                    circleRadius(3.5f), // Pallini più piccoli
+                    circleStrokeColor(Color.WHITE),
+                    circleStrokeWidth(1f),
+                    circleOpacity(0.7f)
+                ))
+            }
+        }
+    }
 
     /** Disegna (o rimuove, passando null) il rettangolo del confine dell'area mappa offline
      *  bundlata (laguna + 35km) — solo per Dev Tools, per capire subito dove finisce la
@@ -269,6 +345,10 @@ class MapFragment : Fragment() {
     private val LAYER_DEST        = "destination-layer"
     private val SOURCE_SAVED_PLACES = "saved-places-source"
     private val LAYER_SAVED_PLACES  = "saved-places-layer"
+    private val SOURCE_DEBUG_GRID   = "debug-grid-source"
+    private val LAYER_DEBUG_GRID    = "debug-grid-layer"
+
+    private var showDebugGrid = false
 
     private val locationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -560,6 +640,9 @@ class MapFragment : Fragment() {
                     b.cardCompass.visibility = if (showCompass) View.VISIBLE else View.GONE
                     b.cardCompass.rotation = (-actualCamBearing).toFloat()
                 }
+                
+                // Aggiorna la griglia di debug Laguna/Mare se attiva
+                if (showDebugGrid) updateDebugGrid()
             }
         }
     }
