@@ -2,12 +2,18 @@ package com.briccola.app.engine
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.Bitmap
+import android.graphics.Color
 import fi.iki.elonen.NanoHTTPD
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.ServerSocket
 import java.net.URL
+import kotlin.math.atan
+import kotlin.math.pow
+import kotlin.math.sinh
 
 /**
  * Serve localmente (127.0.0.1) le tile vettoriali/raster, i glifi e lo sprite della mappa
@@ -25,16 +31,19 @@ object LocalTileServer {
     private const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
     private var server: Server? = null
+    private var bathyEngine: BathymetryEngine? = null
+
     var port: Int = -1
         private set
 
     @Volatile private var remoteVectorTemplate: String? = null
     @Volatile private var nextRemoteAttemptAllowedAt: Long = 0L
 
-    fun startIfNeeded(context: Context) {
+    fun startIfNeeded(context: Context, bathy: BathymetryEngine? = null) {
         if (server != null) return
+        bathyEngine = bathy
         val freePort = ServerSocket(0).use { it.localPort }
-        val instance = Server(context.applicationContext, freePort)
+        val instance = Server(context.applicationContext, freePort, bathy)
         instance.setAsyncRunner(PooledAsyncRunner())
         try {
             instance.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
@@ -115,7 +124,11 @@ object LocalTileServer {
         override fun exec(clientHandler: NanoHTTPD.ClientHandler) { running.add(clientHandler); executor.execute(clientHandler) }
     }
 
-    private class Server(private val context: Context, port: Int) : NanoHTTPD("127.0.0.1", port) {
+    private class Server(
+        private val context: Context, 
+        port: Int, 
+        private val bathy: BathymetryEngine? = null
+    ) : NanoHTTPD("127.0.0.1", port) {
         private val cacheDbLock = Any()
         private var cacheDb: SQLiteDatabase? = null
         private val readOnlyDbsLock = Any()
@@ -173,6 +186,7 @@ object LocalTileServer {
             val uri = session.uri
             return try {
                 when {
+                    uri.startsWith("/bathy-heatmap/") -> serveBathyHeatmap(uri, session.parameters)
                     uri.startsWith("/tiles/") -> serveVectorTile(uri.removePrefix("/tiles/"))
                     uri.startsWith("/raster/") -> serveTile(uri.removePrefix("/raster/"), "tiles_raster.mbtiles", "image/png")
                     uri.startsWith("/fonts/") -> serveGlyph(uri.removePrefix("/fonts/"))
@@ -180,6 +194,57 @@ object LocalTileServer {
                     else -> newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "not found")
                 }
             } catch (e: Exception) { newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "error") }
+        }
+
+        private fun serveBathyHeatmap(uri: String, params: Map<String, List<String>>): Response {
+            val path = uri.removePrefix("/bathy-heatmap/")
+            val (z, x, y) = parseZxy(path) ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "bad path")
+            
+            // Se lo zoom è troppo basso, il rendering diventa troppo costoso e meno utile
+            if (z < 11) return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "zoom low")
+
+            val tide = params["tide"]?.firstOrNull()?.toDoubleOrNull() ?: 0.0
+            val draft = params["draft"]?.firstOrNull()?.toDoubleOrNull() ?: 0.5
+            
+            // Coordinate geografiche del tile
+            val n = 2.0.pow(z.toDouble())
+            val lonMin = x / n * 360.0 - 180.0
+            val lonMax = (x + 1) / n * 360.0 - 180.0
+            val latMin = Math.toDegrees(atan(sinh(Math.PI * (1 - 2 * (y + 1) / n))))
+            val latMax = Math.toDegrees(atan(sinh(Math.PI * (1 - 2 * y / n))))
+            
+            val lonStep = (lonMax - lonMin) / 128.0
+            val latStep = (latMax - latMin) / 128.0
+
+            val bitmap = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            val paint = android.graphics.Paint()
+
+            for (py in 0 until 128) {
+                for (px in 0 until 128) {
+                    val lat = latMax - py * latStep
+                    val lon = lonMin + px * lonStep
+                    
+                    val depth = bathy?.getRawDepthAt(lat, lon) ?: 0f
+                    if (depth > 0) {
+                        val margin = (depth + tide) - draft
+                        val color = when {
+                            margin < 0.3 -> Color.argb(180, 211, 47, 47)    // Rosso: Pericolo (<30cm)
+                            margin < 0.5 -> Color.argb(160, 255, 152, 0)    // Arancio: Basso (<50cm)
+                            margin < 1.0 -> Color.argb(120, 255, 235, 59)   // Giallo: Attenzione (<100cm)
+                            else         -> Color.TRANSPARENT               // Tutto il resto niente
+                        }
+                        if (color != Color.TRANSPARENT) {
+                            paint.color = color
+                            canvas.drawPoint(px.toFloat(), py.toFloat(), paint)
+                        }
+                    }
+                }
+            }
+
+            val out = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
+            return newFixedLengthResponse(Response.Status.OK, "image/png", out.toByteArray().inputStream(), out.size().toLong())
         }
 
         private fun parseZxy(path: String): Triple<Int, Int, Int>? {

@@ -23,6 +23,9 @@ object UiTuning {
     private const val KEY_FOLLOW_BOAT_SCREEN_Y   = "ui_follow_boat_screen_y_fraction"
     private const val KEY_BRICCOLE_COLOR         = "ui_briccole_color"
     private const val KEY_COMPASS_SCALE          = "ui_compass_scale"
+    private const val KEY_COMPASS_OFFSET_Y       = "ui_compass_offset_y_dp"
+    private const val KEY_BATHY_BTN_SCALE        = "ui_bathy_btn_scale"
+    private const val KEY_BATHY_BTN_OFFSET_Y     = "ui_bathy_btn_offset_y_dp"
 
     const val DEFAULT_GAUGE_SCALE         = 0.72f  // tachimetro/altimetro un po' più piccoli
     const val DEFAULT_GAUGE_OFFSET_Y      = -78f   // e un po' più in alto (negativo = su)
@@ -44,7 +47,10 @@ object UiTuning {
     const val DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION = 0.7f
     // Colore delle briccole, regolabile da Dev Tools > Colori Mappa.
     val DEFAULT_BRICCOLE_COLOR: Int       = android.graphics.Color.parseColor("#003366")
-    const val DEFAULT_COMPASS_SCALE       = 0.6f
+    const val DEFAULT_COMPASS_SCALE       = 0.5f
+    const val DEFAULT_COMPASS_OFFSET_Y    = 163f
+    const val DEFAULT_BATHY_BTN_SCALE     = 0.5f  // meta' della dimensione originale
+    const val DEFAULT_BATHY_BTN_OFFSET_Y  = 100f
 
     // Tachimetro e altimetro sono specchiati (stessa dimensione/posizione, solo lato opposto):
     // un solo slider per ciascuno basta per entrambi.
@@ -64,6 +70,9 @@ object UiTuning {
     var followBoatScreenYFraction: Float = DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION
     var briccoleColor: Int = DEFAULT_BRICCOLE_COLOR
     var compassScale: Float = DEFAULT_COMPASS_SCALE
+    var compassOffsetYDp: Float = DEFAULT_COMPASS_OFFSET_Y
+    var bathyBtnScale: Float = DEFAULT_BATHY_BTN_SCALE
+    var bathyBtnOffsetYDp: Float = DEFAULT_BATHY_BTN_OFFSET_Y
 
     private var loaded = false
 
@@ -86,6 +95,9 @@ object UiTuning {
         followBoatScreenYFraction = p.getFloat(KEY_FOLLOW_BOAT_SCREEN_Y, followBoatScreenYFraction)
         briccoleColor = p.getInt(KEY_BRICCOLE_COLOR, briccoleColor)
         compassScale = p.getFloat(KEY_COMPASS_SCALE, compassScale)
+        compassOffsetYDp = p.getFloat(KEY_COMPASS_OFFSET_Y, compassOffsetYDp)
+        bathyBtnScale = p.getFloat(KEY_BATHY_BTN_SCALE, bathyBtnScale)
+        bathyBtnOffsetYDp = p.getFloat(KEY_BATHY_BTN_OFFSET_Y, bathyBtnOffsetYDp)
     }
 
     fun save(context: Context) {
@@ -105,6 +117,9 @@ object UiTuning {
             putFloat(KEY_FOLLOW_BOAT_SCREEN_Y, followBoatScreenYFraction)
             putInt(KEY_BRICCOLE_COLOR, briccoleColor)
             putFloat(KEY_COMPASS_SCALE, compassScale)
+            putFloat(KEY_COMPASS_OFFSET_Y, compassOffsetYDp)
+            putFloat(KEY_BATHY_BTN_SCALE, bathyBtnScale)
+            putFloat(KEY_BATHY_BTN_OFFSET_Y, bathyBtnOffsetYDp)
             apply()
         }
     }
@@ -125,6 +140,9 @@ object UiTuning {
         followBoatScreenYFraction = DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION
         briccoleColor = DEFAULT_BRICCOLE_COLOR
         compassScale = DEFAULT_COMPASS_SCALE
+        compassOffsetYDp = DEFAULT_COMPASS_OFFSET_Y
+        bathyBtnScale = DEFAULT_BATHY_BTN_SCALE
+        bathyBtnOffsetYDp = DEFAULT_BATHY_BTN_OFFSET_Y
         save(context)
     }
 }

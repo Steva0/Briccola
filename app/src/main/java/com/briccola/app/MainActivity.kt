@@ -20,6 +20,7 @@ import android.net.Uri
 import com.briccola.app.ui.AboutFragment
 import com.briccola.app.ui.DonateFragment
 import com.briccola.app.ui.DevToolsFragment
+import com.briccola.app.engine.BathymetryEngine
 import com.briccola.app.engine.LocalAssetInstaller
 import com.briccola.app.engine.LocalTileServer
 import com.briccola.app.engine.MapDownloader
@@ -126,7 +127,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchMap() {
-        LocalTileServer.startIfNeeded(applicationContext)
+        val bathy = BathymetryEngine(applicationContext)
+        LocalTileServer.startIfNeeded(applicationContext, bathy)
         LocalTileServer.resetCache() // Assicura che veda i nuovi file scaricati
         showFragment(R.id.nav_map, "Mappa") { MapFragment() }
         binding.navView.setCheckedItem(R.id.nav_map)

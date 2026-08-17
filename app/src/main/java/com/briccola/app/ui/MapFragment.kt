@@ -77,8 +77,11 @@ import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.*
 import org.maplibre.android.style.expressions.Expression.*
+import org.maplibre.android.style.layers.RasterLayer
 import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.android.style.sources.RasterSource
+import org.maplibre.android.style.sources.TileSet
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.Point
 import java.net.URL
@@ -120,6 +123,48 @@ class MapFragment : Fragment() {
 
     /** Centro attuale della camera — usato da DevTools per impostare la destinazione al volo. */
     fun cameraCenter(): LatLng? = mapLibre?.cameraPosition?.target
+
+    private fun toggleBathyHeatmap() {
+        showBathyHeatmap = !showBathyHeatmap
+        binding.ivBathyIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+            if (showBathyHeatmap) Color.parseColor("#0091EA") else Color.parseColor("#444444")
+        )
+        refreshBathyLayer()
+    }
+
+    private fun refreshBathyLayer() {
+        mapLibre?.getStyle { style ->
+            val existingLayer = style.getLayer(LAYER_BATHY_HEATMAP)
+            if (!showBathyHeatmap) {
+                existingLayer?.setProperties(visibility(Property.NONE))
+                return@getStyle
+            }
+
+            val draft = requireContext().getSharedPreferences("laguna_prefs", Context.MODE_PRIVATE).getFloat("boat_draft", 0.5f)
+            val url = "http://127.0.0.1:${com.briccola.app.engine.LocalTileServer.port}/bathy-heatmap/{z}/{x}/{y}.png?tide=$cachedTideM&draft=$draft"
+            
+            val existingSource = style.getSource(SOURCE_BATHY_HEATMAP) as? RasterSource
+            if (existingSource != null) {
+                // Per forzare il refresh con i nuovi parametri tide/draft dobbiamo ricreare la sorgente
+                style.removeLayer(LAYER_BATHY_HEATMAP)
+                style.removeSource(SOURCE_BATHY_HEATMAP)
+            }
+            
+            style.addSource(RasterSource(SOURCE_BATHY_HEATMAP, TileSet("2.1.0", url), 256))
+            val layer = RasterLayer(LAYER_BATHY_HEATMAP, SOURCE_BATHY_HEATMAP)
+            layer.setProperties(
+                visibility(Property.VISIBLE),
+                rasterResampling(Property.RASTER_RESAMPLING_NEAREST) // Evita l'effetto sfocato
+            )
+            
+            // Posizioniamo il layer della profondita' sotto i canali e le briccole, ma sopra lo sfondo
+            if (style.getLayer("canals-casing") != null) {
+                style.addLayerBelow(layer, "canals-casing")
+            } else {
+                style.addLayer(layer)
+            }
+        }
+    }
 
     fun showPreviewRoute(route: List<LatLng>?) {
         val geoJson = if (route != null && route.size >= 2) {
@@ -347,8 +392,11 @@ class MapFragment : Fragment() {
     private val LAYER_SAVED_PLACES  = "saved-places-layer"
     private val SOURCE_DEBUG_GRID   = "debug-grid-source"
     private val LAYER_DEBUG_GRID    = "debug-grid-layer"
+    private val SOURCE_BATHY_HEATMAP = "bathy-heatmap-source"
+    private val LAYER_BATHY_HEATMAP  = "bathy-heatmap-layer"
 
     private var showDebugGrid = false
+    private var showBathyHeatmap = false
 
     private val locationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -462,6 +510,16 @@ class MapFragment : Fragment() {
         val density = resources.displayMetrics.density
         binding.cardCompass.scaleX = UiTuning.compassScale
         binding.cardCompass.scaleY = UiTuning.compassScale
+        binding.cardCompass.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            topMargin = (UiTuning.compassOffsetYDp * density).toInt()
+        }
+        
+        binding.cardBathyToggle.scaleX = UiTuning.bathyBtnScale
+        binding.cardBathyToggle.scaleY = UiTuning.bathyBtnScale
+        binding.cardBathyToggle.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            topMargin = (UiTuning.bathyBtnOffsetYDp * density).toInt()
+        }
+
         binding.speedometer.scaleX = UiTuning.gaugeScale
         binding.speedometer.scaleY = UiTuning.gaugeScale
         binding.speedometer.translationY = UiTuning.gaugeOffsetYDp * density
@@ -542,6 +600,7 @@ class MapFragment : Fragment() {
         // un altro punto della mappa prima di cambiare schermata, al rientro non deve scattare.
         applyUiTuning()
         refreshSavedPlacesLayer()
+        if (showBathyHeatmap) refreshBathyLayer()
     }
 
     // =================================================================
@@ -2231,6 +2290,10 @@ class MapFragment : Fragment() {
             setFollowMode(true)
         }
 
+        binding.cardBathyToggle.setOnClickListener {
+            toggleBathyHeatmap()
+        }
+
         // Bussola custom: se sei in modalità Segui, il loop camera (~45Hz) ruota continuamente
         // la mappa per allinearla alla prua della barca — provare a "vincere" quella rotazione
         // frame per frame (lasciando followMode attivo) produceva uno snap che si annullava da
@@ -2552,6 +2615,7 @@ class MapFragment : Fragment() {
         startPositionTracking()
         startCameraLoop()
         refreshSavedPlacesLayer()
+        if (showBathyHeatmap) refreshBathyLayer()
         // Riavvia il controllo percorso ottimale se c'è una navigazione attiva
         if (activeRoute != null && destination != null) startBgReroute()
 

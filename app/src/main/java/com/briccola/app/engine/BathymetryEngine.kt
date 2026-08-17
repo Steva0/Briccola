@@ -84,6 +84,18 @@ class BathymetryEngine(private val context: Context) {
         }
     }
 
+    /** Versione ultra-veloce senza controllo NoGo, per il rendering delle tile. */
+    fun getRawDepthAt(lat: Double, lon: Double): Float {
+        if (metaWidth == 0 || metaHeight == 0 || bathyData == null) return 0f
+        val x = ((lon - minLon) / resLon).toInt()
+        val y = ((lat - maxLat) / resLat).toInt()
+        if (x !in 0 until metaWidth || y !in 0 until metaHeight) return 0f
+        val position = (y * metaWidth + x) * 2
+        val depthCm = bathyData!!.getShort(position)
+        val depth = depthCm.toFloat() / 100f
+        return if (depth <= 0.05f) 0f else depth
+    }
+
     private fun containsPoint(poly: List<LatLng>, p: LatLng): Boolean {
         var res = false; var j = poly.size - 1
         for (i in poly.indices) {
