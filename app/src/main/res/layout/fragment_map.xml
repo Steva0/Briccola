@@ -79,21 +79,23 @@
     <!-- Banner GPS disattivato -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_gps_disabled"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:layout_marginHorizontal="12dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginHorizontal="32dp"
         android:layout_marginTop="96dp"
         android:visibility="gone"
         app:cardBackgroundColor="#CC880000"
-        app:cardCornerRadius="12dp"
+        app:cardCornerRadius="24dp"
         app:cardElevation="6dp">
 
         <TextView
             android:id="@+id/tv_gps_disabled_text"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:padding="12dp"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp"
             android:text="GPS disattivato — tocca per attivarlo"
             android:textColor="@color/white"
             android:textSize="13sp"
@@ -786,7 +788,7 @@
         android:layout_gravity="top|end"
         android:layout_marginTop="160dp"
         android:layout_marginEnd="12dp"
-        android:visibility="gone"
+        android:visibility="visible"
         app:cardBackgroundColor="#CC003366"
         app:cardCornerRadius="45dp"
         app:cardElevation="4dp">

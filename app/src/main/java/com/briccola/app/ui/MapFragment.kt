@@ -393,7 +393,10 @@ class MapFragment : Fragment() {
     private val LAYER_BATHY_HEATMAP  = "bathy-heatmap-layer"
 
     private var showDebugGrid = false
-    private var showBathyHeatmap = false
+    private var showBathyHeatmap = true
+
+    private var statusBarHeight = 0
+    private var navBarHeight = 0
 
     private val locationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -451,86 +454,87 @@ class MapFragment : Fragment() {
         // per non farle finire sotto la status bar, e solleva gli strumenti in basso 
         // per non farli coprire dalla barra di navigazione.
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            val statusBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
-            val navBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom
-            val extraMargin = (16 * resources.displayMetrics.density).toInt() // Aumentato a 16dp per respiro
+            statusBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
+            navBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom
+            
+            val density = resources.displayMetrics.density
+            val extraMargin = (16 * density).toInt()
             
             binding.cardSearch.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight + extraMargin
             }
             binding.cardPlaces.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-                // Posiziona i suggerimenti esattamente sotto la search bar (56dp altezza + 8dp gap)
-                topMargin = statusBarHeight + extraMargin + (64 * resources.displayMetrics.density).toInt()
+                topMargin = statusBarHeight + extraMargin + (64 * density).toInt()
             }
             binding.cardSavedPlaces.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-                // Il pannello dei luoghi salvati scende un po' di più per non coprire tutto
-                topMargin = statusBarHeight + (64 * resources.displayMetrics.density).toInt()
+                topMargin = statusBarHeight + (64 * density).toInt()
             }
             binding.cardGpsDisabled.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-                topMargin = statusBarHeight + (96 * resources.displayMetrics.density).toInt()
-            }
-            binding.cardCompass.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-                topMargin = statusBarHeight + (100 * resources.displayMetrics.density).toInt()
+                topMargin = statusBarHeight + (96 * density).toInt()
             }
             binding.cardNavBanner.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight + extraMargin
             }
 
-            // Solleva gli strumenti in basso
-            val bottomPadding = navBarHeight + (16 * resources.displayMetrics.density).toInt()
-            binding.speedometer.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-                bottomMargin = bottomPadding
-            }
-            binding.altitudeView.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-                bottomMargin = bottomPadding
-            }
-            binding.layoutCentra.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-                bottomMargin = navBarHeight + (12 * resources.displayMetrics.density).toInt()
-            }
-            binding.cvHud.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-                bottomMargin = navBarHeight + (80 * resources.displayMetrics.density).toInt()
-            }
-            binding.cardNavChip.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-                bottomMargin = navBarHeight + (30 * resources.displayMetrics.density).toInt()
-            }
+            // Gli altri elementi (bussola, layer, tachimetro, ecc.) sono gestiti da applyUiTuning()
+            // che ora tiene conto degli insets appena salvati.
+            applyUiTuning()
 
             insets
         }
     }
 
-    /**
-     * Applica posizione/dimensione di tachimetro, altimetro, pulsante segui e HUD canale,
-     * lette da UiTuning (regolabili dal pannello Dev Tools). Richiamata all'avvio, ad ogni
-     * rientro sulla schermata, e da Dev Tools stesso quando si muove uno slider.
-     */
     fun applyUiTuning() {
         val density = resources.displayMetrics.density
+        
+        // Se non abbiamo ancora gli insets della status bar, usiamo un valore di fallback 
+        // (es. 24dp) per evitare che gli elementi "saltino" troppo vistosamente.
+        val effectiveStatusBarHeight = if (statusBarHeight > 0) statusBarHeight else (24 * density).toInt()
+
         binding.cardCompass.scaleX = UiTuning.compassScale
         binding.cardCompass.scaleY = UiTuning.compassScale
         binding.cardCompass.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-            topMargin = (UiTuning.compassOffsetYDp * density).toInt()
+            topMargin = effectiveStatusBarHeight + (UiTuning.compassOffsetYDp * density).toInt()
         }
         
         binding.cardBathyToggle.scaleX = UiTuning.bathyBtnScale
         binding.cardBathyToggle.scaleY = UiTuning.bathyBtnScale
         binding.cardBathyToggle.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-            topMargin = (UiTuning.bathyBtnOffsetYDp * density).toInt()
+            topMargin = effectiveStatusBarHeight + (UiTuning.bathyBtnOffsetYDp * density).toInt()
         }
 
+        val bottomPadding = navBarHeight + (16 * density).toInt()
         binding.speedometer.scaleX = UiTuning.gaugeScale
         binding.speedometer.scaleY = UiTuning.gaugeScale
+        binding.speedometer.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            bottomMargin = bottomPadding
+        }
         binding.speedometer.translationY = UiTuning.gaugeOffsetYDp * density
-        // Altimetro impilato esattamente sopra il tachimetro (stessa X, stesso gruppo bottom|start
-        // nel layout): parte dalla stessa posizione del tachimetro e sale di gaugeStackOffsetDp.
+        
         binding.altitudeView.scaleX = UiTuning.gaugeScale
         binding.altitudeView.scaleY = UiTuning.gaugeScale
+        binding.altitudeView.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            bottomMargin = bottomPadding
+        }
         binding.altitudeView.translationX = 0f
         binding.altitudeView.translationY = (UiTuning.gaugeOffsetYDp - UiTuning.gaugeStackOffsetDp) * density
-        binding.layoutCentra.translationY = UiTuning.followBtnOffsetYDp * density
-        binding.layoutCentra.translationX = UiTuning.followBtnOffsetXDp * density
+        
         binding.layoutCentra.scaleX = UiTuning.followBtnScale
         binding.layoutCentra.scaleY = UiTuning.followBtnScale
+        binding.layoutCentra.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            bottomMargin = navBarHeight + (12 * density).toInt()
+        }
+        binding.layoutCentra.translationY = UiTuning.followBtnOffsetYDp * density
+        binding.layoutCentra.translationX = UiTuning.followBtnOffsetXDp * density
+        
+        binding.cvHud.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            bottomMargin = navBarHeight + (80 * density).toInt()
+        }
         binding.cvHud.translationY = UiTuning.hudOffsetYDp * density
+
+        binding.cardNavChip.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            bottomMargin = navBarHeight + (30 * density).toInt()
+        }
 
         // Scaling elementi Salva luogo
         val btnScale = UiTuning.savePlaceBtnScale
@@ -699,9 +703,8 @@ class MapFragment : Fragment() {
             // Aggiorna la bussola ad ogni movimento della camera (indipendente dal GPS)
             map.addOnCameraMoveListener {
                 val actualCamBearing = map.cameraPosition.bearing
-                val showCompass = Math.abs(actualCamBearing % 360) > 2.0
                 _binding?.let { b ->
-                    b.cardCompass.visibility = if (showCompass) View.VISIBLE else View.GONE
+                    b.cardCompass.visibility = View.VISIBLE
                     b.cardCompass.rotation = (-actualCamBearing).toFloat()
                 }
                 
@@ -721,6 +724,7 @@ class MapFragment : Fragment() {
     private fun setupAllLayers(style: Style) {
         setupBoatIcon(style)
         setupLagunaLayers(style)
+        if (showBathyHeatmap) refreshBathyLayer()
         if (debugMode) setupDebugLayers(style)
         setupRouteLayer(style)
         setupDestinationLayer(style)
@@ -2282,6 +2286,11 @@ class MapFragment : Fragment() {
     }
 
     private fun setupButtons() {
+        // Imposta stato iniziale tasto layer
+        binding.ivBathyIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+            if (showBathyHeatmap) Color.parseColor("#0091EA") else Color.parseColor("#444444")
+        )
+
         // CENTRA: riattiva follow mode → pulsante sparisce
         binding.fabRecentra.setOnClickListener {
             setFollowMode(true)
