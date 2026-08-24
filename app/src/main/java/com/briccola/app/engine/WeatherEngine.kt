@@ -2,6 +2,8 @@ package com.briccola.app.engine
 
 import org.json.JSONObject
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 /** Condizioni meteo attuali per la laguna di Venezia (Open-Meteo: gratuito, senza chiave API). */
 data class WeatherData(
@@ -11,7 +13,17 @@ data class WeatherData(
     val windDirectionDeg: Double,
     val precipitationMm: Double,
     val waveHeightM: Double?,   // null se il servizio marino non risponde (non blocca il resto)
-    val updatedAt: Long
+    val updatedAt: Long,
+    val hourly: List<HourlyWeather> = emptyList()
+)
+
+/** Previsione oraria per la giornata. */
+data class HourlyWeather(
+    val timeMs: Long,
+    val tempC: Double,
+    val weatherCode: Int,
+    val windSpeedKmh: Double,
+    val precipitationMm: Double
 )
 
 /** Previsione di UN giorno (oggi + i prossimi), per la selezione giorno per giorno in pagina Meteo. */
@@ -47,9 +59,27 @@ object WeatherEngine {
         return try {
             val url = "https://api.open-meteo.com/v1/forecast?latitude=$LAT&longitude=$LON" +
                     "&current=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m" +
-                    "&timezone=auto"
+                    "&hourly=temperature_2m,weather_code,wind_speed_10m,precipitation" +
+                    "&timezone=auto&forecast_days=1"
             val json = JSONObject(httpGet(url))
             val current = json.getJSONObject("current")
+            val hourlyJson = json.getJSONObject("hourly")
+            val times = hourlyJson.getJSONArray("time")
+            val temps = hourlyJson.getJSONArray("temperature_2m")
+            val codes = hourlyJson.getJSONArray("weather_code")
+            val winds = hourlyJson.getJSONArray("wind_speed_10m")
+            val precips = hourlyJson.getJSONArray("precipitation")
+
+            val hourlyList = (0 until times.length()).map { i ->
+                HourlyWeather(
+                    timeMs = SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.US).parse(times.getString(i))!!.time,
+                    tempC = temps.getDouble(i),
+                    weatherCode = codes.getInt(i),
+                    windSpeedKmh = winds.getDouble(i),
+                    precipitationMm = precips.getDouble(i)
+                )
+            }
+
             WeatherData(
                 tempC = current.getDouble("temperature_2m"),
                 weatherCode = current.getInt("weather_code"),
@@ -57,7 +87,8 @@ object WeatherEngine {
                 windDirectionDeg = current.getDouble("wind_direction_10m"),
                 precipitationMm = current.optDouble("precipitation", 0.0),
                 waveHeightM = null,
-                updatedAt = System.currentTimeMillis()
+                updatedAt = System.currentTimeMillis(),
+                hourly = hourlyList
             )
         } catch (_: Exception) { null }
     }

@@ -152,10 +152,7 @@ class MapFragment : Fragment() {
             
             style.addSource(RasterSource(SOURCE_BATHY_HEATMAP, TileSet("2.1.0", url), 256))
             val layer = RasterLayer(LAYER_BATHY_HEATMAP, SOURCE_BATHY_HEATMAP)
-            layer.setProperties(
-                visibility(Property.VISIBLE),
-                rasterResampling(Property.RASTER_RESAMPLING_NEAREST) // Evita l'effetto sfocato
-            )
+            layer.setProperties(visibility(Property.VISIBLE))
             
             // Posizioniamo il layer della profondita' sotto i canali e le briccole, ma sopra lo sfondo
             if (style.getLayer("canals-casing") != null) {

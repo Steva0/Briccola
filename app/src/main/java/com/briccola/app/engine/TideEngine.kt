@@ -35,8 +35,34 @@ object TideEngine {
         timeZone = TimeZone.getTimeZone("Europe/Rome")
     }
 
-    suspend fun fetch(context: Context): TideData? {
-        return fetchOnline(context) ?: fetchOffline(context)
+    suspend fun fetch(context: Context, dayStartMs: Long? = null): TideData? {
+        val now = System.currentTimeMillis()
+        val targetDayStart = dayStartMs ?: todayBounds().first
+        
+        // Se è oggi, proviamo online. Altrimenti (o se fallisce) usiamo l'astronomica.
+        val data = if (isSameDay(targetDayStart, now)) {
+            fetchOnline(context) ?: fetchOffline(context, targetDayStart)
+        } else {
+            fetchOffline(context, targetDayStart)
+        }
+
+        // Se il giorno è oggi, mostriamo solo i dati da "adesso" in poi (con un piccolo margine)
+        if (data != null && isSameDay(targetDayStart, now)) {
+            val margin = 10 * 60_000L // 10 minuti di margine per vedere il punto attuale
+            return data.copy(
+                curve = data.curve.filter { it.first >= now - margin },
+                extremes = data.extremes.filter { it.timeMs >= now - margin }
+            )
+        }
+
+        return data
+    }
+
+    private fun isSameDay(t1: Long, t2: Long): Boolean {
+        val cal1 = Calendar.getInstance(TimeZone.getTimeZone("Europe/Rome")).apply { timeInMillis = t1 }
+        val cal2 = Calendar.getInstance(TimeZone.getTimeZone("Europe/Rome")).apply { timeInMillis = t2 }
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+               cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
     }
 
     private fun fetchOnline(context: Context): TideData? {
@@ -51,21 +77,11 @@ object TideEngine {
             }
             if (extremesOnline.isEmpty()) return null
 
-            // previsione.json contiene solo gli estremali FUTURI dal momento della richiesta
-            // (nessuno di quelli già passati oggi) — senza questo, il grafico di "oggi" partiva
-            // a metà giornata invece che da mezzanotte. Colmiamo il buco iniziale con gli
-            // estremali astronomici (bundlati offline, coprono l'intera giornata) solo per la
-            // parte prima del primo estremale online, che resta comunque la fonte preferita.
-            //
-            // IMPORTANTE: le due porzioni vengono interpolate SEPARATAMENTE (non unite in un'unica
-            // lista di estremali) — mescolare estremali di fonti diverse nella stessa interpolazione
-            // creava un "gomito" innaturale esattamente al punto di cucitura (proprio dove cade
-            // "adesso", il punto più importante del grafico). Un piccolo salto onesto fra le due
-            // porzioni è preferibile a una falsa continuità: astronomia pura e osservato reale
-            // possono davvero differire (vento/pressione), non è un errore di calcolo.
-            val earliestOnlineMs = extremesOnline.minOf { it.timeMs }
-            val backfill = loadOfflineExtremes(context)?.filter { it.timeMs < earliestOnlineMs } ?: emptyList()
-
+            // Per la giornata di oggi, usiamo l'astronomica come base (tutto il giorno)
+            // e sovrapponiamo i valori reali per la parte futura.
+            val bounds = todayBounds()
+            val astronomicalExtremes = loadOfflineExtremes(context) ?: emptyList()
+            
             val livelloJson = JSONArray(httpGet("https://dati.venezia.it/sites/default/files/dataset/opendata/livello.json"))
             var nowM: Double? = null
             for (i in 0 until livelloJson.length()) {
@@ -76,74 +92,80 @@ object TideEngine {
                 }
             }
 
-            buildTideDataTwoSegments(backfill, extremesOnline, earliestOnlineMs, nowM, isOffline = false)
+            // Invece di spezzare il grafico, prendiamo l'estremale astronomico più vicino a "ora"
+            // e applichiamo uno shift (offset) a tutta la curva astronomica di oggi per farla
+            // coincidere col valore reale di Punta Salute. È meno "scientifico" ma molto più
+            // leggibile e fluido per l'utente.
+            buildTideDataHybrid(astronomicalExtremes, extremesOnline, nowM, bounds.first, bounds.second)
         } catch (_: Exception) {
             null
         }
     }
 
-    fun fetchOffline(context: Context): TideData? {
+    fun fetchOffline(context: Context, dayStartMs: Long? = null): TideData? {
         val extremesAll = loadOfflineExtremes(context) ?: return null
-        return buildTideData(extremesAll, nowM = null, isOffline = true)
+        val bounds = dayStartMs?.let { it to it + 24 * 3600_000L } ?: todayBounds()
+        return buildTideData(extremesAll, nowM = null, isOffline = true, bounds.first, bounds.second)
     }
 
-    private fun loadOfflineExtremes(context: Context): List<TideExtreme>? {
-        return try {
-            val text = context.assets.open("marea_astronomica.json").bufferedReader().readText()
-            val json = org.json.JSONObject(text)
-            val arr = json.getJSONArray("estremali")
-            val extremes = mutableListOf<TideExtreme>()
-            for (i in 0 until arr.length()) {
-                val o = arr.getJSONObject(i)
-                val t = parseTime(o.getString("DATA")) ?: continue
-                val v = o.getString("VALORE").toDouble() / 100.0
-                extremes += TideExtreme(t, v, o.getString("minmax") == "max")
-            }
-            extremes.takeIf { it.isNotEmpty() }
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    /** Costruisce curva+estremali di oggi interpolando con una semi-cosinusoide fra estremali
-     *  consecutivi (tecnica standard per disegnare la marea quando si hanno solo i picchi),
-     *  tutti dalla STESSA fonte (usata per il fallback offline, dove non c'è cucitura). */
-    private fun buildTideData(extremesAll: List<TideExtreme>, nowM: Double?, isOffline: Boolean): TideData? {
-        val cal = todayBounds()
-        val todayStart = cal.first; val todayEnd = cal.second
+    /** Costruisce una curva di marea pulita e fluida che parte da ADESSO. */
+    private fun buildTideDataHybrid(
+        astronomical: List<TideExtreme>,
+        online: List<TideExtreme>,
+        realTimeValue: Double?,
+        start: Long,
+        end: Long
+    ): TideData? {
         val now = System.currentTimeMillis()
+        
+        // 1. Scegliamo la fonte per la forma (Previsione Comune se disponibile, altrimenti Astronomica)
+        val sourceExtremes = if (online.isNotEmpty()) online else astronomical
+        val sortedSource = sourceExtremes.sortedBy { it.timeMs }
+        
+        // 2. Calcoliamo l'offset costante per far coincidere la previsione col sensore REALE ora
+        val predictedNow = interpolateAt(sortedSource, now) ?: 0.0
+        val offset = if (realTimeValue != null) realTimeValue - predictedNow else 0.0
+        
+        // 3. Generiamo la curva fluida partendo da ADESSO fino a fine giornata
+        val curve = mutableListOf<Pair<Long, Double>>()
+        var t = now
+        while (t <= end) {
+            val vBase = interpolateAt(sortedSource, t) ?: 0.0
+            curve += t to (vBase + offset)
+            t += 10 * 60_000L // Punti ogni 10 minuti per massima fluidità
+        }
+        if (curve.isEmpty()) curve += now to (realTimeValue ?: predictedNow)
 
+        // 4. Selezioniamo solo i picchi (min/max) di OGGI che devono ancora avvenire
+        val todaysExtremes = sortedSource.filter { it.timeMs in (now + 1000)..end }.map {
+            it.copy(valueM = it.valueM + offset)
+        }
+        
+        return TideData(
+            nowM = realTimeValue ?: (predictedNow + offset),
+            curve = curve,
+            extremes = todaysExtremes,
+            isOffline = online.isEmpty(),
+            updatedAt = now
+        )
+    }
+
+    private fun buildTideData(
+        extremesAll: List<TideExtreme>,
+        nowM: Double?,
+        isOffline: Boolean,
+        start: Long,
+        end: Long
+    ): TideData? {
+        val now = System.currentTimeMillis()
         val sorted = extremesAll.sortedBy { it.timeMs }
-        val curve = interpolateCurve(sorted, todayStart, todayEnd)
+        val curve = interpolateCurve(sorted, start, end)
         if (curve.isEmpty()) return null
 
-        val todaysExtremes = sorted.filter { it.timeMs in todayStart..todayEnd }
-        val currentValue = nowM ?: interpolateAt(sorted, now) ?: curve.minByOrNull { Math.abs(it.first - now) }!!.second
+        val todaysExtremes = sorted.filter { it.timeMs in start..end }
+        val currentValue = nowM ?: interpolateAt(sorted, now) ?: 0.0
 
         return TideData(nowM = currentValue, curve = curve, extremes = todaysExtremes, isOffline = isOffline, updatedAt = now)
-    }
-
-    /** Come buildTideData, ma per la fonte online: interpola i estremali "passati" (backfill
-     *  offline) e "futuri" (online) SEPARATAMENTE, senza mai accoppiare un estremale di una
-     *  fonte con uno dell'altra nella stessa interpolazione (vedi commento in fetchOnline). */
-    private fun buildTideDataTwoSegments(
-        pastExtremes: List<TideExtreme>, futureExtremes: List<TideExtreme>,
-        boundaryMs: Long, nowM: Double?, isOffline: Boolean
-    ): TideData? {
-        val cal = todayBounds()
-        val todayStart = cal.first; val todayEnd = cal.second
-        val now = System.currentTimeMillis()
-
-        val pastSorted = pastExtremes.sortedBy { it.timeMs }
-        val futureSorted = futureExtremes.sortedBy { it.timeMs }
-        val curve = interpolateCurve(pastSorted, todayStart, boundaryMs) +
-                interpolateCurve(futureSorted, boundaryMs, todayEnd)
-        if (curve.isEmpty()) return null
-
-        val allExtremes = (pastSorted + futureSorted).filter { it.timeMs in todayStart..todayEnd }
-        val currentValue = nowM ?: curve.minByOrNull { Math.abs(it.first - now) }!!.second
-
-        return TideData(nowM = currentValue, curve = curve, extremes = allExtremes, isOffline = isOffline, updatedAt = now)
     }
 
     private fun todayBounds(): Pair<Long, Long> {
@@ -172,6 +194,25 @@ object TideEngine {
     }
 
     private fun parseTime(s: String): Long? = try { UTC_FORMAT.parse(s)?.time } catch (_: Exception) { null }
+
+    private fun loadOfflineExtremes(context: Context): List<TideExtreme>? {
+        return try {
+            val jsonString = context.assets.open("marea_astronomica.json").bufferedReader().use { it.readText() }
+            val root = org.json.JSONObject(jsonString)
+            val array = root.getJSONArray("estremali")
+            val result = mutableListOf<TideExtreme>()
+            for (i in 0 until array.length()) {
+                val o = array.getJSONObject(i)
+                val t = parseTime(o.getString("DATA")) ?: continue
+                val v = o.getString("VALORE").toDouble() / 100.0
+                val isMax = o.getString("minmax") == "max"
+                result += TideExtreme(t, v, isMax)
+            }
+            result
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     private fun httpGet(url: String): String {
         val conn = URL(url).openConnection()

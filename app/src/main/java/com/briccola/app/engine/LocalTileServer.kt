@@ -201,7 +201,7 @@ object LocalTileServer {
             val (z, x, y) = parseZxy(path) ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "bad path")
             
             // Se lo zoom è troppo basso, il rendering diventa troppo costoso e meno utile
-            if (z < 11) return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "zoom low")
+            if (z < 10) return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "zoom low")
 
             val tide = params["tide"]?.firstOrNull()?.toDoubleOrNull() ?: 0.0
             val draft = params["draft"]?.firstOrNull()?.toDoubleOrNull() ?: 0.5
@@ -213,27 +213,47 @@ object LocalTileServer {
             val latMin = Math.toDegrees(atan(sinh(Math.PI * (1 - 2 * (y + 1) / n))))
             val latMax = Math.toDegrees(atan(sinh(Math.PI * (1 - 2 * y / n))))
             
-            val lonStep = (lonMax - lonMin) / 128.0
-            val latStep = (latMax - latMin) / 128.0
+            val resolution = 128 // Manteniamo 128 per velocita', ma con antialiasing
+            val lonStep = (lonMax - lonMin) / resolution.toDouble()
+            val latStep = (latMax - latMin) / resolution.toDouble()
 
-            val bitmap = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
+            val bitmap = Bitmap.createBitmap(resolution, resolution, Bitmap.Config.ARGB_8888)
             val canvas = android.graphics.Canvas(bitmap)
             val paint = android.graphics.Paint()
 
-            for (py in 0 until 128) {
-                for (px in 0 until 128) {
+            // Definizione colori e alpha per le zone
+            val colorRed    = Color.argb(180, 211, 47, 47)
+            val colorOrange = Color.argb(160, 255, 152, 0)
+            val colorYellow = Color.argb(120, 255, 235, 59)
+            val colorTrans  = Color.argb(0, 255, 235, 59)
+
+            fun mix(c1: Int, c2: Int, f: Float): Int {
+                val alpha = (Color.alpha(c1) + (Color.alpha(c2) - Color.alpha(c1)) * f).toInt()
+                val r = (Color.red(c1) + (Color.red(c2) - Color.red(c1)) * f).toInt()
+                val g = (Color.green(c1) + (Color.green(c2) - Color.green(c1)) * f).toInt()
+                val b = (Color.blue(c1) + (Color.blue(c2) - Color.blue(c1)) * f).toInt()
+                return Color.argb(alpha, r, g, b)
+            }
+
+            for (py in 0 until resolution) {
+                for (px in 0 until resolution) {
                     val lat = latMax - py * latStep
                     val lon = lonMin + px * lonStep
                     
                     val depth = bathy?.getRawDepthAt(lat, lon) ?: 0f
-                    if (depth > 0) {
+                    if (depth > 0.05f) {
                         val margin = (depth + tide) - draft
+                        
                         val color = when {
-                            margin < 0.3 -> Color.argb(180, 211, 47, 47)    // Rosso: Pericolo (<30cm)
-                            margin < 0.5 -> Color.argb(160, 255, 152, 0)    // Arancio: Basso (<50cm)
-                            margin < 1.0 -> Color.argb(120, 255, 235, 59)   // Giallo: Attenzione (<100cm)
-                            else         -> Color.TRANSPARENT               // Tutto il resto niente
+                            margin < 0.275 -> colorRed
+                            margin < 0.325 -> mix(colorRed, colorOrange, (margin.toFloat() - 0.275f) / 0.05f)
+                            margin < 0.475 -> colorOrange
+                            margin < 0.525 -> mix(colorOrange, colorYellow, (margin.toFloat() - 0.475f) / 0.05f)
+                            margin < 0.95  -> colorYellow
+                            margin < 1.05  -> mix(colorYellow, colorTrans, (margin.toFloat() - 0.95f) / 0.1f)
+                            else -> Color.TRANSPARENT
                         }
+
                         if (color != Color.TRANSPARENT) {
                             paint.color = color
                             canvas.drawPoint(px.toFloat(), py.toFloat(), paint)

@@ -48,7 +48,7 @@ object UiTuning {
     // Colore delle briccole, regolabile da Dev Tools > Colori Mappa.
     val DEFAULT_BRICCOLE_COLOR: Int       = android.graphics.Color.parseColor("#003366")
     const val DEFAULT_COMPASS_SCALE       = 0.5f
-    const val DEFAULT_COMPASS_OFFSET_Y    = 163f
+    const val DEFAULT_COMPASS_OFFSET_Y    = 160f
     const val DEFAULT_BATHY_BTN_SCALE     = 0.5f  // meta' della dimensione originale
     const val DEFAULT_BATHY_BTN_OFFSET_Y  = 100f
 

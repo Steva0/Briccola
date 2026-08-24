@@ -85,6 +85,22 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- Previsione oraria (solo per oggi) -->
+            <HorizontalScrollView
+                android:id="@+id/scroll_hourly_weather"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:scrollbars="none"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:id="@+id/layout_hourly_weather"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
             <!-- Card unica: dati del giorno selezionato. Per "Oggi" mostra il valore live
                  ("adesso") più il min/max della giornata; per gli altri giorni solo la
                  previsione (non esiste un dato "live" per il futuro). -->
@@ -239,13 +255,33 @@
                     android:orientation="vertical"
                     android:padding="20dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Marea"
-                        android:textColor="@color/marine_blue_dark"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Marea"
+                            android:textColor="@color/marine_blue_dark"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:id="@+id/tv_tide_source"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Astronomica"
+                            android:textColor="#999999"
+                            android:textSize="11sp" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/tv_tide_now"

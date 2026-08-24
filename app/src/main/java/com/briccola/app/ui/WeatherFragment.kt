@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -44,7 +45,18 @@ class WeatherFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.btnWeatherRefresh.setOnClickListener { loadWeather(); loadTide(); loadDailyForecast() }
+        binding.btnWeatherRefresh.setOnClickListener {
+            loadWeather()
+            loadDailyForecast()
+            // Ricarica la marea per il giorno selezionato
+            val day = dailyList.getOrNull(selectedDayIndex)
+            val dayStartMs = day?.let {
+                try {
+                    SimpleDateFormat("yyyy-MM-dd", Locale.ITALY).parse(it.dateIso)?.time
+                } catch (_: Exception) { null }
+            }
+            loadTide(dayStartMs)
+        }
         binding.btnWeatherRetry.setOnClickListener { loadWeather() }
         binding.btnDayPrev.setOnClickListener { selectDay(selectedDayIndex - 1) }
         binding.btnDayNext.setOnClickListener { selectDay(selectedDayIndex + 1) }
@@ -126,6 +138,13 @@ class WeatherFragment : Fragment() {
         updateChipHighlight()
         scrollToSelectedChip()
         refreshUnifiedCard()
+
+        // Ricarica la marea per il giorno selezionato
+        val day = dailyList[index]
+        val dayStartMs = try {
+            SimpleDateFormat("yyyy-MM-dd", Locale.ITALY).parse(day.dateIso)?.time
+        } catch (_: Exception) { null }
+        loadTide(dayStartMs)
     }
 
     /** Fa scorrere il selettore in modo che il giorno selezionato sia sempre visibile (centrato)
@@ -156,6 +175,9 @@ class WeatherFragment : Fragment() {
     private fun refreshUnifiedCard() {
         val live = currentData
         if (selectedDayIndex == 0 && live != null) {
+            binding.scrollHourlyWeather.visibility = View.VISIBLE
+            displayHourlyWeather(live.hourly)
+
             val (icon, desc) = WeatherEngine.describeWeatherCode(live.weatherCode)
             binding.tvDayIcon.text = icon
             binding.tvDayDesc.text = desc
@@ -173,6 +195,7 @@ class WeatherFragment : Fragment() {
             return
         }
 
+        binding.scrollHourlyWeather.visibility = View.GONE
         val day = dailyList.getOrNull(selectedDayIndex) ?: return
         val (icon, desc) = WeatherEngine.describeWeatherCode(day.weatherCode)
         binding.tvDayIcon.text = icon
@@ -187,18 +210,69 @@ class WeatherFragment : Fragment() {
             ?: "Onde (mare): non disponibili"
     }
 
-    /** Solo marea astronomica precalcolata (offline): la precisione della fonte online non
-     *  serve per l'uso che se ne fa qui, ed è più semplice avere una sola fonte sempre coerente
-     *  e disponibile anche senza connessione. */
-    private fun loadTide() {
+    private fun displayHourlyWeather(hourly: List<com.briccola.app.engine.HourlyWeather>) {
+        val container = binding.layoutHourlyWeather
+        container.removeAllViews()
+        val now = System.currentTimeMillis()
+        
+        // Filtriamo per mostrare solo le ore da adesso in poi per oggi
+        val futureHourly = hourly.filter { it.timeMs > now - 3600_000L }
+
+        futureHourly.forEach { item ->
+            val time = SimpleDateFormat("HH:mm", Locale.ITALY).format(Date(item.timeMs))
+            val (icon, _) = WeatherEngine.describeWeatherCode(item.weatherCode)
+            
+            val view = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(32, 16, 32, 16)
+                
+                addView(TextView(requireContext()).apply {
+                    text = time
+                    textSize = 12f
+                    setTextColor(android.graphics.Color.GRAY)
+                })
+                addView(TextView(requireContext()).apply {
+                    text = icon
+                    textSize = 24f
+                    setPadding(0, 8, 0, 8)
+                })
+                addView(TextView(requireContext()).apply {
+                    text = "%.0f°".format(item.tempC)
+                    textSize = 14f
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                })
+            }
+            container.addView(view)
+        }
+    }
+
+    /** Marea del giorno selezionato (tempo reale per oggi, astronomica per gli altri). */
+    private fun loadTide(dayStartMs: Long? = null) {
         viewLifecycleOwner.lifecycleScope.launch {
             val data = withContext(Dispatchers.IO) {
-                TideEngine.fetchOffline(requireContext().applicationContext)
+                TideEngine.fetch(requireContext().applicationContext, dayStartMs)
             }
             if (_binding == null || data == null) return@launch
             binding.tideChart.setData(data)
-            binding.tvTideNow.text = "Livello ora: %.2f m".format(data.nowM)
+
+            // Il livello "ora" ha senso solo se stiamo guardando oggi
+            val isToday = dayStartMs == null || isSameDay(dayStartMs, System.currentTimeMillis())
+            if (isToday) {
+                binding.tvTideNow.text = "Livello ora: %.2f m".format(data.nowM)
+            } else {
+                binding.tvTideNow.text = "Marea prevista (intera giornata)"
+            }
+
+            binding.tvTideSource.visibility = View.GONE
         }
+    }
+
+    private fun isSameDay(t1: Long, t2: Long): Boolean {
+        val cal1 = java.util.Calendar.getInstance().apply { timeInMillis = t1 }
+        val cal2 = java.util.Calendar.getInstance().apply { timeInMillis = t2 }
+        return cal1.get(java.util.Calendar.YEAR) == cal2.get(java.util.Calendar.YEAR) &&
+               cal1.get(java.util.Calendar.DAY_OF_YEAR) == cal2.get(java.util.Calendar.DAY_OF_YEAR)
     }
 
     /** true se il dispositivo ha una connessione con accesso a internet in questo momento
