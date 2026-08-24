@@ -35,7 +35,8 @@ data class DailyWeather(
     val windSpeedMaxKmh: Double,
     val windDirectionDeg: Double,
     val precipitationSumMm: Double,
-    val waveHeightMaxM: Double?  // null se il servizio marino non risponde
+    val waveHeightMaxM: Double?, // null se il servizio marino non risponde
+    val hourly: List<HourlyWeather> = emptyList()
 )
 
 /**
@@ -101,8 +102,10 @@ object WeatherEngine {
         val days = try {
             val url = "https://api.open-meteo.com/v1/forecast?latitude=$LAT&longitude=$LON" +
                     "&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max," +
-                    "wind_direction_10m_dominant,precipitation_sum&timezone=auto&forecast_days=7"
-            val daily = JSONObject(httpGet(url)).getJSONObject("daily")
+                    "wind_direction_10m_dominant,precipitation_sum&hourly=temperature_2m,weather_code," +
+                    "wind_speed_10m,precipitation&timezone=auto&forecast_days=7"
+            val json = JSONObject(httpGet(url))
+            val daily = json.getJSONObject("daily")
             val dates = daily.getJSONArray("time")
             val codes = daily.getJSONArray("weather_code")
             val tMax  = daily.getJSONArray("temperature_2m_max")
@@ -110,16 +113,39 @@ object WeatherEngine {
             val wind  = daily.getJSONArray("wind_speed_10m_max")
             val windDir = daily.getJSONArray("wind_direction_10m_dominant")
             val precip  = daily.getJSONArray("precipitation_sum")
+
+            val hourlyJson = json.getJSONObject("hourly")
+            val hTimes = hourlyJson.getJSONArray("time")
+            val hTemps = hourlyJson.getJSONArray("temperature_2m")
+            val hCodes = hourlyJson.getJSONArray("weather_code")
+            val hWinds = hourlyJson.getJSONArray("wind_speed_10m")
+            val hPrecips = hourlyJson.getJSONArray("precipitation")
+
+            val allHourly = (0 until hTimes.length()).map { i ->
+                HourlyWeather(
+                    timeMs = SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.US).parse(hTimes.getString(i))!!.time,
+                    tempC = hTemps.getDouble(i),
+                    weatherCode = hCodes.getInt(i),
+                    windSpeedKmh = hWinds.getDouble(i),
+                    precipitationMm = hPrecips.getDouble(i)
+                )
+            }
+
             (0 until dates.length()).map { i ->
+                val dateStr = dates.getString(i)
+                val dayHourly = allHourly.filter { 
+                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date(it.timeMs)) == dateStr 
+                }
                 DailyWeather(
-                    dateIso = dates.getString(i),
+                    dateIso = dateStr,
                     weatherCode = codes.getInt(i),
                     tempMaxC = tMax.getDouble(i),
                     tempMinC = tMin.getDouble(i),
                     windSpeedMaxKmh = wind.getDouble(i),
                     windDirectionDeg = windDir.getDouble(i),
                     precipitationSumMm = precip.getDouble(i),
-                    waveHeightMaxM = null
+                    waveHeightMaxM = null,
+                    hourly = dayHourly
                 )
             }
         } catch (_: Exception) { null } ?: return null

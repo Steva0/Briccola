@@ -38,8 +38,6 @@
                 android:textColor="@color/marine_blue"
                 android:textSize="12sp" />
 
-            <!-- Selettore giorno: "Oggi", "Domani", nomi giorno + frecce. In alto: la vista
-                 sotto (card unica) cambia in base al giorno selezionato qui. -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -51,15 +49,16 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:padding="8dp">
+                    android:padding="12dp">
 
                     <ImageButton
                         android:id="@+id/btn_day_prev"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
                         android:background="@android:color/transparent"
                         android:contentDescription="Giorno precedente"
-                        android:src="@android:drawable/ic_media_previous" />
+                        android:src="@android:drawable/ic_media_previous"
+                        app:tint="#1976D2" />
 
                     <HorizontalScrollView
                         android:id="@+id/scroll_day_selector"
@@ -68,46 +67,43 @@
                         android:layout_weight="1"
                         android:scrollbars="none">
 
+                        <!-- Due righe di giorni -->
                         <LinearLayout
-                            android:id="@+id/layout_day_selector"
+                            android:id="@+id/layout_day_selector_container"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal" />
+                            android:orientation="vertical">
+
+                            <LinearLayout
+                                android:id="@+id/layout_day_selector_row1"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal" />
+
+                            <LinearLayout
+                                android:id="@+id/layout_day_selector_row2"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal" />
+                        </LinearLayout>
                     </HorizontalScrollView>
 
                     <ImageButton
                         android:id="@+id/btn_day_next"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
                         android:background="@android:color/transparent"
                         android:contentDescription="Giorno successivo"
-                        android:src="@android:drawable/ic_media_next" />
+                        android:src="@android:drawable/ic_media_next"
+                        app:tint="#1976D2" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Previsione oraria (solo per oggi) -->
-            <HorizontalScrollView
-                android:id="@+id/scroll_hourly_weather"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:scrollbars="none"
-                android:visibility="gone">
-
-                <LinearLayout
-                    android:id="@+id/layout_hourly_weather"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
-            </HorizontalScrollView>
-
-            <!-- Card unica: dati del giorno selezionato. Per "Oggi" mostra il valore live
-                 ("adesso") più il min/max della giornata; per gli altri giorni solo la
-                 previsione (non esiste un dato "live" per il futuro). -->
+            <!-- Card unica: dati del giorno selezionato. -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="8dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="3dp">
 
@@ -115,74 +111,66 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="16dp">
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/tv_day_header"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
+                        android:text="Data Giorno"
+                        android:textColor="@color/marine_blue_dark"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
 
-                        <TextView
-                            android:id="@+id/tv_day_icon"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="16dp"
-                            android:text="☀️"
-                            android:textSize="56sp" />
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:id="@+id/tv_day_temp"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="-- °C"
-                                android:textColor="#222222"
-                                android:textSize="34sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tv_day_desc"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="—"
-                                android:textColor="#666666"
-                                android:textSize="15sp" />
-
-                            <TextView
-                                android:id="@+id/tv_day_subtitle"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text=""
-                                android:textColor="#999999"
-                                android:textSize="11sp" />
-                        </LinearLayout>
-                    </LinearLayout>
+                    <!-- Questi campi rimangono per compatibilità con il codice ma sono nascosti -->
+                    <TextView android:id="@+id/tv_day_subtitle" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/tv_day_icon" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/tv_day_temp" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/tv_day_desc" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="10dp"
                         android:layout_marginBottom="12dp"
                         android:background="#EEEEEE" />
 
                     <LinearLayout
+                        android:id="@+id/layout_day_condition"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
                         <TextView
-                            android:layout_width="32dp"
+                            android:id="@+id/tv_day_cond_icon"
+                            android:layout_width="28dp"
+                            android:layout_height="wrap_content"
+                            android:text="☀️"
+                            android:textSize="18sp" />
+
+                        <TextView
+                            android:id="@+id/tv_day_cond_text"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="-- °C — --"
+                            android:textColor="#333333"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="28dp"
                             android:layout_height="wrap_content"
                             android:text="💨"
-                            android:textSize="20sp" />
+                            android:textSize="18sp" />
 
                         <TextView
                             android:id="@+id/tv_day_wind"
@@ -191,21 +179,21 @@
                             android:layout_weight="1"
                             android:text="Vento: --"
                             android:textColor="#333333"
-                            android:textSize="15sp" />
+                            android:textSize="14sp" />
                     </LinearLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
+                        android:layout_marginTop="10dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
                         <TextView
-                            android:layout_width="32dp"
+                            android:layout_width="28dp"
                             android:layout_height="wrap_content"
                             android:text="🌧️"
-                            android:textSize="20sp" />
+                            android:textSize="18sp" />
 
                         <TextView
                             android:id="@+id/tv_day_precip"
@@ -214,21 +202,21 @@
                             android:layout_weight="1"
                             android:text="Precipitazioni: --"
                             android:textColor="#333333"
-                            android:textSize="15sp" />
+                            android:textSize="14sp" />
                     </LinearLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
+                        android:layout_marginTop="10dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
                         <TextView
-                            android:layout_width="32dp"
+                            android:layout_width="28dp"
                             android:layout_height="wrap_content"
                             android:text="🌊"
-                            android:textSize="20sp" />
+                            android:textSize="18sp" />
 
                         <TextView
                             android:id="@+id/tv_day_waves"
@@ -237,9 +225,32 @@
                             android:layout_weight="1"
                             android:text="Onde (mare): --"
                             android:textColor="#333333"
-                            android:textSize="15sp" />
+                            android:textSize="14sp" />
                     </LinearLayout>
                 </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Previsione oraria (mostrata per tutti i giorni sotto la card principale) -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/scroll_hourly_weather"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp">
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/layout_hourly_weather"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="2dp" />
+                </HorizontalScrollView>
             </androidx.cardview.widget.CardView>
 
             <androidx.cardview.widget.CardView

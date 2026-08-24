@@ -115,21 +115,35 @@ class WeatherFragment : Fragment() {
     }
 
     private fun buildDaySelectorChips() {
-        val container = binding.layoutDaySelector
-        container.removeAllViews()
+        val row1 = view?.findViewById<LinearLayout>(com.briccola.app.R.id.layout_day_selector_row1) ?: return
+        val row2 = view?.findViewById<LinearLayout>(com.briccola.app.R.id.layout_day_selector_row2) ?: return
+        row1.removeAllViews()
+        row2.removeAllViews()
         dayChips.clear()
-        dailyList.forEachIndexed { index, day ->
-            val chip = TextView(requireContext()).apply {
-                text = dayLabel(index, day.dateIso)
-                textSize = 13f
-                gravity = Gravity.CENTER
-                setPadding(28, 16, 28, 16)
-                setOnClickListener { selectDay(index) }
+
+        binding.scrollDaySelector.post {
+            val totalWidth = binding.scrollDaySelector.width
+            val chipWidth = (totalWidth / 2.2).toInt() // Mostriamo poco più di due chip per far capire che si scorre
+
+            dailyList.forEachIndexed { index, day ->
+                val (icon, _) = WeatherEngine.describeWeatherCode(day.weatherCode)
+                val chip = TextView(requireContext()).apply {
+                    val lp = LinearLayout.LayoutParams(chipWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    lp.setMargins(8, 8, 8, 8)
+                    layoutParams = lp
+                    text = "%s %s".format(icon, dayLabel(index, day.dateIso))
+                    textSize = 13f
+                    gravity = Gravity.CENTER
+                    setPadding(12, 16, 12, 16)
+                    setBackgroundResource(com.briccola.app.R.drawable.bg_day_chip)
+                    setOnClickListener { selectDay(index) }
+                }
+                dayChips += chip
+
+                if (index % 2 == 0) row1.addView(chip) else row2.addView(chip)
             }
-            dayChips += chip
-            container.addView(chip)
+            updateChipHighlight()
         }
-        updateChipHighlight()
     }
 
     private fun selectDay(index: Int) {
@@ -162,31 +176,41 @@ class WeatherFragment : Fragment() {
     private fun updateChipHighlight() {
         dayChips.forEachIndexed { index, chip ->
             val selected = index == selectedDayIndex
-            chip.setTextColor(if (selected) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#333333"))
-            chip.setBackgroundColor(if (selected) android.graphics.Color.parseColor("#1976D2") else android.graphics.Color.TRANSPARENT)
+            if (selected) {
+                chip.setTextColor(android.graphics.Color.WHITE)
+                // Usiamo una versione programmatica per mantenere i bordi arrotondati anche da selezionato
+                val shape = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = 8f * resources.displayMetrics.density
+                    setColor(android.graphics.Color.parseColor("#006699"))
+                }
+                chip.background = shape
+            } else {
+                chip.setTextColor(android.graphics.Color.parseColor("#333333"))
+                chip.setBackgroundResource(com.briccola.app.R.drawable.bg_day_chip)
+            }
         }
     }
 
-    /** Unica funzione che decide cosa mostrare nella card: per "Oggi", se il dato live è
-     *  disponibile, mostra quello (è la condizione ORA, non il riepilogo di tutta la giornata —
-     *  possono legittimamente differire, es. "adesso nuvoloso" ma "oggi in generale rovesci di
-     *  pioggia" se piove in un'altra ora del giorno) con un sottotitolo per il min/max del giorno.
-     *  Per gli altri giorni (o se il live non è disponibile) mostra la previsione giornaliera. */
+    /** Unica funzione che decide cosa mostrare nella card. */
     private fun refreshUnifiedCard() {
         val live = currentData
+        val day = dailyList.getOrNull(selectedDayIndex) ?: return
+        
+        // Mostra sempre la card oraria per il giorno selezionato
+        displayHourlyWeather(day.hourly)
+
+        // Data per l'header della card (es. "Lunedì 24 agosto")
+        val fullDateLabel = try {
+            val date = SimpleDateFormat("yyyy-MM-dd", Locale.ITALY).parse(day.dateIso)
+            SimpleDateFormat("EEEE d MMMM", Locale.ITALY).format(date!!).replaceFirstChar { it.uppercase() }
+        } catch (_: Exception) { day.dateIso }
+        binding.tvDayHeader.text = fullDateLabel
+
         if (selectedDayIndex == 0 && live != null) {
-            binding.scrollHourlyWeather.visibility = View.VISIBLE
-            displayHourlyWeather(live.hourly)
-
             val (icon, desc) = WeatherEngine.describeWeatherCode(live.weatherCode)
-            binding.tvDayIcon.text = icon
-            binding.tvDayDesc.text = desc
-            binding.tvDayTemp.text = "%.0f °C".format(live.tempC)
-            val today = dailyList.getOrNull(0)
-            binding.tvDaySubtitle.text = if (today != null)
-                "Adesso — min %.0f° / max %.0f° oggi".format(today.tempMinC, today.tempMaxC)
-            else "Adesso"
-
+            binding.tvDayCondIcon.text = icon
+            binding.tvDayCondText.text = "%.0f °C — %s".format(live.tempC, desc)
+            
             val windDir = WeatherEngine.windDirectionLabel(live.windDirectionDeg)
             binding.tvDayWind.text = "Vento: %.0f km/h %s".format(live.windSpeedKmh, windDir)
             binding.tvDayPrecip.text = "Precipitazioni: %.1f mm".format(live.precipitationMm)
@@ -195,13 +219,9 @@ class WeatherFragment : Fragment() {
             return
         }
 
-        binding.scrollHourlyWeather.visibility = View.GONE
-        val day = dailyList.getOrNull(selectedDayIndex) ?: return
         val (icon, desc) = WeatherEngine.describeWeatherCode(day.weatherCode)
-        binding.tvDayIcon.text = icon
-        binding.tvDayDesc.text = desc
-        binding.tvDayTemp.text = "%.0f / %.0f °C".format(day.tempMinC, day.tempMaxC)
-        binding.tvDaySubtitle.text = "Previsione del giorno"
+        binding.tvDayCondIcon.text = icon
+        binding.tvDayCondText.text = "%.0f / %.0f °C — %s".format(day.tempMinC, day.tempMaxC, desc)
 
         val windDir = WeatherEngine.windDirectionLabel(day.windDirectionDeg)
         binding.tvDayWind.text = "Vento: max %.0f km/h %s".format(day.windSpeedMaxKmh, windDir)
@@ -215,31 +235,36 @@ class WeatherFragment : Fragment() {
         container.removeAllViews()
         val now = System.currentTimeMillis()
         
-        // Filtriamo per mostrare solo le ore da adesso in poi per oggi
-        val futureHourly = hourly.filter { it.timeMs > now - 3600_000L }
+        // Se è oggi, filtriamo le ore passate. Se è un giorno futuro, mostriamo tutto.
+        val isTodaySelected = selectedDayIndex == 0
+        val itemsToDisplay = if (isTodaySelected) {
+            hourly.filter { it.timeMs > now - 3600_000L }
+        } else {
+            hourly
+        }
 
-        futureHourly.forEach { item ->
+        itemsToDisplay.forEach { item ->
             val time = SimpleDateFormat("HH:mm", Locale.ITALY).format(Date(item.timeMs))
             val (icon, _) = WeatherEngine.describeWeatherCode(item.weatherCode)
             
             val view = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                setPadding(32, 16, 32, 16)
+                setPadding(20, 10, 20, 10)
                 
                 addView(TextView(requireContext()).apply {
                     text = time
-                    textSize = 12f
+                    textSize = 10f
                     setTextColor(android.graphics.Color.GRAY)
                 })
                 addView(TextView(requireContext()).apply {
                     text = icon
-                    textSize = 24f
-                    setPadding(0, 8, 0, 8)
+                    textSize = 20f
+                    setPadding(0, 2, 0, 2)
                 })
                 addView(TextView(requireContext()).apply {
                     text = "%.0f°".format(item.tempC)
-                    textSize = 14f
+                    textSize = 13f
                     setTypeface(null, android.graphics.Typeface.BOLD)
                 })
             }
