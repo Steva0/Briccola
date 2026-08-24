@@ -108,41 +108,48 @@ object TideEngine {
         return buildTideData(extremesAll, nowM = null, isOffline = true, bounds.first, bounds.second)
     }
 
-    /** Costruisce una curva di marea pulita e fluida che parte da ADESSO. */
+    /** Costruisce la curva di OGGI partendo da ADESSO usando solo dati reali (Sensore + Previsione). */
     private fun buildTideDataHybrid(
         astronomical: List<TideExtreme>,
         online: List<TideExtreme>,
         realTimeValue: Double?,
-        start: Long,
+        @Suppress("UNUSED_PARAMETER") start: Long,
         end: Long
     ): TideData? {
         val now = System.currentTimeMillis()
         
-        // 1. Scegliamo la fonte per la forma (Previsione Comune se disponibile, altrimenti Astronomica)
+        // Se non abbiamo dati online, usiamo l'astronomica come unico "punto reale" disponibile
         val sourceExtremes = if (online.isNotEmpty()) online else astronomical
         val sortedSource = sourceExtremes.sortedBy { it.timeMs }
         
-        // 2. Calcoliamo l'offset costante per far coincidere la previsione col sensore REALE ora
-        val predictedNow = interpolateAt(sortedSource, now) ?: 0.0
-        val offset = if (realTimeValue != null) realTimeValue - predictedNow else 0.0
+        // 1. Calcoliamo il livello attuale e l'offset rispetto alla previsione
+        val predictedNow = interpolateAt(sortedSource, now) ?: sortedSource.first().valueM
+        val currentLevel = realTimeValue ?: predictedNow
+        val offset = currentLevel - predictedNow
         
-        // 3. Generiamo la curva fluida partendo da ADESSO fino a fine giornata
+        // 2. Prepariamo i punti della curva: partiamo da ADESSO (reale) + i picchi FUTURI (traslati)
+        val startPoint = TideExtreme(now, currentLevel, false)
+        val futureExtremes = sortedSource.filter { it.timeMs > now }.map { 
+            it.copy(valueM = it.valueM + offset) 
+        }
+        val curvePoints = (listOf(startPoint) + futureExtremes).sortedBy { it.timeMs }
+        
+        // 3. Generiamo la curva partendo esattamente da ADESSO
         val curve = mutableListOf<Pair<Long, Double>>()
         var t = now
         while (t <= end) {
-            val vBase = interpolateAt(sortedSource, t) ?: 0.0
-            curve += t to (vBase + offset)
-            t += 10 * 60_000L // Punti ogni 10 minuti per massima fluidità
+            interpolateAt(curvePoints, t)?.let { v ->
+                curve += t to v
+            }
+            t += 10 * 60_000L
         }
-        if (curve.isEmpty()) curve += now to (realTimeValue ?: predictedNow)
+        if (curve.isEmpty()) curve += now to currentLevel
 
-        // 4. Selezioniamo solo i picchi (min/max) di OGGI che devono ancora avvenire
-        val todaysExtremes = sortedSource.filter { it.timeMs in (now + 1000)..end }.map {
-            it.copy(valueM = it.valueM + offset)
-        }
+        // 4. Estremali per le etichette (solo quelli futuri di oggi)
+        val todaysExtremes = futureExtremes.filter { it.timeMs <= end }
         
         return TideData(
-            nowM = realTimeValue ?: (predictedNow + offset),
+            nowM = currentLevel,
             curve = curve,
             extremes = todaysExtremes,
             isOffline = online.isEmpty(),
