@@ -49,22 +49,24 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:padding="12dp">
+                    android:padding="4dp">
 
                     <ImageButton
                         android:id="@+id/btn_day_prev"
                         android:layout_width="40dp"
                         android:layout_height="40dp"
+                        android:layout_marginStart="0dp"
                         android:background="@android:color/transparent"
                         android:contentDescription="Giorno precedente"
-                        android:src="@android:drawable/ic_media_previous"
-                        app:tint="#1976D2" />
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_arrow_left_custom" />
 
                     <HorizontalScrollView
                         android:id="@+id/scroll_day_selector"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:layout_marginHorizontal="2dp"
                         android:scrollbars="none">
 
                         <!-- Due righe di giorni -->
@@ -92,10 +94,11 @@
                         android:id="@+id/btn_day_next"
                         android:layout_width="40dp"
                         android:layout_height="40dp"
+                        android:layout_marginEnd="0dp"
                         android:background="@android:color/transparent"
                         android:contentDescription="Giorno successivo"
-                        android:src="@android:drawable/ic_media_next"
-                        app:tint="#1976D2" />
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_arrow_right_custom" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 

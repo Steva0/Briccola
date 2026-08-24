@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Triangolo semplice con bordo scuro e interno chiaro -->
+    <path
+        android:fillColor="#E3F2FD"
+        android:strokeColor="#0D47A1"
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round"
+        android:pathData="M16,18l-8,-6l8,-6z"/>
+</vector>
