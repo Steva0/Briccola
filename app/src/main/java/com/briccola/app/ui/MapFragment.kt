@@ -381,10 +381,12 @@ class MapFragment : Fragment() {
     private val SOURCE_ROUTE_DONE = "route-done-source"    // tratto percorso
     private val SOURCE_ROUTE      = "route-source"         // tratto rimanente
     private val SOURCE_DEST       = "destination-source"
+    private val SOURCE_ORIGIN     = "origin-source"
     private val LAYER_GPS         = "gps-position-layer"
     private val LAYER_ROUTE_DONE  = "route-done-layer"
     private val LAYER_ROUTE       = "route-layer"
     private val LAYER_DEST        = "destination-layer"
+    private val LAYER_ORIGIN       = "origin-layer"
     private val SOURCE_SAVED_PLACES = "saved-places-source"
     private val LAYER_SAVED_PLACES  = "saved-places-layer"
     private val SOURCE_DEBUG_GRID   = "debug-grid-source"
@@ -728,6 +730,7 @@ class MapFragment : Fragment() {
         if (debugMode) setupDebugLayers(style)
         setupRouteLayer(style)
         setupDestinationLayer(style)
+        setupOriginLayer(style)
         setupSavedPlacesLayer(style)
         // La barca va aggiunta PER ULTIMA: in MapLibre i layer si disegnano nell'ordine in cui
         // vengono aggiunti allo stile, quindi l'ultimo aggiunto sta sopra a tutti gli altri —
@@ -894,6 +897,14 @@ class MapFragment : Fragment() {
         style.addSource(GeoJsonSource(SOURCE_DEST, emptyFc()))
         style.addLayer(CircleLayer(LAYER_DEST, SOURCE_DEST).withProperties(
             circleColor("#CC0000"), circleRadius(12f),
+            circleStrokeColor("#FFFFFF"), circleStrokeWidth(3f)
+        ))
+    }
+
+    private fun setupOriginLayer(style: Style) {
+        style.addSource(GeoJsonSource(SOURCE_ORIGIN, emptyFc()))
+        style.addLayer(CircleLayer(LAYER_ORIGIN, SOURCE_ORIGIN).withProperties(
+            circleColor("#0091EA"), circleRadius(12f),
             circleStrokeColor("#FFFFFF"), circleStrokeWidth(3f)
         ))
     }
@@ -1724,7 +1735,12 @@ class MapFragment : Fragment() {
             binding.tvRoutePlanningTime.text = "%d min".format(etaMin)
             binding.tvRoutePlanningDist.text = "%.1f km".format(distKm)
             showPreviewRoute(route)
-            mapLibre?.getStyle { style -> drawDestination(style, dest) }
+            mapLibre?.getStyle { style -> 
+                drawDestination(style, dest)
+                planningOrigin?.let { drawOrigin(style, it) } ?: run {
+                    (style.getSource(SOURCE_ORIGIN) as? GeoJsonSource)?.setGeoJson(emptyFc())
+                }
+            }
             zoomToFitRoute(route)
         }
     }
@@ -1766,7 +1782,10 @@ class MapFragment : Fragment() {
         binding.speedometer.visibility = View.VISIBLE
         binding.altitudeView.visibility = View.VISIBLE
         showPreviewRoute(null)
-        mapLibre?.getStyle { style -> (style.getSource(SOURCE_DEST) as? GeoJsonSource)?.setGeoJson(emptyFc()) }
+        mapLibre?.getStyle { style -> 
+            (style.getSource(SOURCE_DEST) as? GeoJsonSource)?.setGeoJson(emptyFc()) 
+            (style.getSource(SOURCE_ORIGIN) as? GeoJsonSource)?.setGeoJson(emptyFc())
+        }
 
         if (dest == null) {
             // Niente da riaprire (caso limite): torna semplicemente alla mappa.
@@ -1789,6 +1808,7 @@ class MapFragment : Fragment() {
         mapLibre?.getStyle { style ->
             drawRouteSplit(style, route, 0)
             drawDestination(style, dest)
+            (style.getSource(SOURCE_ORIGIN) as? GeoJsonSource)?.setGeoJson(emptyFc())
         }
         binding.cardRoutePlanning.visibility = View.GONE
         binding.speedometer.visibility = View.VISIBLE
@@ -1898,6 +1918,7 @@ class MapFragment : Fragment() {
             (style.getSource(SOURCE_ROUTE)      as? GeoJsonSource)?.setGeoJson(emptyFc())
             (style.getSource(SOURCE_ROUTE_DONE) as? GeoJsonSource)?.setGeoJson(emptyFc())
             (style.getSource(SOURCE_DEST)       as? GeoJsonSource)?.setGeoJson(emptyFc())
+            (style.getSource(SOURCE_ORIGIN)     as? GeoJsonSource)?.setGeoJson(emptyFc())
         }
     }
 
@@ -2484,6 +2505,19 @@ class MapFragment : Fragment() {
             })
         }
         (style.getSource(SOURCE_DEST) as? GeoJsonSource)?.setGeoJson(
+            JsonObject().apply { addProperty("type","FeatureCollection"); add("features", JsonArray().apply { add(feat) }) }.toString()
+        )
+    }
+
+    private fun drawOrigin(style: Style, pos: LatLng) {
+        val feat = JsonObject().apply {
+            addProperty("type","Feature"); add("properties", JsonObject())
+            add("geometry", JsonObject().apply {
+                addProperty("type","Point")
+                add("coordinates", JsonArray().apply { add(pos.longitude); add(pos.latitude) })
+            })
+        }
+        (style.getSource(SOURCE_ORIGIN) as? GeoJsonSource)?.setGeoJson(
             JsonObject().apply { addProperty("type","FeatureCollection"); add("features", JsonArray().apply { add(feat) }) }.toString()
         )
     }
