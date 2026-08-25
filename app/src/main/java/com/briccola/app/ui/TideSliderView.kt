@@ -187,10 +187,11 @@ class TideSliderView @JvmOverloads constructor(
     }
 
     private fun interpolateAt(curve: List<Pair<Long, Double>>, t: Long): Double {
-        val before = curve.lastOrNull { it.first <= t } ?: curve.first()
-        val after = curve.firstOrNull { it.first > t } ?: curve.last()
+        val before = curve.lastOrNull { it.first <= t } ?: curve.firstOrNull() ?: return 0.0
+        val after = curve.firstOrNull { it.first > t } ?: curve.lastOrNull() ?: return before.second
         if (after.first == before.first) return before.second
         val frac = (t - before.first).toDouble() / (after.first - before.first)
-        return before.second + (after.second - before.second) * frac
+        // Usiamo una curva coseno per un'interpolazione più naturale tra i punti
+        return before.second + (after.second - before.second) / 2.0 * (1 - Math.cos(Math.PI * frac))
     }
 }

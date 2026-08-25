@@ -113,7 +113,7 @@ object TideEngine {
         astronomical: List<TideExtreme>,
         online: List<TideExtreme>,
         realTimeValue: Double?,
-        @Suppress("UNUSED_PARAMETER") start: Long,
+        start: Long,
         end: Long
     ): TideData? {
         val now = System.currentTimeMillis()
@@ -127,26 +127,31 @@ object TideEngine {
         val currentLevel = realTimeValue ?: predictedNow
         val offset = currentLevel - predictedNow
         
-        // 2. Prepariamo i punti della curva: partiamo da ADESSO (reale) + i picchi FUTURI (traslati)
-        val startPoint = TideExtreme(now, currentLevel, false)
-        val futureExtremes = sortedSource.filter { it.timeMs > now }.map { 
-            it.copy(valueM = it.valueM + offset) 
-        }
-        val curvePoints = (listOf(startPoint) + futureExtremes).sortedBy { it.timeMs }
+        // 2. Prepariamo TUTTI gli estremali (anche passati) traslati dell'offset.
+        //    Usare anche i punti passati è fondamentale per far sì che l'interpolazione 
+        //    dopo "adesso" segua la curva naturale e non parta con una linea piatta.
+        val shiftedExtremes = sortedSource.map { it.copy(valueM = it.valueM + offset) }
         
-        // 3. Generiamo la curva partendo esattamente da ADESSO
+        // 3. Generiamo la curva per l'intera giornata. 
+        //    Includiamo esplicitamente il punto "now" per garantire che il grafico 
+        //    parta esattamente dal valore reale corrente.
         val curve = mutableListOf<Pair<Long, Double>>()
-        var t = now
+        var t = start
         while (t <= end) {
-            interpolateAt(curvePoints, t)?.let { v ->
+            // Inserimento punto "now" se siamo nella giornata di oggi
+            if (t > now && (curve.isEmpty() || curve.last().first < now)) {
+                curve += now to currentLevel
+            }
+            interpolateAt(shiftedExtremes, t)?.let { v ->
                 curve += t to v
             }
             t += 10 * 60_000L
         }
         if (curve.isEmpty()) curve += now to currentLevel
+        curve.sortBy { it.first }
 
-        // 4. Estremali per le etichette (solo quelli futuri di oggi)
-        val todaysExtremes = futureExtremes.filter { it.timeMs <= end }
+        // 4. Estremali per le etichette (solo quelli di oggi)
+        val todaysExtremes = shiftedExtremes.filter { it.timeMs in start..end }
         
         return TideData(
             nowM = currentLevel,
