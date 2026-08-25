@@ -125,42 +125,137 @@ class MapFragment : Fragment() {
     fun cameraCenter(): LatLng? = mapLibre?.cameraPosition?.target
 
     private fun toggleBathyHeatmap() {
-        showBathyHeatmap = !showBathyHeatmap
-        binding.ivBathyIcon.imageTintList = android.content.res.ColorStateList.valueOf(
-            if (showBathyHeatmap) Color.parseColor("#0091EA") else Color.parseColor("#444444")
-        )
-        refreshBathyLayer()
+        if (binding.cardTidePanel.visibility == View.VISIBLE) {
+            hideBathyOptions()
+        } else {
+            showBathyOptions()
+            updateBathyOptionsUi()
+        }
     }
 
-    private fun refreshBathyLayer() {
-        mapLibre?.getStyle { style ->
-            val existingLayer = style.getLayer(LAYER_BATHY_HEATMAP)
-            if (!showBathyHeatmap) {
-                existingLayer?.setProperties(visibility(Property.NONE))
-                return@getStyle
-            }
+    private fun showBathyOptions() {
+        binding.layoutTideTopActions.visibility = View.VISIBLE
+        binding.cardTidePanel.visibility = View.VISIBLE
+        hideBathyOptionsJob?.cancel()
+    }
 
+    private fun hideBathyOptions() {
+        binding.layoutTideTopActions.visibility = View.GONE
+        binding.cardTidePanel.visibility = View.GONE
+        hideBathyOptionsJob?.cancel()
+    }
+
+    private fun resetBathyOptionsTimer() {
+        // Il timer ora serve solo per i tasti rapidi in alto se volessimo farli sparire,
+        // ma per ora li lasciamo visibili insieme al pannello.
+    }
+
+    private var activeBathyLayer = "A"
+    private var bathyUpdateJob: Job? = null
+
+    private fun refreshBathyLayer() {
+        val style = mapStyle ?: return
+        if (!showBathyHeatmap) {
+            style.getLayer(LAYER_BATHY_HEATMAP + "-A")?.setProperties(visibility(Property.NONE))
+            style.getLayer(LAYER_BATHY_HEATMAP + "-B")?.setProperties(visibility(Property.NONE))
+            return
+        }
+
+        // Debounce: se l'utente sta scorrendo velocemente, non lanciamo 100 aggiornamenti al secondo.
+        // Ma per renderlo fluido, usiamo un delay molto basso (32ms = ~30fps).
+        bathyUpdateJob?.cancel()
+        bathyUpdateJob = viewLifecycleOwner.lifecycleScope.launch {
+            delay(32)
+            
+            val tideToUse = selectedBathyTideM ?: cachedTideM
             val draft = requireContext().getSharedPreferences("laguna_prefs", Context.MODE_PRIVATE).getFloat("boat_draft", 0.5f)
-            val url = "http://127.0.0.1:${com.briccola.app.engine.LocalTileServer.port}/bathy-heatmap/{z}/{x}/{y}.png?tide=$cachedTideM&draft=$draft"
             
-            val existingSource = style.getSource(SOURCE_BATHY_HEATMAP) as? RasterSource
-            if (existingSource != null) {
-                // Per forzare il refresh con i nuovi parametri tide/draft dobbiamo ricreare la sorgente
-                style.removeLayer(LAYER_BATHY_HEATMAP)
-                style.removeSource(SOURCE_BATHY_HEATMAP)
-            }
+            val nextLayer = if (activeBathyLayer == "A") "B" else "A"
+            val currentLayer = activeBathyLayer
             
-            style.addSource(RasterSource(SOURCE_BATHY_HEATMAP, TileSet("2.1.0", url), 256))
-            val layer = RasterLayer(LAYER_BATHY_HEATMAP, SOURCE_BATHY_HEATMAP)
-            layer.setProperties(visibility(Property.VISIBLE))
+            val sourceId = SOURCE_BATHY_HEATMAP + "-" + nextLayer
+            val layerId = LAYER_BATHY_HEATMAP + "-" + nextLayer
             
-            // Posizioniamo il layer della profondita' sotto i canali e le briccole, ma sopra lo sfondo
+            val url = "http://127.0.0.1:${com.briccola.app.engine.LocalTileServer.port}/bathy-heatmap/{z}/{x}/{y}.png?tide=$tideToUse&draft=$draft&v=${System.currentTimeMillis()}"
+            
+            // Aggiorniamo la sorgente del layer nascosto
+            style.removeLayer(layerId)
+            style.removeSource(sourceId)
+            
+            style.addSource(RasterSource(sourceId, TileSet("2.1.0", url), 256))
+            val layer = RasterLayer(layerId, sourceId)
+            layer.setProperties(
+                visibility(Property.VISIBLE),
+                rasterOpacity(0f), // Parte nascosto
+                rasterFadeDuration(0f)
+            )
+
+            // Posizionamento sotto i canali
             if (style.getLayer("canals-casing") != null) {
                 style.addLayerBelow(layer, "canals-casing")
             } else {
                 style.addLayer(layer)
             }
+
+            // Attendiamo un istante per il caricamento delle tile (essendo locale è quasi istantaneo)
+            delay(120) 
+
+            // Swap: il nuovo diventa visibile, il vecchio sparisce
+            style.getLayer(layerId)?.setProperties(rasterOpacity(1f))
+            style.getLayer(LAYER_BATHY_HEATMAP + "-" + currentLayer)?.setProperties(rasterOpacity(0f))
+            
+            activeBathyLayer = nextLayer
+
+            // Pulizia: rimuoviamo la vecchia sorgente per liberare memoria, 
+            // ma solo dopo che il nuovo layer è sicuramente visibile.
+            delay(500)
+            style.removeLayer(LAYER_BATHY_HEATMAP + "-" + currentLayer)
+            style.removeSource(SOURCE_BATHY_HEATMAP + "-" + currentLayer)
         }
+    }
+
+    private fun updateBathyOptionsUi() {
+        val blueActive = Color.parseColor("#0091EA")
+        val grayNormal = Color.parseColor("#444444")
+
+        fun setStyle(card: androidx.cardview.widget.CardView, active: Boolean) {
+            val tv = card.getChildAt(0) as? TextView
+            tv?.setTextColor(if (active) blueActive else grayNormal)
+        }
+
+        setStyle(binding.btnBathyOff, !showBathyHeatmap)
+        setStyle(binding.btnBathyNow, showBathyHeatmap && selectedBathyTideM == null)
+        
+        binding.ivBathyIcon.imageTintList = android.content.res.ColorStateList.valueOf(
+            if (showBathyHeatmap) Color.parseColor("#0091EA") else Color.parseColor("#444444")
+        )
+
+        // Aggiorna il valore testuale nel pannello
+        val tideM = selectedBathyTideM ?: cachedTideM
+        val cm = (tideM * 100).toInt()
+        binding.tvTidePanelValue.text = "${if (cm >= 0) "+" else ""}$cm cm"
+    }
+
+    private fun updateBathyTidePresets(data: com.briccola.app.engine.TideData) {
+        _binding?.let { b ->
+            b.tideSlider.setData(data)
+            b.tideSlider.onTimeChanged = { _: Long, valueM: Double ->
+                showBathyHeatmap = true
+                selectedBathyTideM = valueM
+                refreshBathyLayer()
+                updateBathyOptionsUi()
+                resetBathyOptionsTimer()
+            }
+        }
+        updateBathyOptionsUi()
+    }
+
+    private fun interpolateAt(extremes: List<com.briccola.app.engine.TideExtreme>, t: Long): Double? {
+        val before = extremes.lastOrNull { it.timeMs <= t } ?: return null
+        val after = extremes.firstOrNull { it.timeMs > t } ?: return null
+        if (after.timeMs == before.timeMs) return before.valueM
+        val frac = (t - before.timeMs).toDouble() / (after.timeMs - before.timeMs)
+        return before.valueM + (after.valueM - before.valueM) / 2.0 * (1 - Math.cos(Math.PI * frac))
     }
 
     fun showPreviewRoute(route: List<LatLng>?) {
@@ -396,6 +491,8 @@ class MapFragment : Fragment() {
 
     private var showDebugGrid = false
     private var showBathyHeatmap = true
+    private var selectedBathyTideM: Double? = null // null = live, altrimenti valore preset
+    private var hideBathyOptionsJob: Job? = null
 
     private var statusBarHeight = 0
     private var navBarHeight = 0
@@ -438,6 +535,8 @@ class MapFragment : Fragment() {
         setupSearch()
         setupButtons()
         
+        binding.layoutTideTopActions.visibility = if (showBathyHeatmap) View.VISIBLE else View.GONE
+
         // Al primo avvio, non attiviamo subito il "Segui" (rotazione/zoom automatico).
         // L'app aspettera' il primo fix GPS per centrare la visuale (vedi startCameraLoop).
         setFollowMode(false) 
@@ -503,6 +602,18 @@ class MapFragment : Fragment() {
         binding.cardBathyToggle.scaleY = UiTuning.bathyBtnScale
         binding.cardBathyToggle.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
             topMargin = effectiveStatusBarHeight + (UiTuning.bathyBtnOffsetYDp * density).toInt()
+        }
+
+        binding.layoutTideTopActions.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            // Aggiungiamo 13dp per compensare la differenza di centro tra il tasto 90dp e quello 64dp
+            topMargin = effectiveStatusBarHeight + (UiTuning.bathyBtnOffsetYDp * density).toInt() + (13 * density).toInt()
+            marginEnd = (UiTuning.bathyOptionsOffsetXDp * density).toInt()
+        }
+        binding.layoutTideTopActions.scaleX = UiTuning.bathyOptionsScale
+        binding.layoutTideTopActions.scaleY = UiTuning.bathyOptionsScale
+
+        binding.cardTidePanel.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            bottomMargin = navBarHeight + (12 * density).toInt()
         }
 
         val bottomPadding = navBarHeight + (16 * density).toInt()
@@ -1110,7 +1221,9 @@ class MapFragment : Fragment() {
                 // Centralizziamo qui la visibilità degli strumenti (velocità, profondità, HUD, nav)
                 // in modo che spariscano quando un overlay (es. salvataggio punto) è aperto.
                 _binding?.let { b ->
-                    val overlayOpen = isAnyOverlayOpen()
+                    val otherOverlayOpen = isOtherOverlayOpen()
+                    val tidePanelOpen = b.cardTidePanel.visibility == View.VISIBLE
+                    val overlayOpen = otherOverlayOpen || tidePanelOpen
                     val gpsActive = bracket != null
                     
                     // Strumenti principali (tachimetro, altimetro)
@@ -1124,6 +1237,11 @@ class MapFragment : Fragment() {
                     // HUD Canale (solo se non stiamo navigando)
                     b.cvHud.visibility = if (gpsActive && activeRoute == null && !overlayOpen) View.VISIBLE else View.GONE
                     
+                    // Controlli Marea (nascondi se c'è un altro overlay aperto)
+                    val tideControlsVisible = if (!otherOverlayOpen && tidePanelOpen) View.VISIBLE else View.GONE
+                    b.layoutTideTopActions.visibility = tideControlsVisible
+                    b.cardTidePanel.visibility = if (!otherOverlayOpen && tidePanelOpen) View.VISIBLE else View.GONE
+
                     // Overlay Navigazione (se attiva)
                     if (activeRoute != null) {
                         val navVisible = if (!overlayOpen) View.VISIBLE else View.GONE
@@ -1239,7 +1357,16 @@ class MapFragment : Fragment() {
         lastTideFetchMs = now
         viewLifecycleOwner.lifecycleScope.launch {
             val data = withContext(Dispatchers.IO) { TideEngine.fetch(requireContext().applicationContext) }
-            if (data != null) cachedTideM = data.nowM
+            if (data != null) {
+                cachedTideM = data.nowM
+                updateBathyTidePresets(data)
+                
+                // FIX: Se siamo in modalità "Live" (ora), forziamo un refresh della mappa
+                // non appena abbiamo i dati reali, così spariscono le zone rosse errate dell'avvio.
+                if (selectedBathyTideM == null && showBathyHeatmap) {
+                    refreshBathyLayer()
+                }
+            }
         }
     }
 
@@ -1411,7 +1538,7 @@ class MapFragment : Fragment() {
     // o tap sulla mappa) — intercetta le stesse azioni che normalmente aprono altri popup.
     private var pickingOrigin = false
 
-    private fun isAnyOverlayOpen(): Boolean =
+    private fun isOtherOverlayOpen(): Boolean =
         _binding?.let { b ->
             b.cardPlaceDetail.visibility == View.VISIBLE ||
             b.cardRoutePlanning.visibility == View.VISIBLE ||
@@ -1421,16 +1548,13 @@ class MapFragment : Fragment() {
             pickingOrigin
         } ?: false
 
+    private fun isAnyOverlayOpen(): Boolean =
+        isOtherOverlayOpen() || (_binding?.cardTidePanel?.visibility == View.VISIBLE)
+
     /** true se c'è già un popup/schermata di pianificazione aperta o una navigazione attiva:
      *  in quel caso un nuovo tap lungo sulla mappa deve restare inerte finché non si chiude. */
     private fun isMapInteractionLocked(): Boolean =
-        activeRoute != null ||
-        pickingOrigin ||
-        binding.cardPlaceDetail.visibility == View.VISIBLE ||
-        binding.cardRoutePlanning.visibility == View.VISIBLE ||
-        binding.cardSavePlace.visibility == View.VISIBLE ||
-        binding.cardSavedPlaces.visibility == View.VISIBLE ||
-        binding.cardPlaces.visibility == View.VISIBLE
+        activeRoute != null || isAnyOverlayOpen()
 
     /** Chiude la schermata/overlay attualmente in primo piano, dal più "interno" al più
      *  "esterno" (dettaglio punto → salva punto → pianificazione percorso → luoghi salvati →
@@ -1448,6 +1572,7 @@ class MapFragment : Fragment() {
             binding.cardRoutePlanning.visibility == View.VISIBLE -> { closeRoutePlanning(); true }
             binding.cardSavedPlaces.visibility == View.VISIBLE -> { closeSavedPlacesScreen(); true }
             binding.cardPlaces.visibility == View.VISIBLE -> { hidePlacesList(); true }
+            binding.cardTidePanel.visibility == View.VISIBLE -> { hideBathyOptions(); true }
             else -> false
         }
     }
@@ -2321,6 +2446,24 @@ class MapFragment : Fragment() {
             toggleBathyHeatmap()
         }
 
+        binding.btnBathyOff.setOnClickListener {
+            showBathyHeatmap = false
+            selectedBathyTideM = null
+            updateBathyOptionsUi()
+            refreshBathyLayer()
+            hideBathyOptions()
+        }
+        binding.btnBathyNow.setOnClickListener {
+            showBathyHeatmap = true
+            selectedBathyTideM = null
+            binding.tideSlider.setSelectedTime(System.currentTimeMillis())
+            updateBathyOptionsUi()
+            refreshBathyLayer()
+        }
+        binding.btnTidePanelClose.setOnClickListener {
+            hideBathyOptions()
+        }
+
         // Bussola custom: se sei in modalità Segui, il loop camera (~45Hz) ruota continuamente
         // la mappa per allinearla alla prua della barca — provare a "vincere" quella rotazione
         // frame per frame (lasciando followMode attivo) produceva uno snap che si annullava da
@@ -2655,6 +2798,10 @@ class MapFragment : Fragment() {
         startPositionTracking()
         startCameraLoop()
         refreshSavedPlacesLayer()
+        
+        // Carichiamo subito la marea reale per evitare il "tutto rosso" all'avvio
+        refreshTideIfNeeded()
+        
         if (showBathyHeatmap) refreshBathyLayer()
         // Riavvia il controllo percorso ottimale se c'è una navigazione attiva
         if (activeRoute != null && destination != null) startBgReroute()

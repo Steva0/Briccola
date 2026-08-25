@@ -381,6 +381,30 @@
                     android:max="600" />
 
                 <TextView
+                    android:id="@+id/tv_tune_bathy_options_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_bathy_options_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/tv_tune_bathy_options_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_bathy_options_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="600" />
+
+                <TextView
                     android:id="@+id/tv_tune_gauge_offset"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

@@ -26,6 +26,8 @@ object UiTuning {
     private const val KEY_COMPASS_OFFSET_Y       = "ui_compass_offset_y_dp"
     private const val KEY_BATHY_BTN_SCALE        = "ui_bathy_btn_scale"
     private const val KEY_BATHY_BTN_OFFSET_Y     = "ui_bathy_btn_offset_y_dp"
+    private const val KEY_BATHY_OPTIONS_SCALE    = "ui_bathy_options_scale"
+    private const val KEY_BATHY_OPTIONS_OFFSET_X = "ui_bathy_options_offset_x_dp"
 
     const val DEFAULT_GAUGE_SCALE         = 0.72f  // tachimetro/altimetro un po' più piccoli
     const val DEFAULT_GAUGE_OFFSET_Y      = -78f   // e un po' più in alto (negativo = su)
@@ -51,6 +53,8 @@ object UiTuning {
     const val DEFAULT_COMPASS_OFFSET_Y    = 160f
     const val DEFAULT_BATHY_BTN_SCALE     = 0.5f  // meta' della dimensione originale
     const val DEFAULT_BATHY_BTN_OFFSET_Y  = 100f
+    const val DEFAULT_BATHY_OPTIONS_SCALE     = 0.7f
+    const val DEFAULT_BATHY_OPTIONS_OFFSET_X  = 65f
 
     // Tachimetro e altimetro sono specchiati (stessa dimensione/posizione, solo lato opposto):
     // un solo slider per ciascuno basta per entrambi.
@@ -73,6 +77,8 @@ object UiTuning {
     var compassOffsetYDp: Float = DEFAULT_COMPASS_OFFSET_Y
     var bathyBtnScale: Float = DEFAULT_BATHY_BTN_SCALE
     var bathyBtnOffsetYDp: Float = DEFAULT_BATHY_BTN_OFFSET_Y
+    var bathyOptionsScale: Float = DEFAULT_BATHY_OPTIONS_SCALE
+    var bathyOptionsOffsetXDp: Float = DEFAULT_BATHY_OPTIONS_OFFSET_X
 
     private var loaded = false
 
@@ -98,6 +104,8 @@ object UiTuning {
         compassOffsetYDp = p.getFloat(KEY_COMPASS_OFFSET_Y, compassOffsetYDp)
         bathyBtnScale = p.getFloat(KEY_BATHY_BTN_SCALE, bathyBtnScale)
         bathyBtnOffsetYDp = p.getFloat(KEY_BATHY_BTN_OFFSET_Y, bathyBtnOffsetYDp)
+        bathyOptionsScale = p.getFloat(KEY_BATHY_OPTIONS_SCALE, bathyOptionsScale)
+        bathyOptionsOffsetXDp = p.getFloat(KEY_BATHY_OPTIONS_OFFSET_X, bathyOptionsOffsetXDp)
     }
 
     fun save(context: Context) {
@@ -120,6 +128,8 @@ object UiTuning {
             putFloat(KEY_COMPASS_OFFSET_Y, compassOffsetYDp)
             putFloat(KEY_BATHY_BTN_SCALE, bathyBtnScale)
             putFloat(KEY_BATHY_BTN_OFFSET_Y, bathyBtnOffsetYDp)
+            putFloat(KEY_BATHY_OPTIONS_SCALE, bathyOptionsScale)
+            putFloat(KEY_BATHY_OPTIONS_OFFSET_X, bathyOptionsOffsetXDp)
             apply()
         }
     }
@@ -143,6 +153,8 @@ object UiTuning {
         compassOffsetYDp = DEFAULT_COMPASS_OFFSET_Y
         bathyBtnScale = DEFAULT_BATHY_BTN_SCALE
         bathyBtnOffsetYDp = DEFAULT_BATHY_BTN_OFFSET_Y
+        bathyOptionsScale = DEFAULT_BATHY_OPTIONS_SCALE
+        bathyOptionsOffsetXDp = DEFAULT_BATHY_OPTIONS_OFFSET_X
         save(context)
     }
 }

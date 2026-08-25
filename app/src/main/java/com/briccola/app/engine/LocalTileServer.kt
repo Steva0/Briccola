@@ -3,7 +3,6 @@ package com.briccola.app.engine
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Bitmap
-import android.graphics.Color
 import fi.iki.elonen.NanoHTTPD
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -200,71 +199,70 @@ object LocalTileServer {
             val path = uri.removePrefix("/bathy-heatmap/")
             val (z, x, y) = parseZxy(path) ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "bad path")
             
-            // Se lo zoom è troppo basso, il rendering diventa troppo costoso e meno utile
             if (z < 10) return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "zoom low")
 
             val tide = params["tide"]?.firstOrNull()?.toDoubleOrNull() ?: 0.0
             val draft = params["draft"]?.firstOrNull()?.toDoubleOrNull() ?: 0.5
             
-            // Coordinate geografiche del tile
             val n = 2.0.pow(z.toDouble())
             val lonMin = x / n * 360.0 - 180.0
             val lonMax = (x + 1) / n * 360.0 - 180.0
             val latMin = Math.toDegrees(atan(sinh(Math.PI * (1 - 2 * (y + 1) / n))))
             val latMax = Math.toDegrees(atan(sinh(Math.PI * (1 - 2 * y / n))))
             
-            val resolution = 128 // Manteniamo 128 per velocita', ma con antialiasing
+            val resolution = 128
             val lonStep = (lonMax - lonMin) / resolution.toDouble()
             val latStep = (latMax - latMin) / resolution.toDouble()
 
-            val bitmap = Bitmap.createBitmap(resolution, resolution, Bitmap.Config.ARGB_8888)
-            val canvas = android.graphics.Canvas(bitmap)
-            val paint = android.graphics.Paint()
+            // BUFFER LOCALE: fondamentale per evitare che richieste parallele si sovrappongano
+            val tilePixels = IntArray(resolution * resolution)
 
-            // Definizione colori e alpha per le zone
-            val colorRed    = Color.argb(180, 211, 47, 47)
-            val colorOrange = Color.argb(160, 255, 152, 0)
-            val colorYellow = Color.argb(120, 255, 235, 59)
-            val colorTrans  = Color.argb(0, 255, 235, 59)
+            val colorRed    = 0xB4D32F2F.toInt()
+            val colorOrange = 0xA0FF9800.toInt()
+            val colorYellow = 0x78FFEB3B.toInt()
+            val colorTrans  = 0x00FFEB3B.toInt()
 
-            fun mix(c1: Int, c2: Int, f: Float): Int {
-                val alpha = (Color.alpha(c1) + (Color.alpha(c2) - Color.alpha(c1)) * f).toInt()
-                val r = (Color.red(c1) + (Color.red(c2) - Color.red(c1)) * f).toInt()
-                val g = (Color.green(c1) + (Color.green(c2) - Color.green(c1)) * f).toInt()
-                val b = (Color.blue(c1) + (Color.blue(c2) - Color.blue(c1)) * f).toInt()
-                return Color.argb(alpha, r, g, b)
-            }
-
+            var idx = 0
             for (py in 0 until resolution) {
+                val lat = latMax - py * latStep
                 for (px in 0 until resolution) {
-                    val lat = latMax - py * latStep
                     val lon = lonMin + px * lonStep
                     
                     val depth = bathy?.getRawDepthAt(lat, lon) ?: 0f
                     if (depth > 0.05f) {
                         val margin = (depth + tide) - draft
                         
-                        val color = when {
+                        tilePixels[idx] = when {
                             margin < 0.275 -> colorRed
-                            margin < 0.325 -> mix(colorRed, colorOrange, (margin.toFloat() - 0.275f) / 0.05f)
+                            margin < 0.325 -> mixColors(colorRed, colorOrange, (margin.toFloat() - 0.275f) / 0.05f)
                             margin < 0.475 -> colorOrange
-                            margin < 0.525 -> mix(colorOrange, colorYellow, (margin.toFloat() - 0.475f) / 0.05f)
+                            margin < 0.525 -> mixColors(colorOrange, colorYellow, (margin.toFloat() - 0.475f) / 0.05f)
                             margin < 0.95  -> colorYellow
-                            margin < 1.05  -> mix(colorYellow, colorTrans, (margin.toFloat() - 0.95f) / 0.1f)
-                            else -> Color.TRANSPARENT
+                            margin < 1.05  -> mixColors(colorYellow, colorTrans, (margin.toFloat() - 0.95f) / 0.1f)
+                            else -> 0
                         }
-
-                        if (color != Color.TRANSPARENT) {
-                            paint.color = color
-                            canvas.drawPoint(px.toFloat(), py.toFloat(), paint)
-                        }
+                    } else {
+                        tilePixels[idx] = 0 // Transparent
                     }
+                    idx++
                 }
             }
 
+            val bitmap = Bitmap.createBitmap(tilePixels, resolution, resolution, Bitmap.Config.ARGB_8888)
             val out = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
+            // PNG senza troppa compressione per velocità
+            bitmap.compress(Bitmap.CompressFormat.PNG, 50, out)
             return newFixedLengthResponse(Response.Status.OK, "image/png", out.toByteArray().inputStream(), out.size().toLong())
+        }
+
+        private fun mixColors(c1: Int, c2: Int, f: Float): Int {
+            val a1 = (c1 shr 24) and 0xFF; val r1 = (c1 shr 16) and 0xFF; val g1 = (c1 shr 8) and 0xFF; val b1 = c1 and 0xFF
+            val a2 = (c2 shr 24) and 0xFF; val r2 = (c2 shr 16) and 0xFF; val g2 = (c2 shr 8) and 0xFF; val b2 = c2 and 0xFF
+            val a = (a1 + (a2 - a1) * f).toInt()
+            val r = (r1 + (r2 - r1) * f).toInt()
+            val g = (g1 + (g2 - g1) * f).toInt()
+            val b = (b1 + (b2 - b1) * f).toInt()
+            return (a shl 24) or (r shl 16) or (g shl 8) or b
         }
 
         private fun parseZxy(path: String): Triple<Int, Int, Int>? {
