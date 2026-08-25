@@ -46,10 +46,10 @@ class AltitudeView @JvmOverloads constructor(
         val strokeW = size * 0.08f
 
         // Cambio colore in base all'altezza (profondità)
-        // < 0.5m -> Rosso, < 1m -> Arancione, altrimenti Grigio Waze
+        // < 0.5m -> Rosso (contrasto alto), < 1m -> Arancione, altrimenti Grigio Waze
         val bgColor = when {
-            altitude < 0.5f -> Color.parseColor("#CCFF5252") // Rosso
-            altitude < 1.0f -> Color.parseColor("#CCFF9800") // Arancione
+            altitude < 0.5f -> Color.parseColor("#E6C62828") // Rosso scuro per contrasto bianco
+            altitude < 1.0f -> Color.parseColor("#E6EF6C00") // Arancione scuro
             else -> Color.parseColor("#E62F343F") // Grigio Waze
         }
         bgCirclePaint.color = bgColor

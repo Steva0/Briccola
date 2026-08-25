@@ -43,6 +43,10 @@ class AboutFragment : Fragment() {
             (activity as? com.briccola.app.MainActivity)?.openDrawer()
         }
 
+        // Imposta la versione dinamica da BuildConfig
+        view.findViewById<android.widget.TextView>(R.id.tv_about_version)?.text = 
+            getString(R.string.about_version_label, com.briccola.app.BuildConfig.VERSION_NAME)
+
         // Padding per Edge-to-Edge nella schermata Crediti
         ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
             val statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top

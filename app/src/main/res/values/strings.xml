@@ -40,7 +40,9 @@
     <string name="btn_paypal">Dona ora con PayPal</string>
 
     <string name="about_dev_title">Lo Sviluppatore</string>
-    <string name="about_dev_bio">Michele Stevanin\nLaureato in Informatica presso l\'Università degli Studi di Padova e attualmente iscritto al corso di Laurea Magistrale in Cybersecurity presso lo stesso ateneo. Il mio percorso accademico mi ha permesso di costruire una solida base nell\'ambito dello sviluppo software e dell\'architettura dei sistemi, con un forte interesse verso la protezione delle infrastrutture digitali e la ricerca di vulnerabilità.</string>
+    <string name="about_dev_name">Michele Stevanin</string>
+    <string name="about_version_label">Versione %s</string>
+    <string name="about_dev_bio">Laureato in Informatica presso l\'Università degli Studi di Padova e attualmente iscritto al corso di Laurea Magistrale in Cybersecurity presso lo stesso ateneo. Il mio percorso accademico mi ha permesso di costruire una solida base nell\'ambito dello sviluppo software e dell\'architettura dei sistemi, con un forte interesse verso la protezione delle infrastrutture digitali e la ricerca di vulnerabilità.</string>
     <string name="btn_github">GitHub</string>
     <string name="btn_cv">Il mio CV</string>
     <string name="btn_privacy_policy">Informativa sulla privacy</string>
