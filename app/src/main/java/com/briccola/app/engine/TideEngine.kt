@@ -113,45 +113,46 @@ object TideEngine {
         astronomical: List<TideExtreme>,
         online: List<TideExtreme>,
         realTimeValue: Double?,
-        start: Long,
+        @Suppress("UNUSED_PARAMETER") start: Long,
         end: Long
     ): TideData? {
         val now = System.currentTimeMillis()
         
-        // Se non abbiamo dati online, usiamo l'astronomica come unico "punto reale" disponibile
-        val sourceExtremes = if (online.isNotEmpty()) online else astronomical
-        val sortedSource = sourceExtremes.sortedBy { it.timeMs }
-        
-        // 1. Calcoliamo il livello attuale e l'offset rispetto alla previsione
-        val predictedNow = interpolateAt(sortedSource, now) ?: sortedSource.first().valueM
+        // 1. Calcoliamo il livello astronomico previsto per "ora"
+        val predictedNow = interpolateAt(astronomical, now) ?: astronomical.firstOrNull()?.valueM ?: 0.0
         val currentLevel = realTimeValue ?: predictedNow
         val offset = currentLevel - predictedNow
-        
-        // 2. Prepariamo TUTTI gli estremali (anche passati) traslati dell'offset.
-        //    Usare anche i punti passati è fondamentale per far sì che l'interpolazione 
-        //    dopo "adesso" segua la curva naturale e non parta con una linea piatta.
-        val shiftedExtremes = sortedSource.map { it.copy(valueM = it.valueM + offset) }
-        
-        // 3. Generiamo la curva per l'intera giornata. 
-        //    Includiamo esplicitamente il punto "now" per garantire che il grafico 
-        //    parta esattamente dal valore reale corrente.
+
+        // 2. Prepariamo gli ancoraggi per la curva. 
+        //    IMPORTANTE: includiamo un punto nel passato (astronomico + offset) per dare la giusta 
+        //    pendenza iniziale, altrimenti tra "ora" e il prossimo picco avremmo una linea retta.
+        val pastAnchor = astronomical.lastOrNull { it.timeMs < now }?.let { it.copy(valueM = it.valueM + offset) }
+        val futurePeaks = if (online.isNotEmpty()) {
+            online.filter { it.timeMs > now }
+        } else {
+            astronomical.filter { it.timeMs > now }.map { it.copy(valueM = it.valueM + offset) }
+        }
+
+        val curvePoints = mutableListOf<TideExtreme>()
+        pastAnchor?.let { curvePoints.add(it) }
+        curvePoints.add(TideExtreme(now, currentLevel, false))
+        curvePoints.addAll(futurePeaks)
+        curvePoints.sortBy { it.timeMs }
+
+        // 3. Generiamo la curva ad alta risoluzione (ogni 10 min) partendo da ORA.
+        //    La densità di punti serve a rendere fluido lo scrubbing nel grafico.
         val curve = mutableListOf<Pair<Long, Double>>()
-        var t = start
+        var t = now
         while (t <= end) {
-            // Inserimento punto "now" se siamo nella giornata di oggi
-            if (t > now && (curve.isEmpty() || curve.last().first < now)) {
-                curve += now to currentLevel
-            }
-            interpolateAt(shiftedExtremes, t)?.let { v ->
+            interpolateAt(curvePoints, t)?.let { v ->
                 curve += t to v
             }
             t += 10 * 60_000L
         }
         if (curve.isEmpty()) curve += now to currentLevel
-        curve.sortBy { it.first }
-
-        // 4. Estremali per le etichette (solo quelli di oggi)
-        val todaysExtremes = shiftedExtremes.filter { it.timeMs in start..end }
+        
+        // 4. Estremali per le etichette (solo quelli futuri di oggi)
+        val todaysExtremes = futurePeaks.filter { it.timeMs <= end }
         
         return TideData(
             nowM = currentLevel,
