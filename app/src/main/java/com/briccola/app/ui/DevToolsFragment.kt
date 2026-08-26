@@ -85,6 +85,12 @@ override fun onCreateView(
             binding.cardDebugPanel.visibility = if (checked) View.GONE else View.VISIBLE
         }
 
+        // Nasconde il joystick del simulatore
+        binding.checkboxHideJoystick.setOnCheckedChangeListener { _, _ ->
+            updateJoystickVisibility()
+        }
+        updateJoystickVisibility()
+
         // Il simulatore parte automaticamente: il joystick è sempre visibile in Dev Tools
         startSimulator()
 
@@ -145,6 +151,13 @@ override fun onCreateView(
     // TOGGLE SORGENTE POSIZIONE — simulata (joystick) o GPS reale del telefono
     // =================================================================
 
+    private fun updateJoystickVisibility() {
+        val isRealGps = binding.switchRealGps.isChecked
+        val isHiddenByCheckbox = binding.checkboxHideJoystick.isChecked
+        
+        binding.cardSim.visibility = if (isRealGps || isHiddenByCheckbox) View.GONE else View.VISIBLE
+    }
+
     /**
      * Permette di testare i valori di CameraTuning col GPS vero (es. guidando in auto) restando
      * su Dev Tools, invece di dover passare alla voce di menu "Mappa". Di default resta simulata:
@@ -155,8 +168,7 @@ override fun onCreateView(
             childMap?.setUseSimulatedPosition(!isChecked)
             binding.tvPositionSourceLabel.text =
                 if (isChecked) "Posizione: reale (GPS telefono)" else "Posizione: simulata (joystick)"
-            // Col GPS reale il joystick non serve (non controlla nulla): lo nascondiamo.
-            binding.cardSim.visibility = if (isChecked) View.GONE else View.VISIBLE
+            updateJoystickVisibility()
         }
     }
 
@@ -179,7 +191,7 @@ override fun onCreateView(
             binding.tvTuneFps.text         = "FPS barca/camera: ${(1000.0 / CameraTuning.frameIntervalMs).roundToInt()}"
             binding.tvTuneHudRefresh.text  = "Refresh HUD (profondità/velocità/canale): ${(1000.0 / CameraTuning.hudIntervalMs).roundToInt()} Hz"
             binding.tvTuneCanalThreshold.text = "Soglia \"Fuori canale\": %.0f m".format(CameraTuning.canalLabelThresholdM)
-            binding.tvTuneRecenterZoom.text = "Centra: distanza x: %.1f — più alto = più vicino".format(CameraTuning.recenterZoom)
+            binding.tvTuneRecenterZoom.text = "Centra: zoom base %.1f (max %.1f)".format(CameraTuning.recenterZoom, CameraTuning.MAX_FOLLOW_ZOOM)
             binding.tvTuneGaugeScale.text      = "Scala tachimetro/altimetro: %.2fx".format(UiTuning.gaugeScale)
             binding.tvTuneCompassScale.text    = "Scala bussola: %.2fx".format(UiTuning.compassScale)
             binding.tvTuneCompassOffset.text   = "Posizione bussola (Y): %.0f dp".format(UiTuning.compassOffsetYDp)
@@ -198,7 +210,7 @@ override fun onCreateView(
             binding.tvTuneSavePlaceBtnScale.text = "Scala bottoni Salva: %.2fx".format(UiTuning.savePlaceBtnScale)
             binding.tvTuneDeletePlaceBtnScale.text = "Scala pulsante Elimina: %.2fx".format(UiTuning.deletePlaceBtnScale)
             binding.tvTuneSavePlaceTextScale.text = "Scala testi Salva: %.2fx".format(UiTuning.savePlaceTextScale)
-            binding.tvTuneFollowBoatScreenY.text = "Altezza barca su schermo (Centra): %.0f%% dall'alto".format(UiTuning.followBoatScreenYFraction * 100)
+            binding.tvTuneFollowBoatScreenY.text = "Altezza barca su schermo (Centra): %.0f%% dal basso".format((1.0 - UiTuning.followBoatScreenYFraction) * 100)
         }
 
         fun syncHudSpeedLinkedUi() {
@@ -238,7 +250,7 @@ override fun onCreateView(
             binding.seekSavePlaceBtnScale.progress = (UiTuning.savePlaceBtnScale * 100).roundToInt().coerceIn(10, 200)
             binding.seekDeletePlaceBtnScale.progress = (UiTuning.deletePlaceBtnScale * 100).roundToInt().coerceIn(10, 200)
             binding.seekSavePlaceTextScale.progress = (UiTuning.savePlaceTextScale * 100).roundToInt().coerceIn(10, 200)
-            binding.seekFollowBoatScreenY.progress = (UiTuning.followBoatScreenYFraction * 100).roundToInt().coerceIn(0, 100)
+            binding.seekFollowBoatScreenY.progress = ((1.0f - UiTuning.followBoatScreenYFraction) * 100).roundToInt().coerceIn(0, 100)
             syncHudSpeedLinkedUi()
         }
 
@@ -298,7 +310,7 @@ override fun onCreateView(
         onChangeUi(binding.seekSavePlaceBtnScale) { UiTuning.savePlaceBtnScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekDeletePlaceBtnScale) { UiTuning.deletePlaceBtnScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekSavePlaceTextScale) { UiTuning.savePlaceTextScale = it.coerceAtLeast(10) / 100f }
-        onChangeUi(binding.seekFollowBoatScreenY) { UiTuning.followBoatScreenYFraction = it / 100f }
+        onChangeUi(binding.seekFollowBoatScreenY) { UiTuning.followBoatScreenYFraction = 1.0f - (it / 100f) }
 
         binding.switchHudSpeedLinked.setOnCheckedChangeListener { _, isChecked ->
             CameraTuning.hudRefreshLinkedToSpeed = isChecked

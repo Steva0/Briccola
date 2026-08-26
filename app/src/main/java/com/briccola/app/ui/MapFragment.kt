@@ -1259,7 +1259,12 @@ class MapFragment : Fragment() {
                     // Centramento automatico iniziale al primo fix ricevuto
                     if (!hasInitialCentered) {
                         hasInitialCentered = true
-                        map.moveCamera(CameraUpdateFactory.newLatLng(interpPos))
+                        map.moveCamera(CameraUpdateFactory.newCameraPosition(
+                            CameraPosition.Builder()
+                                .target(interpPos)
+                                .zoom(CameraTuning.recenterZoom)
+                                .build()
+                        ))
                     }
 
                     // HUD e Navigazione
@@ -2010,17 +2015,14 @@ class MapFragment : Fragment() {
         val offCanal  = distCanal > OFF_CANAL_THRESHOLD_M && !routingEngine.isAtSea(pos)
 
         // Banner in alto: icona svolta + distanza dalla prossima svolta + canale su cui siamo ora.
+        binding.cardNavBanner.setCardBackgroundColor(Color.parseColor("#00695C"))
+        binding.ivNavArrow.setImageResource(arrowRes)
+        binding.tvNavInstruction.text = "%.0f m".format(distNext)
+        
         if (offCanal) {
-            binding.cardNavBanner.setCardBackgroundColor(Color.parseColor("#CC880000"))
-            binding.ivNavArrow.setImageResource(R.drawable.ic_nav_straight) // O un'icona di pericolo se preferisci
-            binding.tvNavInstruction.text = "Fuori canale"
-            binding.tvNavCanal.text       = "%.0f m dal canale più vicino".format(distCanal)
-            // Il ricalcolo è gestito dal background job ogni 5 secondi — nessun trigger qui
+            binding.tvNavCanal.text = "Fuori canale (%.0f m)".format(distCanal)
         } else {
-            binding.cardNavBanner.setCardBackgroundColor(Color.parseColor("#00695C"))
-            binding.ivNavArrow.setImageResource(arrowRes)
-            binding.tvNavInstruction.text = "%.0f m".format(distNext)
-            binding.tvNavCanal.text       = canalLocationLabel(pos)
+            binding.tvNavCanal.text = canalLocationLabel(pos)
         }
 
         // Chip in basso (al posto dell'HUD): tempo residuo, distanza, orario di arrivo stimato.
@@ -2416,13 +2418,17 @@ class MapFragment : Fragment() {
             val map = mapLibre
             val lastFix = fixBuffer.lastOrNull()
             if (map != null && lastFix != null) {
-                // CENTRA "intelligente": se sei già zoomato quanto (o più di) la distanza x
-                // (CameraTuning.recenterZoom), lo zoom resta invariato — sei già più vicino di x,
-                // ha senso solo centrare sulla barca. Se invece sei più lontano di x, si zooma
-                // fino a x invece di lasciarti a un livello scomodo.
+                // CENTRA "intelligente": 
+                // - Se siamo troppo lontani (< 14.0), zooma a 14.0
+                // - Se siamo troppo vicini (> 15.7), allontana a 15.7
+                // - Altrimenti mantieni lo zoom attuale
                 val currentZoom = map.cameraPosition.zoom
-                val zoom = if (currentZoom < CameraTuning.recenterZoom)
-                    CameraTuning.recenterZoom else currentZoom
+                val zoom = when {
+                    currentZoom < CameraTuning.recenterZoom -> CameraTuning.recenterZoom
+                    currentZoom > CameraTuning.MAX_FOLLOW_ZOOM -> CameraTuning.MAX_FOLLOW_ZOOM
+                    else -> currentZoom
+                }
+                
                 val target = followCameraTarget(map, LatLng(lastFix.lat, lastFix.lon))
                 map.moveCamera(CameraUpdateFactory.newCameraPosition(
                     CameraPosition.Builder().target(target).zoom(zoom).bearing(smoothedCamBearing).build()

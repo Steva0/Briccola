@@ -43,10 +43,9 @@ object UiTuning {
     // Scala del pulsante Elimina, SEPARATA da savePlaceBtnScale (che riguarda Itinerari/Salva):
     // il pulsante Elimina è circolare (FAB) e spesso serve tararlo diverso dagli altri due.
     const val DEFAULT_DELETE_PLACE_BTN_SCALE = 0.8f
-    // Posizione verticale della barca sullo schermo in modalità Segui, come frazione dall'alto:
-    // non il centro esatto (0.5) — lascia più mappa visibile davanti alla direzione di marcia
-    // rispetto a quella alle spalle. Valore confermato dall'utente come corretto.
-    const val DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION = 0.7f
+    // Posizione verticale della barca sullo schermo in modalità Segui, come frazione dall'alto.
+    // 0.75 significa il 25% dal basso dello schermo.
+    const val DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION = 0.75f
     // Colore delle briccole, regolabile da Dev Tools > Colori Mappa.
     val DEFAULT_BRICCOLE_COLOR: Int       = android.graphics.Color.parseColor("#003366")
     const val DEFAULT_COMPASS_SCALE       = 0.5f
