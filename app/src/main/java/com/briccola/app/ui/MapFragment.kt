@@ -623,6 +623,22 @@ class MapFragment : Fragment() {
             bottomMargin = navBarHeight + (12 * density).toInt()
         }
 
+        binding.cardPlaceDetail.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            bottomMargin = navBarHeight + (12 * density).toInt()
+        }
+
+        binding.cardRoutePlanning.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            bottomMargin = navBarHeight + (12 * density).toInt()
+        }
+
+        binding.cardSavePlace.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            bottomMargin = navBarHeight + (12 * density).toInt()
+        }
+
+        binding.cardSavedPlaces.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            bottomMargin = navBarHeight
+        }
+
         val bottomPadding = navBarHeight + (16 * density).toInt()
         binding.speedometer.scaleX = UiTuning.gaugeScale
         binding.speedometer.scaleY = UiTuning.gaugeScale
