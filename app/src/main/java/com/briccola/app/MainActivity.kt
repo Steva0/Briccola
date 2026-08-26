@@ -287,8 +287,6 @@ class MainActivity : AppCompatActivity() {
         val logo = headerView.findViewById<android.widget.ImageView>(R.id.nav_header_logo)
         logo.setOnLongClickListener {
             devToolsItem.isVisible = !devToolsItem.isVisible
-            val status = if (devToolsItem.isVisible) "abilitati" else "disabilitati"
-            Toast.makeText(this, "Strumenti Dev $status", Toast.LENGTH_SHORT).show()
             true
         }
 

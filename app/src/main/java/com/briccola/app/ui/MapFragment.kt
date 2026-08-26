@@ -1248,6 +1248,7 @@ class MapFragment : Fragment() {
                     val tideControlsVisible = if (!otherOverlayOpen && tidePanelOpen) View.VISIBLE else View.GONE
                     b.layoutTideTopActions.visibility = tideControlsVisible
                     b.cardTidePanel.visibility = if (!otherOverlayOpen && tidePanelOpen) View.VISIBLE else View.GONE
+                    b.cardBathyToggle.visibility = if (otherOverlayOpen) View.GONE else View.VISIBLE
 
                     // Overlay Navigazione (se attiva)
                     if (activeRoute != null) {
