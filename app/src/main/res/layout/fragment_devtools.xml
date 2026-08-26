@@ -673,6 +673,28 @@
                 android:text="Simulatore pronto — muovi la barca col joystick"
                 android:textColor="#FF00FF"
                 android:textSize="9sp" />
+
+            <!-- Angolo Camera (Bearing) -->
+            <TextView
+                android:id="@+id/tv_dev_bearing"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="monospace"
+                android:text="Angolo Camera: --°"
+                android:textColor="#00FFFF"
+                android:textSize="9sp" />
+
+            <!-- Angolo Joystick -->
+            <TextView
+                android:id="@+id/tv_dev_joy_angle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="monospace"
+                android:text="Angolo Joystick: --°"
+                android:textColor="#FFFF00"
+                android:textSize="9sp" />
         </LinearLayout>
         </com.briccola.app.ui.MaxHeightScrollView>
     </androidx.cardview.widget.CardView>

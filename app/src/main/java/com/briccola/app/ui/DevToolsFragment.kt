@@ -570,9 +570,11 @@ override fun onCreateView(
                     provider.setMovement(provider.bearingDeg, 0f)
                 } else {
                     val joyBearing = Math.toDegrees(atan2(normX.toDouble(), -normY.toDouble())).toFloat()
-                    val camBearing = childMap?.mapLibreMap()?.cameraPosition?.bearing?.toFloat() ?: 0f
+                    val camBearing = childMap?.cameraBearing()?.toFloat() ?: 0f
                     val absBearing = (joyBearing + camBearing + 360f) % 360f
                     provider.setMovement(absBearing, magnitude * 25f)
+                    
+                    binding.tvDevJoyAngle.text = "Angolo Joystick: %.1f° (rel: %.1f°)".format(absBearing, joyBearing)
                 }
             }
         }
@@ -588,6 +590,11 @@ override fun onCreateView(
     private fun simOnFix(location: Location) {
         SimulatorHub.notify(location)
         onSimFix(location)
+        
+        // Aggiorna l'angolo della camera e della barca
+        val camBearing = childMap?.cameraBearing() ?: 0.0
+        val boatBearing = childMap?.boatBearing() ?: 0.0
+        binding.tvDevBearing.text = "Camera: %.1f° | Barca: %.1f°".format(camBearing, boatBearing)
     }
 
     private fun onSimFix(location: Location) {

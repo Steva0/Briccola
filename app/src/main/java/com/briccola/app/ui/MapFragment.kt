@@ -124,6 +124,12 @@ class MapFragment : Fragment() {
     /** Centro attuale della camera — usato da DevTools per impostare la destinazione al volo. */
     fun cameraCenter(): LatLng? = mapLibre?.cameraPosition?.target
 
+    /** Angolo attuale della camera (bearing). */
+    fun cameraBearing(): Double = smoothedCamBearing
+
+    /** Angolo attuale dell'icona barca. */
+    fun boatBearing(): Double = smoothedIconBearing
+
     private fun toggleBathyHeatmap() {
         if (binding.cardTidePanel.visibility == View.VISIBLE) {
             hideBathyOptions()
@@ -453,6 +459,7 @@ class MapFragment : Fragment() {
 
     // Camera: insegue l'icona solo fuori dal cono morto di ±CAM_DEAD_ZONE_DEG.
     private var smoothedCamBearing  = 0.0
+    private var isAligningCamera    = false
 
     private val cameraHandler = Handler(Looper.getMainLooper())
     private var cameraRunnable: Runnable? = null
@@ -1255,6 +1262,8 @@ class MapFragment : Fragment() {
                     val interpLat = fixA.lat + (fixB.lat - fixA.lat) * frac
                     val interpLon = fixA.lon + (fixB.lon - fixA.lon) * frac
                     val interpPos = LatLng(interpLat, interpLon)
+                    val speedMps = lastGpsLocation?.speed ?: 0f
+                    val speedKn = speedMps * 3600.0 / 1852.0
 
                     // Centramento automatico iniziale al primo fix ricevuto
                     if (!hasInitialCentered) {
@@ -1268,7 +1277,6 @@ class MapFragment : Fragment() {
                     }
 
                     // HUD e Navigazione
-                    val speedKn = (lastGpsLocation?.speed ?: 0f) * 3600.0 / 1852.0
                     val hudInterval = CameraTuning.hudIntervalMsForSpeed(speedKn)
                     if (now - lastHudUpdateMs >= hudInterval) {
                         lastHudUpdateMs = now
@@ -1285,9 +1293,22 @@ class MapFragment : Fragment() {
                     }
                     smoothedIconBearing = lerpBearing(smoothedIconBearing, lastGoodBearing, CameraTuning.iconBearingLerp)
                     
-                    val camDiff = Math.abs(((smoothedIconBearing - smoothedCamBearing + 540) % 360) - 180)
-                    if (camDiff > CameraTuning.camDeadZoneDeg) {
+                    // Rotazione camera "intelligente": zona di comfort 10° (isteresi)
+                    // Se superiamo la soglia, allineiamo completamente e resettiamo.
+                    
+                    // Soglia dinamica in base alla velocità: più tolleranti se lenti per evitare sfarfallii
+                    val threshold = if (speedKn < 3.0) CameraTuning.DEFAULT_LOW_SPEED_THRESHOLD_DEG else CameraTuning.DEFAULT_ROTATION_THRESHOLD_DEG
+                    
+                    val bearingDiff = Math.abs(((smoothedIconBearing - smoothedCamBearing + 540) % 360) - 180)
+                    
+                    if (bearingDiff > threshold || isAligningCamera) {
+                        isAligningCamera = true
                         smoothedCamBearing = lerpBearing(smoothedCamBearing, smoothedIconBearing, CameraTuning.camLerp)
+                        
+                        // Una volta che siamo quasi allineati (errore < 0.5°), fermiamo la rotazione
+                        if (bearingDiff < 0.5) {
+                            isAligningCamera = false
+                        }
                     }
 
                     if (followMode) {
@@ -2683,23 +2704,33 @@ class MapFragment : Fragment() {
     }
 
     /** Calcola il target di camera (punto che finirà al centro schermo) tale per cui [boatPos]
-     *  finisca invece a UiTuning.followBoatScreenYFraction dall'alto (regolabile da Dev Tools).
-     *  Usa la projection corrente (riflette bearing/zoom di questo fotogramma) — stessa tecnica
-     *  di centerPointInUpperScreen, qui applicata continuamente ad ogni fotogramma del follow
-     *  mode invece che una tantum. */
+     *  finisca invece a UiTuning.followBoatScreenYFraction dall'alto.
+     *  Versione geometrica stabile: non dipende dalla proiezione corrente, evitando feedback loop
+     *  e tremolii durante la rotazione. */
     private fun followCameraTarget(map: MapLibreMap, boatPos: LatLng): LatLng {
-        val width = binding.mapView.width.toFloat()
         val height = binding.mapView.height.toFloat()
-        if (width <= 0f || height <= 0f) return boatPos
-        val projection = map.projection
-        val currentScreenPos = projection.toScreenLocation(boatPos)
-        val screenCenter = android.graphics.PointF(width / 2f, height / 2f)
-        val desiredScreenPos = android.graphics.PointF(width / 2f, height * UiTuning.followBoatScreenYFraction)
-        val newTargetScreen = android.graphics.PointF(
-            currentScreenPos.x + screenCenter.x - desiredScreenPos.x,
-            currentScreenPos.y + screenCenter.y - desiredScreenPos.y
-        )
-        return projection.fromScreenLocation(newTargetScreen)
+        if (height <= 0f) return boatPos
+        
+        val zoom = map.cameraPosition.zoom
+        val bearingRad = Math.toRadians(smoothedCamBearing)
+        
+        // Offset desiderato in pixel rispetto al centro schermo (positivo = verso il basso dello schermo)
+        val dyPixels = height * (UiTuning.followBoatScreenYFraction - 0.5f)
+        
+        // Conversione pixel -> gradi lat (approssimazione stabile per Mercatore locale)
+        // 512px è la dimensione della tile a zoom 0 in MapLibre.
+        val worldSize = 512.0 * Math.pow(2.0, zoom)
+        val degPerPixel = 360.0 / worldSize
+        
+        // Compensazione per la latitudine (coseno della latitudine)
+        val latScale = Math.cos(Math.toRadians(boatPos.latitude))
+        
+        // Calcolo dell'offset geografico ruotato
+        // Se vogliamo che la barca sia in basso, dobbiamo spostare il CENTRO della mappa in AVANTI (nella direzione del bearing)
+        val dLat = (dyPixels * degPerPixel * latScale) * Math.cos(bearingRad)
+        val dLon = (dyPixels * degPerPixel) * Math.sin(bearingRad)
+        
+        return LatLng(boatPos.latitude + dLat, boatPos.longitude + dLon)
     }
 
     /** Sposta la camera in modo che "pos" finisca nella parte centro-alta dello schermo invece

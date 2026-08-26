@@ -26,6 +26,8 @@ object CameraTuning {
     const val DEFAULT_ICON_BEARING_LERP        = 0.08
     const val DEFAULT_CAM_DEAD_ZONE_DEG        = 6.0    // per lato -> 12° totali
     const val DEFAULT_CAM_LERP                 = 0.04
+    const val DEFAULT_ROTATION_THRESHOLD_DEG   = 10.0   // 10° a dx/sx (zona comfort)
+    const val DEFAULT_LOW_SPEED_THRESHOLD_DEG  = 20.0   // 20° a basse velocità (< 3 nodi)
     const val DEFAULT_FRAME_INTERVAL_MS        = 22L    // ~45 fps
     const val DEFAULT_HUD_INTERVAL_MS          = 200L   // 5 Hz per profondità/velocità/canale
     const val DEFAULT_HUD_SPEED_LINKED         = true
