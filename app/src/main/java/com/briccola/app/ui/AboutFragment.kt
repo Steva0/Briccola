@@ -12,8 +12,13 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import android.view.ViewGroup.MarginLayoutParams
+import androidx.lifecycle.lifecycleScope
 import com.briccola.app.MainActivity
 import com.briccola.app.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.URL
 
 class AboutFragment : Fragment() {
     override fun onCreateView(
@@ -32,7 +37,7 @@ class AboutFragment : Fragment() {
         }
         
         view.findViewById<Button>(R.id.btn_cv)?.setOnClickListener {
-            openUrl("https://europa.eu/europass/eportfolio/api/eprofile/shared-profile/michele-stevanin/5f317bb5-67f7-40f7-9dd7-1027464d0870?view=html")
+            fetchCvUrlAndOpen()
         }
 
         view.findViewById<Button>(R.id.btn_privacy_policy)?.setOnClickListener {
@@ -60,6 +65,31 @@ class AboutFragment : Fragment() {
             }
 
             insets
+        }
+    }
+
+    private fun fetchCvUrlAndOpen() {
+        val fallbackUrl = "https://github.com/Steva0/Steva0/blob/main/CV.pdf"
+        val rawConfigUrl = "https://raw.githubusercontent.com/Steva0/Steva0/main/cv_url.txt"
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val targetUrl = withContext(Dispatchers.IO) {
+                try {
+                    val conn = URL(rawConfigUrl).openConnection()
+                    conn.connectTimeout = 3000
+                    conn.readTimeout = 3000
+                    conn.setRequestProperty("User-Agent", "Briccola/1.0")
+                    val text = conn.getInputStream().bufferedReader().use { it.readText() }.trim()
+                    if (text.startsWith("http://") || text.startsWith("https://")) {
+                        text
+                    } else {
+                        fallbackUrl
+                    }
+                } catch (_: Exception) {
+                    fallbackUrl
+                }
+            }
+            openUrl(targetUrl)
         }
     }
 
