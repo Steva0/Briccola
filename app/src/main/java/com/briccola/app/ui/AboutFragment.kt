@@ -69,7 +69,7 @@ class AboutFragment : Fragment() {
     }
 
     private fun fetchCvUrlAndOpen() {
-        val fallbackUrl = "https://github.com/Steva0/Steva0/blob/main/CV.pdf"
+        val fallbackUrl = "https://steva0.github.io/Steva0/"
         val rawConfigUrl = "https://raw.githubusercontent.com/Steva0/Steva0/main/cv_url.txt"
 
         viewLifecycleOwner.lifecycleScope.launch {
