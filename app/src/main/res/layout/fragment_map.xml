@@ -76,6 +76,35 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
+    <!-- PULSANTI TEST TEMPORANEI (visibili solo se debugMode=true in Dev Tools) -->
+    <LinearLayout
+        android:id="@+id/layout_test_buttons"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="88dp"
+        android:elevation="20dp"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/btn_test_review_dialog"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginEnd="4dp"
+            android:text="Test Dialog"
+            android:textSize="11sp"
+            app:backgroundTint="#CC003366" />
+
+        <Button
+            android:id="@+id/btn_test_feedback_screen"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Test Feedback"
+            android:textSize="11sp"
+            app:backgroundTint="#CC2E7D32" />
+    </LinearLayout>
+
     <!-- Banner GPS disattivato -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_gps_disabled"

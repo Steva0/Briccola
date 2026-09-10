@@ -25,8 +25,8 @@ android {
         applicationId = "com.briccola.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 146
-        versionName = "1.4.6"
+        versionCode = 147
+        versionName = "1.4.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -99,6 +99,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
     // Coroutines (per network calls Nominatim in background)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // Google Play In-App Review API
+    implementation("com.google.android.play:review-ktx:2.0.2")
 
     // Testing
     testImplementation(libs.junit)

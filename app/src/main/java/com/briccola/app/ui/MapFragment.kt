@@ -2476,6 +2476,18 @@ class MapFragment : Fragment() {
     }
 
     private fun setupButtons() {
+        // Pulsanti test per il dialogo valutazione e la schermata feedback (visibili solo se debugMode=true)
+        binding.layoutTestButtons.visibility = if (debugMode) View.VISIBLE else View.GONE
+        binding.btnTestReviewDialog.setOnClickListener {
+            com.briccola.app.engine.ReviewManager.showReviewDialog(requireActivity())
+        }
+        binding.btnTestFeedbackScreen.setOnClickListener {
+            (activity as? com.briccola.app.MainActivity)?.let { act ->
+                val menu = act.findViewById<com.google.android.material.navigation.NavigationView>(R.id.nav_view)
+                menu?.menu?.performIdentifierAction(R.id.nav_feedback, 0)
+            }
+        }
+
         // Imposta stato iniziale tasto layer
         binding.ivBathyIcon.imageTintList = android.content.res.ColorStateList.valueOf(
             if (showBathyHeatmap) Color.parseColor("#0091EA") else Color.parseColor("#444444")

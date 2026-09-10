@@ -60,4 +60,27 @@
     <string name="route_planning_outside_title">Fuori laguna</string>
     <string name="route_planning_outside_desc">Il punto di partenza (la tua posizione attuale) non è dentro la laguna di Venezia. Per navigare davvero serve trovarsi in laguna, ma puoi comunque scegliere un altro punto di partenza per provare un percorso.</string>
     <string name="route_planning_pick_origin">SCEGLI UN ALTRO PUNTO DI PARTENZA</string>
+
+    <!-- Menu Feedback -->
+    <string name="menu_feedback">Valutaci &amp; Feedback</string>
+
+    <!-- Dialog Recensione -->
+    <string name="review_dialog_title">Ti piace Briccola? ⛵</string>
+    <string name="review_dialog_message">La tua opinione è fondamentale per migliorare la navigazione in laguna. Se ti trovi bene, ti andrebbe di lasciarci una valutazione su Google Play Store?</string>
+    <string name="review_dialog_rate_now">Valuta ora</string>
+    <string name="review_dialog_later">Più tardi</string>
+    <string name="review_dialog_never">No, grazie</string>
+
+    <!-- Schermata Feedback -->
+    <string name="feedback_title">Valutaci &amp; Feedback</string>
+    <string name="feedback_subtitle">Aiutaci a migliorare la navigazione</string>
+    <string name="feedback_rate_card_title">Valuta su Google Play Store</string>
+    <string name="feedback_rate_card_desc">Lascia una recensione o delle stelle sullo store per far conoscere Briccola ad altri diportisti veneziani.</string>
+    <string name="feedback_btn_rate_store">Apri Google Play Store ⭐</string>
+    <string name="feedback_form_title">Invia un messaggio o segnalazione</string>
+    <string name="feedback_name_hint">Il tuo nome o email (opzionale)</string>
+    <string name="feedback_category_label">Categoria della segnalazione</string>
+    <string name="feedback_message_hint">Scrivi qui il tuo suggerimento, problema riscontrato o un\'idea per nuove funzionalità…</string>
+    <string name="feedback_btn_send">Invia Feedback ✉️</string>
+    <string name="feedback_empty_error">Inserisci un testo prima di inviare il feedback.</string>
 </resources>

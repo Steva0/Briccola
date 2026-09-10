@@ -20,6 +20,7 @@ import android.net.Uri
 import com.briccola.app.ui.AboutFragment
 import com.briccola.app.ui.DonateFragment
 import com.briccola.app.ui.DevToolsFragment
+import com.briccola.app.ui.FeedbackFragment
 import com.briccola.app.engine.BathymetryEngine
 import com.briccola.app.engine.LocalAssetInstaller
 import com.briccola.app.engine.LocalTileServer
@@ -132,6 +133,13 @@ class MainActivity : AppCompatActivity() {
         LocalTileServer.resetCache() // Assicura che veda i nuovi file scaricati
         showFragment(R.id.nav_map, "Mappa") { MapFragment() }
         binding.navView.setCheckedItem(R.id.nav_map)
+
+        // Controlla se mostrare il dialog di valutazione (dopo N avvii)
+        if (com.briccola.app.engine.ReviewManager.incrementLaunchCount(this)) {
+            binding.root.postDelayed({
+                com.briccola.app.engine.ReviewManager.showReviewDialog(this)
+            }, 2500L) // Aspetta 2.5s dopo che la mappa è carica per mostrare la richiesta in modo naturale
+        }
     }
 
     /** Mostra il popup di consenso alla privacy alla primissima apertura (una sola volta,
@@ -296,6 +304,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_weather -> ({ WeatherFragment() })
                 R.id.nav_settings -> ({ SettingsFragment() })
                 R.id.nav_devtools -> ({ DevToolsFragment() })
+                R.id.nav_feedback -> ({ FeedbackFragment() })
                 R.id.nav_about -> ({ AboutFragment() })
                 R.id.nav_donate -> ({ DonateFragment() })
                 else -> null
