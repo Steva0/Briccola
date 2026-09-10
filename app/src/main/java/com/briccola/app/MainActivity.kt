@@ -17,6 +17,7 @@ import com.briccola.app.ui.WeatherFragment
 import com.briccola.app.ui.SettingsFragment
 import android.content.Intent
 import android.net.Uri
+import android.view.WindowManager
 import com.briccola.app.ui.AboutFragment
 import com.briccola.app.ui.DonateFragment
 import com.briccola.app.ui.DevToolsFragment
@@ -235,6 +236,9 @@ class MainActivity : AppCompatActivity() {
         
         super.onCreate(savedInstanceState)
         
+        // Impedisci allo schermo di andare in sospensione mentre l'app è aperta
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         // Abilita Edge-to-Edge moderno (gestisce automaticamente barra stato e navigazione)
         enableEdgeToEdge()
 
