@@ -22,6 +22,7 @@ import com.briccola.app.ui.AboutFragment
 import com.briccola.app.ui.DonateFragment
 import com.briccola.app.ui.DevToolsFragment
 import com.briccola.app.ui.FeedbackFragment
+import com.briccola.app.ui.TutorialFragment
 import com.briccola.app.engine.BathymetryEngine
 import com.briccola.app.engine.LocalAssetInstaller
 import com.briccola.app.engine.LocalTileServer
@@ -135,12 +136,47 @@ class MainActivity : AppCompatActivity() {
         showFragment(R.id.nav_map, "Mappa") { MapFragment() }
         binding.navView.setCheckedItem(R.id.nav_map)
 
-        // Controlla se mostrare il dialog di valutazione (dopo N avvii)
-        if (com.briccola.app.engine.ReviewManager.incrementLaunchCount(this)) {
+        // Prompt tutorial al primo avvio se non ancora mostrato
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        val tutorialPrompted = prefs.getBoolean(KEY_TUTORIAL_PROMPTED, false)
+
+        if (!tutorialPrompted) {
+            binding.root.postDelayed({
+                showTutorialPromptIfNeeded()
+            }, 1200L)
+        } else if (com.briccola.app.engine.ReviewManager.incrementLaunchCount(this)) {
+            // Controlla se mostrare il dialog di valutazione (dopo N avvii)
             binding.root.postDelayed({
                 com.briccola.app.engine.ReviewManager.showReviewDialog(this)
             }, 2500L) // Aspetta 2.5s dopo che la mappa è carica per mostrare la richiesta in modo naturale
         }
+    }
+
+    private fun showTutorialPromptIfNeeded() {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_TUTORIAL_PROMPTED, false)) return
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_tutorial_prompt, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+
+        dialogView.findViewById<android.view.View>(R.id.btn_tutorial_prompt_start)?.setOnClickListener {
+            prefs.edit().putBoolean(KEY_TUTORIAL_PROMPTED, true).apply()
+            dialog.dismiss()
+            showFragment(R.id.nav_tutorial, "Tutorial & Guida") { TutorialFragment() }
+            binding.navView.setCheckedItem(R.id.nav_tutorial)
+        }
+
+        dialogView.findViewById<android.view.View>(R.id.btn_tutorial_prompt_skip)?.setOnClickListener {
+            prefs.edit().putBoolean(KEY_TUTORIAL_PROMPTED, true).apply()
+            dialog.dismiss()
+        }
+
+        dialog.show()
     }
 
     /** Mostra il popup di consenso alla privacy alla primissima apertura (una sola volta,
@@ -186,6 +222,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val KEY_PRIVACY_ACCEPTED = "privacy_policy_accepted"
         private const val KEY_MAP_DOWNLOAD_PROMPTED = "map_download_prompted"
+        private const val KEY_TUTORIAL_PROMPTED = "tutorial_prompted"
         const val PRIVACY_POLICY_URL = "https://steva0.github.io/Briccola/privacy-policy.html"
     }
 
@@ -195,6 +232,11 @@ class MainActivity : AppCompatActivity() {
      */
     fun openDrawer() {
         binding.drawerLayout.openDrawer(GravityCompat.START)
+    }
+
+    fun openMapFragment() {
+        showFragment(R.id.nav_map, "Mappa") { MapFragment() }
+        binding.navView.setCheckedItem(R.id.nav_map)
     }
 
     /**
@@ -311,6 +353,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_feedback -> ({ FeedbackFragment() })
                 R.id.nav_about -> ({ AboutFragment() })
                 R.id.nav_donate -> ({ DonateFragment() })
+                R.id.nav_tutorial -> ({ TutorialFragment() })
                 else -> null
             }
 

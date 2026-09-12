@@ -9,6 +9,7 @@
     <string name="menu_devtools">Strumenti Dev</string>
     <string name="menu_about">Crediti e Licenza</string>
     <string name="menu_donate">Sostieni il progetto</string>
+    <string name="menu_tutorial">Tutorial &amp; Guida</string>
 
     <string name="settings_boat_profile">Profilo Barca</string>
     <string name="settings_draft_label">Pescaggio (metri)</string>
