@@ -1655,6 +1655,12 @@ class MapFragment : Fragment() {
         activity?.currentFocus?.clearFocus()
     }
 
+    private fun showKeyboard(view: View) {
+        view.requestFocus()
+        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+    }
+
     private fun closePlaceDetail() {
         hideKeyboard()
         selectedPlacePos = null
@@ -2103,7 +2109,21 @@ class MapFragment : Fragment() {
         binding.etSearch.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) { hideKeyboard(); true } else false
         }
-        binding.btnSearch.setOnClickListener { hideKeyboard() }
+        binding.btnSearch.setOnClickListener {
+            val q = binding.etSearch.text?.toString()?.trim().orEmpty()
+            if (q.isNotEmpty()) {
+                // Se c'è testo scritto, il tasto Cancella (X) pulisce il campo con 1 tap e riapre la tastiera
+                binding.etSearch.text?.clear()
+                binding.btnSearch.setImageResource(android.R.drawable.ic_menu_search)
+                showPlacesList()
+                showKeyboard(binding.etSearch)
+            } else {
+                // Se il campo è vuoto, assegna il focus, apre la tastiera e mostra i luoghi salvati
+                binding.etSearch.requestFocus()
+                showPlacesList()
+                showKeyboard(binding.etSearch)
+            }
+        }
 
         // Lista luoghi (salvati/recenti o risultati correnti): visibile quando la barra riceve il focus.
         // Se la barra è vuota mostra i luoghi salvati/recenti; se contiene già del testo
@@ -2127,8 +2147,13 @@ class MapFragment : Fragment() {
         }
         binding.etSearch.addTextChangedListener { text ->
             val q = text?.toString()?.trim().orEmpty()
-            if (q.isBlank()) { if (binding.etSearch.hasFocus()) showPlacesList() }
-            else updateLiveSearchResults(q)
+            if (q.isBlank()) {
+                binding.btnSearch.setImageResource(android.R.drawable.ic_menu_search)
+                if (binding.etSearch.hasFocus()) showPlacesList()
+            } else {
+                binding.btnSearch.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+                updateLiveSearchResults(q)
+            }
         }
 
         // Schermata "Luoghi salvati"
