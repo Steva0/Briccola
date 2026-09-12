@@ -20,7 +20,6 @@ FILES_TO_COPY = [
     "graph.json",
     "laguna_vettoriale.json",
     "marea_astronomica.json",
-    "tiles_vector.mbtiles",
     "tiles_raster.mbtiles",
     "glyphs.db",
     "sprite_ofm.json",
