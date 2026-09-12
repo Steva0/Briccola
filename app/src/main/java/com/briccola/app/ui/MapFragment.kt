@@ -2105,13 +2105,25 @@ class MapFragment : Fragment() {
         }
         binding.btnSearch.setOnClickListener { hideKeyboard() }
 
-        // Lista luoghi (salvati/recenti): visibile quando la barra ha il focus ed è vuota,
-        // come la cronologia di Google Maps.
+        // Lista luoghi (salvati/recenti o risultati correnti): visibile quando la barra riceve il focus.
+        // Se la barra è vuota mostra i luoghi salvati/recenti; se contiene già del testo
+        // mostra immediatamente i risultati live per la ricerca effettuata.
         binding.etSearch.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus && binding.etSearch.text.isNullOrBlank()) showPlacesList() else hidePlacesList()
+            if (hasFocus) {
+                val q = binding.etSearch.text?.toString()?.trim().orEmpty()
+                if (q.isBlank()) showPlacesList() else updateLiveSearchResults(q)
+            } else {
+                hidePlacesList()
+            }
             // Con la tastiera aperta l'HUD in basso non deve comparire spinto a metà schermo:
             // lo nascondiamo finché si sta scrivendo (fuori navigazione, dove l'HUD non c'è già).
             if (activeRoute == null) binding.cvHud.visibility = if (hasFocus) View.GONE else View.VISIBLE
+        }
+        binding.etSearch.setOnClickListener {
+            if (binding.etSearch.hasFocus()) {
+                val q = binding.etSearch.text?.toString()?.trim().orEmpty()
+                if (q.isBlank()) showPlacesList() else updateLiveSearchResults(q)
+            }
         }
         binding.etSearch.addTextChangedListener { text ->
             val q = text?.toString()?.trim().orEmpty()
