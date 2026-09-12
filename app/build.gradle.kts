@@ -25,8 +25,8 @@ android {
         applicationId = "com.briccola.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 151
-        versionName = "1.5.1"
+        versionCode = 200
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
