@@ -1079,10 +1079,25 @@ class MapFragment : Fragment() {
             style.addSource(GeoJsonSource("laguna-source", geoJson))
             style.addLayer(LineLayer("canals-casing", "laguna-source")
                 .withFilter(eq(get("type"), literal("canal")))
-                .withProperties(lineColor(resources.getColor(R.color.white, null)), lineWidth(6f), lineOpacity(0.4f)))
+                .withProperties(
+                    lineColor(resources.getColor(R.color.white, null)),
+                    lineWidth(interpolate(linear(), zoom(),
+                        stop(10, 2.0f),
+                        stop(13, 3.5f),
+                        stop(16, 6.0f)
+                    )),
+                    lineOpacity(0.5f)
+                ))
             style.addLayer(LineLayer("canals-layer", "laguna-source")
                 .withFilter(eq(get("type"), literal("canal")))
-                .withProperties(lineColor(resources.getColor(R.color.marine_blue, null)), lineWidth(3.5f)))
+                .withProperties(
+                    lineColor(resources.getColor(R.color.marine_blue, null)),
+                    lineWidth(interpolate(linear(), zoom(),
+                        stop(10, 1.0f),
+                        stop(13, 2.0f),
+                        stop(16, 3.5f)
+                    ))
+                ))
             // Riempimento tratteggiato "a croce" (pattern generato a runtime, non un PNG negli
             // asset) per marcare visivamente le zone scoglio come area di pericolo, non solo il
             // contorno.

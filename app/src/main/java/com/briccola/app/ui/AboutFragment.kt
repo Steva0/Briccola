@@ -33,7 +33,7 @@ class AboutFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         
         view.findViewById<Button>(R.id.btn_github)?.setOnClickListener {
-            openUrl("https://github.com/Steva0/Steva0")
+            openUrl("https://github.com/Steva0/Briccola")
         }
         
         view.findViewById<Button>(R.id.btn_cv)?.setOnClickListener {
