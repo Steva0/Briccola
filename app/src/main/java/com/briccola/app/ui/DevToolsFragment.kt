@@ -211,6 +211,7 @@ override fun onCreateView(
             binding.tvTuneDeletePlaceBtnScale.text = "Scala pulsante Elimina: %.2fx".format(UiTuning.deletePlaceBtnScale)
             binding.tvTuneSavePlaceTextScale.text = "Scala testi Salva: %.2fx".format(UiTuning.savePlaceTextScale)
             binding.tvTuneFollowBoatScreenY.text = "Altezza barca su schermo (Centra): %.0f%% dal basso".format((1.0 - UiTuning.followBoatScreenYFraction) * 100)
+            binding.tvTuneShallowAlarmOffset.text = "Posizione allarme fondale basso (Y): %.0f dp".format(UiTuning.shallowAlarmOffsetYDp)
         }
 
         fun syncHudSpeedLinkedUi() {
@@ -251,6 +252,7 @@ override fun onCreateView(
             binding.seekDeletePlaceBtnScale.progress = (UiTuning.deletePlaceBtnScale * 100).roundToInt().coerceIn(10, 200)
             binding.seekSavePlaceTextScale.progress = (UiTuning.savePlaceTextScale * 100).roundToInt().coerceIn(10, 200)
             binding.seekFollowBoatScreenY.progress = ((1.0f - UiTuning.followBoatScreenYFraction) * 100).roundToInt().coerceIn(0, 100)
+            binding.seekShallowAlarmOffset.progress = UiTuning.shallowAlarmOffsetYDp.roundToInt().coerceIn(0, 300)
             syncHudSpeedLinkedUi()
         }
 
@@ -311,6 +313,7 @@ override fun onCreateView(
         onChangeUi(binding.seekDeletePlaceBtnScale) { UiTuning.deletePlaceBtnScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekSavePlaceTextScale) { UiTuning.savePlaceTextScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekFollowBoatScreenY) { UiTuning.followBoatScreenYFraction = 1.0f - (it / 100f) }
+        onChangeUi(binding.seekShallowAlarmOffset) { UiTuning.shallowAlarmOffsetYDp = it.toFloat() }
 
         binding.switchHudSpeedLinked.setOnCheckedChangeListener { _, isChecked ->
             CameraTuning.hudRefreshLinkedToSpeed = isChecked

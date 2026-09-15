@@ -28,6 +28,7 @@ object UiTuning {
     private const val KEY_BATHY_BTN_OFFSET_Y     = "ui_bathy_btn_offset_y_dp"
     private const val KEY_BATHY_OPTIONS_SCALE    = "ui_bathy_options_scale"
     private const val KEY_BATHY_OPTIONS_OFFSET_X = "ui_bathy_options_offset_x_dp"
+    private const val KEY_SHALLOW_ALARM_OFFSET_Y = "ui_shallow_alarm_offset_y_dp"
 
     const val DEFAULT_GAUGE_SCALE         = 0.72f  // tachimetro/altimetro un po' più piccoli
     const val DEFAULT_GAUGE_OFFSET_Y      = -78f   // e un po' più in alto (negativo = su)
@@ -54,6 +55,7 @@ object UiTuning {
     const val DEFAULT_BATHY_BTN_OFFSET_Y  = 100f
     const val DEFAULT_BATHY_OPTIONS_SCALE     = 0.7f
     const val DEFAULT_BATHY_OPTIONS_OFFSET_X  = 65f
+    const val DEFAULT_SHALLOW_ALARM_OFFSET_Y  = 125f
 
     // Tachimetro e altimetro sono specchiati (stessa dimensione/posizione, solo lato opposto):
     // un solo slider per ciascuno basta per entrambi.
@@ -78,6 +80,7 @@ object UiTuning {
     var bathyBtnOffsetYDp: Float = DEFAULT_BATHY_BTN_OFFSET_Y
     var bathyOptionsScale: Float = DEFAULT_BATHY_OPTIONS_SCALE
     var bathyOptionsOffsetXDp: Float = DEFAULT_BATHY_OPTIONS_OFFSET_X
+    var shallowAlarmOffsetYDp: Float = DEFAULT_SHALLOW_ALARM_OFFSET_Y
 
     private var loaded = false
 
@@ -105,6 +108,7 @@ object UiTuning {
         bathyBtnOffsetYDp = p.getFloat(KEY_BATHY_BTN_OFFSET_Y, bathyBtnOffsetYDp)
         bathyOptionsScale = p.getFloat(KEY_BATHY_OPTIONS_SCALE, bathyOptionsScale)
         bathyOptionsOffsetXDp = p.getFloat(KEY_BATHY_OPTIONS_OFFSET_X, bathyOptionsOffsetXDp)
+        shallowAlarmOffsetYDp = p.getFloat(KEY_SHALLOW_ALARM_OFFSET_Y, shallowAlarmOffsetYDp)
     }
 
     fun save(context: Context) {
@@ -129,6 +133,7 @@ object UiTuning {
             putFloat(KEY_BATHY_BTN_OFFSET_Y, bathyBtnOffsetYDp)
             putFloat(KEY_BATHY_OPTIONS_SCALE, bathyOptionsScale)
             putFloat(KEY_BATHY_OPTIONS_OFFSET_X, bathyOptionsOffsetXDp)
+            putFloat(KEY_SHALLOW_ALARM_OFFSET_Y, shallowAlarmOffsetYDp)
             apply()
         }
     }
@@ -141,6 +146,7 @@ object UiTuning {
         followBtnScale     = DEFAULT_FOLLOW_BTN_SCALE
         mapObjectScale     = DEFAULT_MAP_OBJECT_SCALE
         hudOffsetYDp       = DEFAULT_HUD_OFFSET_Y
+        // Altimetro impilato SOPRA il tachimetro (stessa X): quanto più in alto rispetto ad esso.
         gaugeStackOffsetDp = DEFAULT_GAUGE_STACK_OFFSET
         savedPlaceScale    = DEFAULT_SAVED_PLACE_SCALE
         savePlaceBtnScale  = DEFAULT_SAVE_PLACE_BTN_SCALE
@@ -154,6 +160,7 @@ object UiTuning {
         bathyBtnOffsetYDp = DEFAULT_BATHY_BTN_OFFSET_Y
         bathyOptionsScale = DEFAULT_BATHY_OPTIONS_SCALE
         bathyOptionsOffsetXDp = DEFAULT_BATHY_OPTIONS_OFFSET_X
+        shallowAlarmOffsetYDp = DEFAULT_SHALLOW_ALARM_OFFSET_Y
         save(context)
     }
 }

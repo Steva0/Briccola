@@ -112,6 +112,50 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- SICUREZZA E ALLARMI -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sicurezza e Allarmi"
+                android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+                android:textColor="@color/marine_blue_dark"
+                android:textStyle="bold" />
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="24dp"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switch_shallow_alarm"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Allarme Basso Fondale / Secca"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/marine_blue_dark"
+                        app:thumbTint="@color/marine_blue" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Avvisa con suono e vibrazione se la profondità sotto la barca è inferiore al pescaggio + 1m (attivo solo se velocità > 1 nodo)."
+                        android:textSize="12sp"
+                        android:textColor="#555555" />
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
             <!-- UNITA' DI VELOCITA' -->
             <TextView
                 android:layout_width="wrap_content"

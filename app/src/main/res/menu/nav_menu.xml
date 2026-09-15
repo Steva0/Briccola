@@ -6,6 +6,10 @@
             android:icon="@drawable/ic_menu_map"
             android:title="Mappa" />
         <item
+            android:id="@+id/nav_devtools"
+            android:icon="@drawable/ic_menu_devtools"
+            android:title="@string/menu_devtools" />
+        <item
             android:id="@+id/nav_weather"
             android:icon="@drawable/ic_menu_weather"
             android:title="Meteo" />
@@ -20,10 +24,7 @@
             android:id="@+id/nav_tutorial"
             android:icon="@drawable/ic_menu_tutorial"
             android:title="@string/menu_tutorial" />
-        <item
-            android:id="@+id/nav_devtools"
-            android:icon="@drawable/ic_menu_devtools"
-            android:title="@string/menu_devtools" />
+        
     </group>
 
     <group android:id="@+id/nav_group_section3" android:checkableBehavior="single">

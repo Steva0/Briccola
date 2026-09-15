@@ -14,12 +14,17 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.location.Location
 import android.location.LocationManager
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.provider.Settings
 import android.util.TypedValue
 
@@ -452,6 +457,7 @@ class MapFragment : Fragment() {
     // regolabile CameraTuning.hudIntervalMs, indipendente dai 30-45fps di camera/icona (i calcoli
     // di canale/profondità sono più pesanti e non serve rifarli ad ogni frame).
     private var lastHudUpdateMs = 0L
+    private var lastShallowAlarmMs = 0L
 
     // Icona barca: insegue lastGoodBearing con un lerp leggero, per ammorbidire il gradino
     // che si vedrebbe altrimenti a ogni cambio di fix (1 aggiornamento al secondo).
@@ -603,6 +609,10 @@ class MapFragment : Fragment() {
         binding.cardCompass.scaleY = UiTuning.compassScale
         binding.cardCompass.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
             topMargin = effectiveStatusBarHeight + (UiTuning.compassOffsetYDp * density).toInt()
+        }
+
+        binding.cardShallowAlarm.updateLayoutParams<MarginLayoutParams> {
+            topMargin = effectiveStatusBarHeight + (UiTuning.shallowAlarmOffsetYDp * density).toInt()
         }
         
         binding.cardBathyToggle.scaleX = UiTuning.bathyBtnScale
@@ -1478,6 +1488,49 @@ class MapFragment : Fragment() {
         binding.tvHudDepth.text = locationText
         binding.cvHud.setCardBackgroundColor(hudColor)
         binding.altitudeView.altitude = depthValue
+
+        val speedMps = lastGpsLocation?.speed ?: 0f
+        val speedKn = speedMps * 3600.0 / 1852.0
+        checkShallowAlarm(pos, speedKn)
+    }
+
+    private fun checkShallowAlarm(pos: LatLng, speedKn: Double) {
+        val prefs = requireContext().getSharedPreferences("laguna_prefs", Context.MODE_PRIVATE)
+        val enabled = prefs.getBoolean("shallow_alarm_enabled", false)
+        val draft = prefs.getFloat("boat_draft", 0.5f)
+
+        if (!enabled || speedKn <= 1.0) {
+            binding.cardShallowAlarm.visibility = View.GONE
+            return
+        }
+
+        // Calcoliamo la profondità reale sotto la barca indipendentemente dalla rotta attiva
+        val d = bathyEngine.getDepthAt(pos.latitude, pos.longitude, routingEngine.getNoGoAreas())
+        val actualDepth = if (d > 0f) (d + cachedTideM).toFloat() else 0f
+
+        if (actualDepth <= 0f || actualDepth >= (draft + 1.0f)) {
+            binding.cardShallowAlarm.visibility = View.GONE
+            return
+        }
+
+        binding.cardShallowAlarm.visibility = View.VISIBLE
+
+        // Frequenza dinamica: più l'acqua è bassa rispetto al pescaggio, più spesso suona
+        val margin = actualDepth - draft
+        val intervalMs = when {
+            margin <= 0.2f -> 2000L  // Acqua critica (< 20cm sotto la chiglia): ogni 2s
+            margin <= 0.5f -> 4000L  // Acqua bassa (< 50cm): ogni 4s
+            else -> 8000L            // Sotto soglia (< 1m): ogni 8s
+        }
+
+        val now = System.currentTimeMillis()
+        if (now - lastShallowAlarmMs > intervalMs) {
+            lastShallowAlarmMs = now
+            try {
+                val toneGen = ToneGenerator(AudioManager.STREAM_ALARM, 100)
+                toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 400)
+            } catch (_: Exception) {}
+        }
     }
 
     // routingEngine.nearestCanalName() scansiona linearmente TUTTI i segmenti di canale con

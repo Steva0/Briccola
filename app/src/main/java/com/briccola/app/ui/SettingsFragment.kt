@@ -41,6 +41,7 @@ class SettingsFragment : Fragment() {
         setupDraftSlider()
         setupSpinners()
         setupSpeedUnit()
+        setupShallowAlarm()
         setupMapManagement()
         loadSettings()
 
@@ -184,6 +185,12 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    private fun setupShallowAlarm() {
+        binding.switchShallowAlarm.setOnCheckedChangeListener { _, isChecked ->
+            saveSetting("shallow_alarm_enabled", isChecked)
+        }
+    }
+
     private fun setupSpinners() {
         // License Spinner
         val licenses = listOf(
@@ -226,6 +233,9 @@ class SettingsFragment : Fragment() {
         val draft = prefs.getFloat("boat_draft", 0.5f)
         binding.sliderDraft.value = draft
         binding.tvDraftValue.text = String.format(Locale.getDefault(), "%.1f m", draft)
+
+        val shallowAlarm = prefs.getBoolean("shallow_alarm_enabled", false)
+        binding.switchShallowAlarm.isChecked = shallowAlarm
 
         binding.spinnerLicense.setSelection(NavigationLimits.getLicenseIndex(requireContext()))
         binding.spinnerEquipment.setSelection(NavigationLimits.getEquipmentIndex(requireContext()))
