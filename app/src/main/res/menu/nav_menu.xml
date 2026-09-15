@@ -1,40 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <group android:id="@+id/nav_group_top">
+    <group android:id="@+id/nav_group_section1" android:checkableBehavior="single">
         <item
             android:id="@+id/nav_map"
-            android:icon="@android:drawable/ic_dialog_map"
+            android:icon="@drawable/ic_menu_map"
             android:title="Mappa" />
         <item
             android:id="@+id/nav_weather"
-            android:icon="@android:drawable/ic_dialog_info"
+            android:icon="@drawable/ic_menu_weather"
             android:title="Meteo" />
+    </group>
+
+    <group android:id="@+id/nav_group_section2" android:checkableBehavior="single">
         <item
             android:id="@+id/nav_settings"
-            android:icon="@android:drawable/ic_dialog_dialer"
+            android:icon="@drawable/ic_menu_settings"
             android:title="Impostazioni" />
         <item
+            android:id="@+id/nav_tutorial"
+            android:icon="@drawable/ic_menu_tutorial"
+            android:title="@string/menu_tutorial" />
+        <item
             android:id="@+id/nav_devtools"
-            android:icon="@android:drawable/ic_menu_more"
+            android:icon="@drawable/ic_menu_devtools"
             android:title="@string/menu_devtools" />
     </group>
 
-    <group android:id="@+id/nav_group_bottom">
-        <item
-            android:id="@+id/nav_tutorial"
-            android:icon="@android:drawable/ic_menu_help"
-            android:title="@string/menu_tutorial" />
+    <group android:id="@+id/nav_group_section3" android:checkableBehavior="single">
         <item
             android:id="@+id/nav_feedback"
-            android:icon="@android:drawable/btn_star_big_on"
+            android:icon="@drawable/ic_menu_feedback"
             android:title="@string/menu_feedback" />
         <item
             android:id="@+id/nav_donate"
-            android:icon="@android:drawable/ic_menu_send"
+            android:icon="@drawable/ic_menu_donate"
             android:title="@string/menu_donate" />
         <item
             android:id="@+id/nav_about"
-            android:icon="@android:drawable/ic_menu_info_details"
+            android:icon="@drawable/ic_menu_about"
             android:title="@string/menu_about" />
     </group>
 </menu>

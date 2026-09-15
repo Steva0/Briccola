@@ -22,6 +22,8 @@
         app:menu="@menu/nav_menu"
         app:itemVerticalPadding="12dp"
         app:itemIconPadding="24dp"
-        app:itemHorizontalPadding="24dp" />
+        app:itemHorizontalPadding="24dp"
+        app:itemTextColor="@color/marine_blue"
+        app:itemIconTint="@color/marine_blue" />
 
 </androidx.drawerlayout.widget.DrawerLayout>
