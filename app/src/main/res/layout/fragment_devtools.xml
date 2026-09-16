@@ -369,6 +369,100 @@
                     android:max="300" />
 
                 <TextView
+                    android:id="@+id/tv_tune_active_track_banner_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_active_track_banner_offset"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="400" />
+
+                <TextView
+                    android:id="@+id/tv_tune_close_track_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_close_track_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/tv_tune_close_track_btn_offset_y"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_close_track_btn_offset_y"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="600" />
+
+                <TextView
+                    android:id="@+id/tv_tune_close_track_btn_offset_x"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_close_track_btn_offset_x"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_test_close_track_btn"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Mostra anteprima pulsante Chiudi Traccia"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    app:thumbTint="@color/lagoon_teal" />
+
+                <TextView
+                    android:id="@+id/tv_tune_rec_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_rec_btn_scale"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/tv_tune_rec_btn_offset_y"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_rec_btn_offset_y"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="600" />
+
+                <TextView
+                    android:id="@+id/tv_tune_rec_btn_offset_x"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+                <SeekBar
+                    android:id="@+id/seek_rec_btn_offset_x"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="300" />
+
+                <TextView
                     android:id="@+id/tv_tune_bathy_btn_scale"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

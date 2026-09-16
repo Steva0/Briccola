@@ -23,6 +23,8 @@ import com.briccola.app.ui.DonateFragment
 import com.briccola.app.ui.DevToolsFragment
 import com.briccola.app.ui.FeedbackFragment
 import com.briccola.app.ui.TutorialFragment
+import com.briccola.app.ui.LogbookFragment
+import com.briccola.app.engine.Track
 import com.briccola.app.engine.BathymetryEngine
 import com.briccola.app.engine.LocalAssetInstaller
 import com.briccola.app.engine.LocalTileServer
@@ -273,6 +275,14 @@ class MainActivity : AppCompatActivity() {
         transaction.commitAllowingStateLoss()
     }
 
+    fun showTrackOnMap(track: Track) {
+        showFragment(R.id.nav_map, "Mappa") { MapFragment() }
+        binding.navView.setCheckedItem(R.id.nav_map)
+        val mapFrag = supportFragmentManager.findFragmentByTag("menu_fragment_${R.id.nav_map}") as? MapFragment
+            ?: (currentFragment as? MapFragment)
+        mapFrag?.renderTrack(track)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         
@@ -354,6 +364,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_about -> ({ AboutFragment() })
                 R.id.nav_donate -> ({ DonateFragment() })
                 R.id.nav_tutorial -> ({ TutorialFragment() })
+                R.id.nav_logbook -> ({ LogbookFragment() })
                 else -> null
             }
 

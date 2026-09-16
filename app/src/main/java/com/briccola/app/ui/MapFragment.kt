@@ -27,6 +27,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.Settings
 import android.util.TypedValue
+import android.widget.Toast
 
 import android.view.LayoutInflater
 import android.view.View
@@ -63,6 +64,8 @@ import com.briccola.app.engine.SavedPlace
 import com.briccola.app.engine.SimulatorHub
 import com.briccola.app.engine.SpeedUnit
 import com.briccola.app.engine.TideEngine
+import com.briccola.app.engine.Track
+import com.briccola.app.engine.TrackRecorderEngine
 import com.briccola.app.engine.UiTuning
 import com.briccola.app.engine.toLatLng
 import kotlinx.coroutines.Dispatchers
@@ -74,6 +77,7 @@ import org.json.JSONArray
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
@@ -88,6 +92,8 @@ import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.android.style.sources.RasterSource
 import org.maplibre.android.style.sources.TileSet
 import org.maplibre.geojson.Feature
+import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 import java.net.URL
 import java.nio.charset.Charset
@@ -613,6 +619,20 @@ class MapFragment : Fragment() {
 
         binding.cardShallowAlarm.updateLayoutParams<MarginLayoutParams> {
             topMargin = effectiveStatusBarHeight + (UiTuning.shallowAlarmOffsetYDp * density).toInt()
+        }
+
+        binding.btnCloseTrack.scaleX = UiTuning.closeTrackBtnScale
+        binding.btnCloseTrack.scaleY = UiTuning.closeTrackBtnScale
+        binding.btnCloseTrack.updateLayoutParams<MarginLayoutParams> {
+            bottomMargin = navBarHeight + (UiTuning.closeTrackBtnOffsetYDp * density).toInt()
+            marginEnd = (UiTuning.closeTrackBtnOffsetXDp * density).toInt()
+        }
+
+        binding.cardRecToggle.scaleX = UiTuning.recBtnScale
+        binding.cardRecToggle.scaleY = UiTuning.recBtnScale
+        binding.cardRecToggle.updateLayoutParams<MarginLayoutParams> {
+            topMargin = effectiveStatusBarHeight + (UiTuning.recBtnOffsetYDp * density).toInt()
+            marginEnd = (UiTuning.recBtnOffsetXDp * density).toInt()
         }
         
         binding.cardBathyToggle.scaleX = UiTuning.bathyBtnScale
@@ -1209,8 +1229,7 @@ class MapFragment : Fragment() {
         val t = System.currentTimeMillis()
         fixBuffer.addLast(Fix(t, location.latitude, location.longitude))
         while (fixBuffer.size > 1 && t - fixBuffer.first().t > CameraTuning.fixBufferMaxMs) fixBuffer.removeFirst()
-        // HUD (profondità/velocità/canale) e navigazione sono aggiornati dal loop camera a
-        // CameraTuning.hudIntervalMs, non qui: legato al fix GPS sarebbero fermi a 1Hz.
+        TrackRecorderEngine.addLocation(location)
     }
 
     // =================================================================
@@ -2603,6 +2622,34 @@ class MapFragment : Fragment() {
             setFollowMode(true)
         }
 
+        binding.btnCloseTrack.setOnClickListener {
+            clearRenderedTrack()
+        }
+
+        if (TrackRecorderEngine.isRecordingActive()) {
+            binding.tvRecLabel.text = "STOP"
+            binding.tvRecLabel.setTextColor(Color.parseColor("#FFFFFF"))
+            binding.cardRecToggle.setCardBackgroundColor(Color.parseColor("#CCD32F2F"))
+        } else {
+            binding.tvRecLabel.text = "REC"
+            binding.tvRecLabel.setTextColor(Color.parseColor("#333333"))
+            binding.cardRecToggle.setCardBackgroundColor(Color.parseColor("#CCFFFFFF"))
+        }
+
+        binding.cardRecToggle.setOnClickListener {
+            if (TrackRecorderEngine.isRecordingActive()) {
+                TrackRecorderEngine.stopRecording(requireContext())
+                binding.tvRecLabel.text = "REC"
+                binding.tvRecLabel.setTextColor(Color.parseColor("#333333"))
+                binding.cardRecToggle.setCardBackgroundColor(Color.parseColor("#CCFFFFFF"))
+            } else {
+                TrackRecorderEngine.startRecording()
+                binding.tvRecLabel.text = "STOP"
+                binding.tvRecLabel.setTextColor(Color.parseColor("#FFFFFF"))
+                binding.cardRecToggle.setCardBackgroundColor(Color.parseColor("#CCD32F2F"))
+            }
+        }
+
         binding.cardBathyToggle.setOnClickListener {
             toggleBathyHeatmap()
         }
@@ -3007,6 +3054,81 @@ class MapFragment : Fragment() {
 
     override fun onSaveInstanceState(out: Bundle) { super.onSaveInstanceState(out); binding.mapView.onSaveInstanceState(out) }
     override fun onLowMemory() { super.onLowMemory(); binding.mapView.onLowMemory() }
+    private var currentRenderedTrackId: String? = null
+    private var testCloseTrackButtonVisible = false
+
+    fun setTestCloseTrackButtonVisible(visible: Boolean) {
+        testCloseTrackButtonVisible = visible
+        binding.btnCloseTrack.visibility = if (currentRenderedTrackId != null || testCloseTrackButtonVisible) View.VISIBLE else View.GONE
+    }
+
+    private fun clearRenderedTrack() {
+        currentRenderedTrackId?.let { oldId ->
+            mapLibre?.getStyle { style ->
+                val oldLayerId = "imported-track-layer-$oldId"
+                val oldSourceId = "imported-track-source-$oldId"
+                style.getLayer(oldLayerId)?.let { style.removeLayer(it) }
+                style.getSource(oldSourceId)?.let { style.removeSource(it) }
+            }
+        }
+        currentRenderedTrackId = null
+        binding.btnCloseTrack.visibility = if (testCloseTrackButtonVisible) View.VISIBLE else View.GONE
+    }
+
+    fun renderTrack(track: Track) {
+        mapLibre?.let { m ->
+            m.getStyle { style ->
+                currentRenderedTrackId?.let { oldId ->
+                    if (oldId != track.id) {
+                        val oldLayerId = "imported-track-layer-$oldId"
+                        val oldSourceId = "imported-track-source-$oldId"
+                        style.getLayer(oldLayerId)?.let { style.removeLayer(it) }
+                        style.getSource(oldSourceId)?.let { style.removeSource(it) }
+                    }
+                }
+                currentRenderedTrackId = track.id
+
+                val points = track.points.map { LatLng(it.lat, it.lon) }
+                if (points.isEmpty()) return@getStyle
+
+                val coords = points.map { Point.fromLngLat(it.longitude, it.latitude) }
+                val lineString = LineString.fromLngLats(coords)
+                val feature = Feature.fromGeometry(lineString)
+                val featureCollection = FeatureCollection.fromFeatures(listOf(feature))
+                val geoJson = featureCollection.toJson()
+
+                val sourceId = "imported-track-source-${track.id}"
+                val layerId = "imported-track-layer-${track.id}"
+
+                style.getLayer(layerId)?.let { style.removeLayer(it) }
+                style.getSource(sourceId)?.let { style.removeSource(it) }
+
+                style.addSource(GeoJsonSource(sourceId, geoJson))
+                style.addLayer(
+                    LineLayer(layerId, sourceId).withProperties(
+                        lineColor("#FF6D00"),
+                        lineWidth(4f),
+                        lineCap(Property.LINE_CAP_ROUND),
+                        lineJoin(Property.LINE_JOIN_ROUND)
+                    )
+                )
+
+                binding.btnCloseTrack.visibility = View.VISIBLE
+
+                if (points.isNotEmpty()) {
+                    val boundsBuilder = LatLngBounds.Builder()
+                    points.forEach { boundsBuilder.include(it) }
+                    val bounds = boundsBuilder.build()
+                    val density = resources.displayMetrics.density
+                    val topPadding = (200 * density).toInt()
+                    val bottomPadding = (155 * density).toInt()
+                    val sidePadding = (60 * density).toInt()
+                    m.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, sidePadding, topPadding, sidePadding, bottomPadding), 1000)
+                }
+            }
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         binding.mapView.onDestroy()

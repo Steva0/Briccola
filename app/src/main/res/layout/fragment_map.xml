@@ -157,6 +157,23 @@
             android:textStyle="bold" />
     </androidx.cardview.widget.CardView>
 
+    <!-- Pulsante Chiudi Traccia in Mappa -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_close_track"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_margin="12dp"
+        android:visibility="gone"
+        android:text="Chiudi Traccia"
+        android:textAllCaps="false"
+        android:textColor="@color/white"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        app:backgroundTint="@color/marine_blue_dark"
+        app:cornerRadius="24dp"
+        app:elevation="6dp" />
+
     <!-- Lista suggerimenti ricerca rapida -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_places"
@@ -986,6 +1003,31 @@
                 android:textSize="20sp"
                 android:textStyle="bold" />
         </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Pulsante REC per Diario di Bordo -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_rec_toggle"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="260dp"
+        android:layout_marginEnd="12dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:cardBackgroundColor="#CCFFFFFF"
+        app:cardCornerRadius="30dp"
+        app:cardElevation="4dp">
+
+        <TextView
+            android:id="@+id/tv_rec_label"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="REC"
+            android:textColor="#333333"
+            android:textSize="14sp"
+            android:textStyle="bold" />
     </androidx.cardview.widget.CardView>
 
     <!-- CENTRA: visibile solo quando followMode=false (camera libera).

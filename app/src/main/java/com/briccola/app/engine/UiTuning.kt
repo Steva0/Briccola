@@ -29,6 +29,13 @@ object UiTuning {
     private const val KEY_BATHY_OPTIONS_SCALE    = "ui_bathy_options_scale"
     private const val KEY_BATHY_OPTIONS_OFFSET_X = "ui_bathy_options_offset_x_dp"
     private const val KEY_SHALLOW_ALARM_OFFSET_Y = "ui_shallow_alarm_offset_y_dp"
+    private const val KEY_REC_BTN_SCALE = "ui_rec_btn_scale"
+    private const val KEY_REC_BTN_OFFSET_Y = "ui_rec_btn_offset_y_dp"
+    private const val KEY_REC_BTN_OFFSET_X = "ui_rec_btn_offset_x_dp"
+    private const val KEY_ACTIVE_TRACK_BANNER_OFFSET_Y = "ui_active_track_banner_offset_y_dp"
+    private const val KEY_CLOSE_TRACK_BTN_SCALE = "ui_close_track_btn_scale"
+    private const val KEY_CLOSE_TRACK_BTN_OFFSET_Y = "ui_close_track_btn_offset_y_dp"
+    private const val KEY_CLOSE_TRACK_BTN_OFFSET_X = "ui_close_track_btn_offset_x_dp"
 
     const val DEFAULT_GAUGE_SCALE         = 0.72f  // tachimetro/altimetro un po' più piccoli
     const val DEFAULT_GAUGE_OFFSET_Y      = -78f   // e un po' più in alto (negativo = su)
@@ -56,6 +63,13 @@ object UiTuning {
     const val DEFAULT_BATHY_OPTIONS_SCALE     = 0.7f
     const val DEFAULT_BATHY_OPTIONS_OFFSET_X  = 65f
     const val DEFAULT_SHALLOW_ALARM_OFFSET_Y  = 125f
+    const val DEFAULT_REC_BTN_SCALE           = 0.72f
+    const val DEFAULT_REC_BTN_OFFSET_Y        = 237f
+    const val DEFAULT_REC_BTN_OFFSET_X        = 26f
+    const val DEFAULT_ACTIVE_TRACK_BANNER_OFFSET_Y = 120f
+    const val DEFAULT_CLOSE_TRACK_BTN_SCALE        = 1.0f
+    const val DEFAULT_CLOSE_TRACK_BTN_OFFSET_Y     = 98f
+    const val DEFAULT_CLOSE_TRACK_BTN_OFFSET_X     = 0f
 
     // Tachimetro e altimetro sono specchiati (stessa dimensione/posizione, solo lato opposto):
     // un solo slider per ciascuno basta per entrambi.
@@ -81,6 +95,13 @@ object UiTuning {
     var bathyOptionsScale: Float = DEFAULT_BATHY_OPTIONS_SCALE
     var bathyOptionsOffsetXDp: Float = DEFAULT_BATHY_OPTIONS_OFFSET_X
     var shallowAlarmOffsetYDp: Float = DEFAULT_SHALLOW_ALARM_OFFSET_Y
+    var recBtnScale: Float = DEFAULT_REC_BTN_SCALE
+    var recBtnOffsetYDp: Float = DEFAULT_REC_BTN_OFFSET_Y
+    var recBtnOffsetXDp: Float = DEFAULT_REC_BTN_OFFSET_X
+    var activeTrackBannerOffsetYDp: Float = DEFAULT_ACTIVE_TRACK_BANNER_OFFSET_Y
+    var closeTrackBtnScale: Float = DEFAULT_CLOSE_TRACK_BTN_SCALE
+    var closeTrackBtnOffsetYDp: Float = DEFAULT_CLOSE_TRACK_BTN_OFFSET_Y
+    var closeTrackBtnOffsetXDp: Float = DEFAULT_CLOSE_TRACK_BTN_OFFSET_X
 
     private var loaded = false
 
@@ -109,6 +130,13 @@ object UiTuning {
         bathyOptionsScale = p.getFloat(KEY_BATHY_OPTIONS_SCALE, bathyOptionsScale)
         bathyOptionsOffsetXDp = p.getFloat(KEY_BATHY_OPTIONS_OFFSET_X, bathyOptionsOffsetXDp)
         shallowAlarmOffsetYDp = p.getFloat(KEY_SHALLOW_ALARM_OFFSET_Y, shallowAlarmOffsetYDp)
+        recBtnScale = p.getFloat(KEY_REC_BTN_SCALE, recBtnScale)
+        recBtnOffsetYDp = p.getFloat(KEY_REC_BTN_OFFSET_Y, recBtnOffsetYDp)
+        recBtnOffsetXDp = p.getFloat(KEY_REC_BTN_OFFSET_X, recBtnOffsetXDp)
+        activeTrackBannerOffsetYDp = p.getFloat(KEY_ACTIVE_TRACK_BANNER_OFFSET_Y, activeTrackBannerOffsetYDp)
+        closeTrackBtnScale = p.getFloat(KEY_CLOSE_TRACK_BTN_SCALE, closeTrackBtnScale)
+        closeTrackBtnOffsetYDp = p.getFloat(KEY_CLOSE_TRACK_BTN_OFFSET_Y, closeTrackBtnOffsetYDp)
+        closeTrackBtnOffsetXDp = p.getFloat(KEY_CLOSE_TRACK_BTN_OFFSET_X, closeTrackBtnOffsetXDp)
     }
 
     fun save(context: Context) {
@@ -134,6 +162,13 @@ object UiTuning {
             putFloat(KEY_BATHY_OPTIONS_SCALE, bathyOptionsScale)
             putFloat(KEY_BATHY_OPTIONS_OFFSET_X, bathyOptionsOffsetXDp)
             putFloat(KEY_SHALLOW_ALARM_OFFSET_Y, shallowAlarmOffsetYDp)
+            putFloat(KEY_REC_BTN_SCALE, recBtnScale)
+            putFloat(KEY_REC_BTN_OFFSET_Y, recBtnOffsetYDp)
+            putFloat(KEY_REC_BTN_OFFSET_X, recBtnOffsetXDp)
+            putFloat(KEY_ACTIVE_TRACK_BANNER_OFFSET_Y, activeTrackBannerOffsetYDp)
+            putFloat(KEY_CLOSE_TRACK_BTN_SCALE, closeTrackBtnScale)
+            putFloat(KEY_CLOSE_TRACK_BTN_OFFSET_Y, closeTrackBtnOffsetYDp)
+            putFloat(KEY_CLOSE_TRACK_BTN_OFFSET_X, closeTrackBtnOffsetXDp)
             apply()
         }
     }
@@ -161,6 +196,13 @@ object UiTuning {
         bathyOptionsScale = DEFAULT_BATHY_OPTIONS_SCALE
         bathyOptionsOffsetXDp = DEFAULT_BATHY_OPTIONS_OFFSET_X
         shallowAlarmOffsetYDp = DEFAULT_SHALLOW_ALARM_OFFSET_Y
+        recBtnScale = DEFAULT_REC_BTN_SCALE
+        recBtnOffsetYDp = DEFAULT_REC_BTN_OFFSET_Y
+        recBtnOffsetXDp = DEFAULT_REC_BTN_OFFSET_X
+        activeTrackBannerOffsetYDp = DEFAULT_ACTIVE_TRACK_BANNER_OFFSET_Y
+        closeTrackBtnScale = DEFAULT_CLOSE_TRACK_BTN_SCALE
+        closeTrackBtnOffsetYDp = DEFAULT_CLOSE_TRACK_BTN_OFFSET_Y
+        closeTrackBtnOffsetXDp = DEFAULT_CLOSE_TRACK_BTN_OFFSET_X
         save(context)
     }
 }

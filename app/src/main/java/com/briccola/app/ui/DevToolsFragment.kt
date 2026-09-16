@@ -212,6 +212,13 @@ override fun onCreateView(
             binding.tvTuneSavePlaceTextScale.text = "Scala testi Salva: %.2fx".format(UiTuning.savePlaceTextScale)
             binding.tvTuneFollowBoatScreenY.text = "Altezza barca su schermo (Centra): %.0f%% dal basso".format((1.0 - UiTuning.followBoatScreenYFraction) * 100)
             binding.tvTuneShallowAlarmOffset.text = "Posizione allarme fondale basso (Y): %.0f dp".format(UiTuning.shallowAlarmOffsetYDp)
+            binding.tvTuneRecBtnScale.text = "Scala pulsante REC: %.2fx".format(UiTuning.recBtnScale)
+            binding.tvTuneRecBtnOffsetY.text = "Posizione pulsante REC (Y): %.0f dp".format(UiTuning.recBtnOffsetYDp)
+            binding.tvTuneRecBtnOffsetX.text = "Posizione pulsante REC (X): %.0f dp".format(UiTuning.recBtnOffsetXDp)
+            binding.tvTuneActiveTrackBannerOffset.text = "Posizione banner traccia attiva (Y): %.0f dp".format(UiTuning.activeTrackBannerOffsetYDp)
+            binding.tvTuneCloseTrackBtnScale.text = "Scala pulsante Chiudi Traccia: %.2fx".format(UiTuning.closeTrackBtnScale)
+            binding.tvTuneCloseTrackBtnOffsetY.text = "Posizione pulsante Chiudi Traccia (Y): %.0f dp".format(UiTuning.closeTrackBtnOffsetYDp)
+            binding.tvTuneCloseTrackBtnOffsetX.text = "Posizione pulsante Chiudi Traccia (X): %.0f dp".format(UiTuning.closeTrackBtnOffsetXDp)
         }
 
         fun syncHudSpeedLinkedUi() {
@@ -253,6 +260,13 @@ override fun onCreateView(
             binding.seekSavePlaceTextScale.progress = (UiTuning.savePlaceTextScale * 100).roundToInt().coerceIn(10, 200)
             binding.seekFollowBoatScreenY.progress = ((1.0f - UiTuning.followBoatScreenYFraction) * 100).roundToInt().coerceIn(0, 100)
             binding.seekShallowAlarmOffset.progress = UiTuning.shallowAlarmOffsetYDp.roundToInt().coerceIn(0, 300)
+            binding.seekRecBtnScale.progress = (UiTuning.recBtnScale * 100).roundToInt().coerceIn(10, 200)
+            binding.seekRecBtnOffsetY.progress = UiTuning.recBtnOffsetYDp.roundToInt().coerceIn(0, 600)
+            binding.seekRecBtnOffsetX.progress = UiTuning.recBtnOffsetXDp.roundToInt().coerceIn(0, 300)
+            binding.seekActiveTrackBannerOffset.progress = UiTuning.activeTrackBannerOffsetYDp.roundToInt().coerceIn(0, 400)
+            binding.seekCloseTrackBtnScale.progress = (UiTuning.closeTrackBtnScale * 100).roundToInt().coerceIn(10, 200)
+            binding.seekCloseTrackBtnOffsetY.progress = UiTuning.closeTrackBtnOffsetYDp.roundToInt().coerceIn(0, 600)
+            binding.seekCloseTrackBtnOffsetX.progress = UiTuning.closeTrackBtnOffsetXDp.roundToInt().coerceIn(0, 300)
             syncHudSpeedLinkedUi()
         }
 
@@ -313,12 +327,23 @@ override fun onCreateView(
         onChangeUi(binding.seekDeletePlaceBtnScale) { UiTuning.deletePlaceBtnScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekSavePlaceTextScale) { UiTuning.savePlaceTextScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekFollowBoatScreenY) { UiTuning.followBoatScreenYFraction = 1.0f - (it / 100f) }
+        onChangeUi(binding.seekRecBtnScale) { UiTuning.recBtnScale = it.coerceAtLeast(10) / 100f }
+        onChangeUi(binding.seekRecBtnOffsetY) { UiTuning.recBtnOffsetYDp = it.toFloat() }
+        onChangeUi(binding.seekRecBtnOffsetX) { UiTuning.recBtnOffsetXDp = it.toFloat() }
+        onChangeUi(binding.seekActiveTrackBannerOffset) { UiTuning.activeTrackBannerOffsetYDp = it.toFloat() }
+        onChangeUi(binding.seekCloseTrackBtnScale) { UiTuning.closeTrackBtnScale = it.coerceAtLeast(10) / 100f }
+        onChangeUi(binding.seekCloseTrackBtnOffsetY) { UiTuning.closeTrackBtnOffsetYDp = it.toFloat() }
+        onChangeUi(binding.seekCloseTrackBtnOffsetX) { UiTuning.closeTrackBtnOffsetXDp = it.toFloat() }
         onChangeUi(binding.seekShallowAlarmOffset) { UiTuning.shallowAlarmOffsetYDp = it.toFloat() }
 
         binding.switchHudSpeedLinked.setOnCheckedChangeListener { _, isChecked ->
             CameraTuning.hudRefreshLinkedToSpeed = isChecked
             CameraTuning.save(requireContext())
             syncHudSpeedLinkedUi()
+        }
+
+        binding.switchTestCloseTrackBtn.setOnCheckedChangeListener { _, isChecked ->
+            childMap?.setTestCloseTrackButtonVisible(isChecked)
         }
 
         binding.btnResetTuning.setOnClickListener {
