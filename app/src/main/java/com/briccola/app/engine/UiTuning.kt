@@ -36,6 +36,10 @@ object UiTuning {
     private const val KEY_CLOSE_TRACK_BTN_SCALE = "ui_close_track_btn_scale"
     private const val KEY_CLOSE_TRACK_BTN_OFFSET_Y = "ui_close_track_btn_offset_y_dp"
     private const val KEY_CLOSE_TRACK_BTN_OFFSET_X = "ui_close_track_btn_offset_x_dp"
+    private const val KEY_HDG_COMPASS_SCALE = "ui_hdg_compass_scale"
+    private const val KEY_HDG_COMPASS_OFFSET_Y = "ui_hdg_compass_offset_y_dp"
+    private const val KEY_HDG_COMPASS_OFFSET_X = "ui_hdg_compass_offset_x_dp"
+    private const val KEY_GAUGE_LABEL_SCALE = "ui_gauge_label_scale"
 
     const val DEFAULT_GAUGE_SCALE         = 0.72f  // tachimetro/altimetro un po' più piccoli
     const val DEFAULT_GAUGE_OFFSET_Y      = -78f   // e un po' più in alto (negativo = su)
@@ -70,6 +74,10 @@ object UiTuning {
     const val DEFAULT_CLOSE_TRACK_BTN_SCALE        = 1.0f
     const val DEFAULT_CLOSE_TRACK_BTN_OFFSET_Y     = 98f
     const val DEFAULT_CLOSE_TRACK_BTN_OFFSET_X     = 0f
+    const val DEFAULT_HDG_COMPASS_SCALE            = 0.66f
+    const val DEFAULT_HDG_COMPASS_OFFSET_Y         = 402f
+    const val DEFAULT_HDG_COMPASS_OFFSET_X         = 254f
+    const val DEFAULT_GAUGE_LABEL_SCALE            = 1.35f
 
     // Tachimetro e altimetro sono specchiati (stessa dimensione/posizione, solo lato opposto):
     // un solo slider per ciascuno basta per entrambi.
@@ -102,6 +110,10 @@ object UiTuning {
     var closeTrackBtnScale: Float = DEFAULT_CLOSE_TRACK_BTN_SCALE
     var closeTrackBtnOffsetYDp: Float = DEFAULT_CLOSE_TRACK_BTN_OFFSET_Y
     var closeTrackBtnOffsetXDp: Float = DEFAULT_CLOSE_TRACK_BTN_OFFSET_X
+    var hdgCompassScale: Float = DEFAULT_HDG_COMPASS_SCALE
+    var hdgCompassOffsetYDp: Float = DEFAULT_HDG_COMPASS_OFFSET_Y
+    var hdgCompassOffsetXDp: Float = DEFAULT_HDG_COMPASS_OFFSET_X
+    var gaugeLabelScale: Float = DEFAULT_GAUGE_LABEL_SCALE
 
     private var loaded = false
 
@@ -137,6 +149,10 @@ object UiTuning {
         closeTrackBtnScale = p.getFloat(KEY_CLOSE_TRACK_BTN_SCALE, closeTrackBtnScale)
         closeTrackBtnOffsetYDp = p.getFloat(KEY_CLOSE_TRACK_BTN_OFFSET_Y, closeTrackBtnOffsetYDp)
         closeTrackBtnOffsetXDp = p.getFloat(KEY_CLOSE_TRACK_BTN_OFFSET_X, closeTrackBtnOffsetXDp)
+        hdgCompassScale = p.getFloat(KEY_HDG_COMPASS_SCALE, hdgCompassScale)
+        hdgCompassOffsetYDp = p.getFloat(KEY_HDG_COMPASS_OFFSET_Y, hdgCompassOffsetYDp)
+        hdgCompassOffsetXDp = p.getFloat(KEY_HDG_COMPASS_OFFSET_X, hdgCompassOffsetXDp)
+        gaugeLabelScale = p.getFloat(KEY_GAUGE_LABEL_SCALE, gaugeLabelScale)
     }
 
     fun save(context: Context) {
@@ -169,6 +185,10 @@ object UiTuning {
             putFloat(KEY_CLOSE_TRACK_BTN_SCALE, closeTrackBtnScale)
             putFloat(KEY_CLOSE_TRACK_BTN_OFFSET_Y, closeTrackBtnOffsetYDp)
             putFloat(KEY_CLOSE_TRACK_BTN_OFFSET_X, closeTrackBtnOffsetXDp)
+            putFloat(KEY_HDG_COMPASS_SCALE, hdgCompassScale)
+            putFloat(KEY_HDG_COMPASS_OFFSET_Y, hdgCompassOffsetYDp)
+            putFloat(KEY_HDG_COMPASS_OFFSET_X, hdgCompassOffsetXDp)
+            putFloat(KEY_GAUGE_LABEL_SCALE, gaugeLabelScale)
             apply()
         }
     }
@@ -203,6 +223,10 @@ object UiTuning {
         closeTrackBtnScale = DEFAULT_CLOSE_TRACK_BTN_SCALE
         closeTrackBtnOffsetYDp = DEFAULT_CLOSE_TRACK_BTN_OFFSET_Y
         closeTrackBtnOffsetXDp = DEFAULT_CLOSE_TRACK_BTN_OFFSET_X
+        hdgCompassScale = DEFAULT_HDG_COMPASS_SCALE
+        hdgCompassOffsetYDp = DEFAULT_HDG_COMPASS_OFFSET_Y
+        hdgCompassOffsetXDp = DEFAULT_HDG_COMPASS_OFFSET_X
+        gaugeLabelScale = DEFAULT_GAUGE_LABEL_SCALE
         save(context)
     }
 }

@@ -1005,6 +1005,48 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
+    <!-- Indicatore Circolare Bussola HDG (Gradi + Direzione) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_hdg_compass"
+        android:layout_width="90dp"
+        android:layout_height="90dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="402dp"
+        android:layout_marginEnd="12dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:cardBackgroundColor="#E62F343F"
+        app:cardCornerRadius="45dp"
+        app:cardElevation="4dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/tv_hdg_degrees"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0°"
+                android:textColor="@color/white"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_hdg_cardinal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="N"
+                android:textColor="#B0BEC5"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
     <!-- Pulsante REC per Diario di Bordo -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_rec_toggle"

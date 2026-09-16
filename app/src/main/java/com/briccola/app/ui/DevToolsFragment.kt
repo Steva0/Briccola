@@ -195,6 +195,10 @@ override fun onCreateView(
             binding.tvTuneGaugeScale.text      = "Scala tachimetro/altimetro: %.2fx".format(UiTuning.gaugeScale)
             binding.tvTuneCompassScale.text    = "Scala bussola: %.2fx".format(UiTuning.compassScale)
             binding.tvTuneCompassOffset.text   = "Posizione bussola (Y): %.0f dp".format(UiTuning.compassOffsetYDp)
+            binding.tvTuneGaugeLabelScale.text = "Grandezza etichette metri/km/h/N-E: %.2fx".format(UiTuning.gaugeLabelScale)
+            binding.tvTuneHdgCompassScale.text  = "Scala rosa venti: %.2fx".format(UiTuning.hdgCompassScale)
+            binding.tvTuneHdgCompassOffset.text = "Posizione rosa venti (Y): %.0f dp".format(UiTuning.hdgCompassOffsetYDp)
+            binding.tvTuneHdgCompassOffsetX.text = "Posizione rosa venti (X): %.0f dp".format(UiTuning.hdgCompassOffsetXDp)
             binding.tvTuneBathyBtnScale.text   = "Scala tasto layer: %.2fx".format(UiTuning.bathyBtnScale)
             binding.tvTuneBathyBtnOffset.text  = "Posizione tasto layer (Y): %.0f dp".format(UiTuning.bathyBtnOffsetYDp)
             binding.tvTuneBathyOptionsScale.text = "Scala opzioni marea: %.2fx".format(UiTuning.bathyOptionsScale)
@@ -243,6 +247,10 @@ override fun onCreateView(
             binding.seekGaugeScale.progress      = (UiTuning.gaugeScale * 100).roundToInt().coerceIn(50, 200)
             binding.seekCompassScale.progress   = (UiTuning.compassScale * 100).roundToInt().coerceIn(50, 200)
             binding.seekCompassOffset.progress  = UiTuning.compassOffsetYDp.roundToInt().coerceIn(0, 600)
+            binding.seekGaugeLabelScale.progress = (UiTuning.gaugeLabelScale * 100).roundToInt().coerceIn(50, 250)
+            binding.seekHdgCompassScale.progress  = (UiTuning.hdgCompassScale * 100).roundToInt().coerceIn(50, 200)
+            binding.seekHdgCompassOffset.progress = UiTuning.hdgCompassOffsetYDp.roundToInt().coerceIn(0, 600)
+            binding.seekHdgCompassOffsetX.progress = (UiTuning.hdgCompassOffsetXDp + 300).roundToInt().coerceIn(0, 600)
             binding.seekBathyBtnScale.progress  = (UiTuning.bathyBtnScale * 100).roundToInt().coerceIn(10, 200)
             binding.seekBathyBtnOffset.progress = UiTuning.bathyBtnOffsetYDp.roundToInt().coerceIn(0, 600)
             binding.seekBathyOptionsScale.progress = (UiTuning.bathyOptionsScale * 100).roundToInt().coerceIn(10, 200)
@@ -311,6 +319,10 @@ override fun onCreateView(
         onChangeUi(binding.seekGaugeScale)      { UiTuning.gaugeScale = it / 100f }
         onChangeUi(binding.seekCompassScale)    { UiTuning.compassScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekCompassOffset)   { UiTuning.compassOffsetYDp = it.toFloat() }
+        onChangeUi(binding.seekGaugeLabelScale) { UiTuning.gaugeLabelScale = it.coerceAtLeast(10) / 100f }
+        onChangeUi(binding.seekHdgCompassScale)  { UiTuning.hdgCompassScale = it.coerceAtLeast(10) / 100f }
+        onChangeUi(binding.seekHdgCompassOffset) { UiTuning.hdgCompassOffsetYDp = it.toFloat() }
+        onChangeUi(binding.seekHdgCompassOffsetX) { UiTuning.hdgCompassOffsetXDp = (it - 300).toFloat() }
         onChangeUi(binding.seekBathyBtnScale)   { UiTuning.bathyBtnScale = it.coerceAtLeast(10) / 100f }
         onChangeUi(binding.seekBathyBtnOffset)  { UiTuning.bathyBtnOffsetYDp = it.toFloat() }
         onChangeUi(binding.seekBathyOptionsScale) { UiTuning.bathyOptionsScale = it.coerceAtLeast(10) / 100f }

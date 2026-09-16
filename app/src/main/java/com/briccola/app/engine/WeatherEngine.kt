@@ -202,4 +202,30 @@ object WeatherEngine {
         val idx = (((deg % 360) + 360) % 360 / 45.0).let { Math.round(it).toInt() % 8 }
         return dirs[idx]
     }
+
+    /** Punto cardinale con trattino (N-E, S-E, ecc.) per la rosa dei venti. */
+    fun venetianCardinalLabel(deg: Double): String {
+        val dirs = arrayOf("N", "N-E", "E", "S-E", "S", "S-O", "O", "N-O")
+        val idx = (((deg % 360) + 360) % 360 / 45.0).let { Math.round(it).toInt() % 8 }
+        return dirs[idx]
+    }
+
+    /** Converte km/h in nodi marini (1 nodo = 1.852 km/h). */
+    fun kmhToKnots(kmh: Double): Double = kmh / 1.852
+
+    /** Nome tradizionale del vento nella laguna di Venezia in base alla direzione in gradi. */
+    fun venetianWindName(deg: Double): String {
+        val normalized = ((deg % 360) + 360) % 360
+        return when (normalized) {
+            in 337.5..360.0, in 0.0..22.5 -> "Tramontana"
+            in 22.5..67.5 -> "Greco"
+            in 67.5..112.5 -> "Levante"
+            in 112.5..157.5 -> "Sirocco"
+            in 157.5..202.5 -> "Ostro"
+            in 202.5..247.5 -> "Libeccio"
+            in 247.5..292.5 -> "Ponente"
+            in 292.5..337.5 -> "Maestrale"
+            else -> "Vento"
+        }
+    }
 }

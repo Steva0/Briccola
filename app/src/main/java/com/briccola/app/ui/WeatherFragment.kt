@@ -211,8 +211,10 @@ class WeatherFragment : Fragment() {
             binding.tvDayCondIcon.text = icon
             binding.tvDayCondText.text = "%.0f °C — %s".format(live.tempC, desc)
             
+            val windKnots = WeatherEngine.kmhToKnots(live.windSpeedKmh)
             val windDir = WeatherEngine.windDirectionLabel(live.windDirectionDeg)
-            binding.tvDayWind.text = "Vento: %.0f km/h %s".format(live.windSpeedKmh, windDir)
+            val windName = WeatherEngine.venetianWindName(live.windDirectionDeg)
+            binding.tvDayWind.text = "Vento: %.0f nodi (%.0f km/h) %s — %s".format(windKnots, live.windSpeedKmh, windDir, windName)
             binding.tvDayPrecip.text = "Precipitazioni: %.1f mm".format(live.precipitationMm)
             binding.tvDayWaves.text = live.waveHeightM?.let { "Onde (mare): %.1f m".format(it) }
                 ?: "Onde (mare): non disponibili"
@@ -223,8 +225,10 @@ class WeatherFragment : Fragment() {
         binding.tvDayCondIcon.text = icon
         binding.tvDayCondText.text = "%.0f / %.0f °C — %s".format(day.tempMinC, day.tempMaxC, desc)
 
+        val windKnots = WeatherEngine.kmhToKnots(day.windSpeedMaxKmh)
         val windDir = WeatherEngine.windDirectionLabel(day.windDirectionDeg)
-        binding.tvDayWind.text = "Vento: max %.0f km/h %s".format(day.windSpeedMaxKmh, windDir)
+        val windName = WeatherEngine.venetianWindName(day.windDirectionDeg)
+        binding.tvDayWind.text = "Vento: max %.0f nodi (%.0f km/h) %s — %s".format(windKnots, day.windSpeedMaxKmh, windDir, windName)
         binding.tvDayPrecip.text = "Precipitazioni: %.1f mm".format(day.precipitationSumMm)
         binding.tvDayWaves.text = day.waveHeightMaxM?.let { "Onde (mare): max %.1f m".format(it) }
             ?: "Onde (mare): non disponibili"

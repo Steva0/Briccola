@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import com.briccola.app.engine.UiTuning
 import kotlin.math.min
 
 /**
@@ -106,8 +107,8 @@ class SpeedometerView @JvmOverloads constructor(
         canvas.drawText(Math.round(speed).toString(), cx, cy + size * 0.08f, textPaint)
         
         // Unità
-        unitPaint.textSize = size * 0.12f
-        canvas.drawText(unitLabel, cx, cy + size * 0.22f, unitPaint)
+        unitPaint.textSize = size * 0.12f * UiTuning.gaugeLabelScale
+        canvas.drawText(unitLabel, cx, cy + size * 0.25f, unitPaint)
 
         // Limite di velocità (badge in alto a destra)
         speedLimit?.let { limitVal ->

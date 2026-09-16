@@ -53,6 +53,7 @@ import com.briccola.app.R
 import com.briccola.app.databinding.FragmentMapBinding
 import com.briccola.app.engine.BathymetryEngine
 import com.briccola.app.engine.CameraTuning
+import com.briccola.app.engine.WeatherEngine
 import com.briccola.app.engine.GnssPositionProvider
 import com.briccola.app.engine.PerfMonitor
 import com.briccola.app.engine.PlaceType
@@ -617,6 +618,13 @@ class MapFragment : Fragment() {
             topMargin = effectiveStatusBarHeight + (UiTuning.compassOffsetYDp * density).toInt()
         }
 
+        binding.cardHdgCompass.scaleX = UiTuning.hdgCompassScale
+        binding.cardHdgCompass.scaleY = UiTuning.hdgCompassScale
+        binding.cardHdgCompass.updateLayoutParams<MarginLayoutParams> {
+            topMargin = effectiveStatusBarHeight + (UiTuning.hdgCompassOffsetYDp * density).toInt()
+            marginEnd = (UiTuning.hdgCompassOffsetXDp * density).toInt()
+        }
+
         binding.cardShallowAlarm.updateLayoutParams<MarginLayoutParams> {
             topMargin = effectiveStatusBarHeight + (UiTuning.shallowAlarmOffsetYDp * density).toInt()
         }
@@ -869,9 +877,15 @@ class MapFragment : Fragment() {
             // Aggiorna la bussola ad ogni movimento della camera (indipendente dal GPS)
             map.addOnCameraMoveListener {
                 val actualCamBearing = map.cameraPosition.bearing
+                val hdg = if (fixBuffer.size > 1) smoothedIconBearing else actualCamBearing
+                val normalizedHdg = ((hdg % 360) + 360) % 360
                 _binding?.let { b ->
                     b.cardCompass.visibility = View.VISIBLE
                     b.cardCompass.rotation = (-actualCamBearing).toFloat()
+
+                    b.tvHdgDegrees.text = " %.0f°".format(normalizedHdg)
+                    b.tvHdgCardinal.text = WeatherEngine.venetianCardinalLabel(normalizedHdg)
+                    b.tvHdgCardinal.textSize = 12f * UiTuning.gaugeLabelScale
                 }
                 
                 // Aggiorna la griglia di debug Laguna/Mare se attiva
@@ -1297,6 +1311,7 @@ class MapFragment : Fragment() {
                     val instrumentsVisible = if (gpsActive && !overlayOpen) View.VISIBLE else View.GONE
                     b.speedometer.visibility = instrumentsVisible
                     b.altitudeView.visibility = instrumentsVisible
+                    b.cardHdgCompass.visibility = instrumentsVisible
                     
                     // Pulsante Recentra/Segui
                     b.layoutCentra.visibility = if (gpsActive && !followMode && !overlayOpen) View.VISIBLE else View.GONE
@@ -1353,6 +1368,12 @@ class MapFragment : Fragment() {
                         lastGoodBearing = bearingTo(posA, posB).toDouble()
                     }
                     smoothedIconBearing = lerpBearing(smoothedIconBearing, lastGoodBearing, CameraTuning.iconBearingLerp)
+                    val normalizedHdg = ((smoothedIconBearing % 360) + 360) % 360
+                    _binding?.let { b ->
+                        b.tvHdgDegrees.text = " %.0f°".format(normalizedHdg)
+                        b.tvHdgCardinal.text = WeatherEngine.venetianCardinalLabel(normalizedHdg)
+                        b.tvHdgCardinal.textSize = 12f * UiTuning.gaugeLabelScale
+                    }
                     
                     // Rotazione camera "intelligente": zona di comfort 10° (isteresi)
                     // Se superiamo la soglia, allineiamo completamente e resettiamo.
@@ -2700,6 +2721,27 @@ class MapFragment : Fragment() {
             }
         }
 
+        binding.cardHdgCompass.setOnClickListener {
+            if (followMode) {
+                val lastFix = fixBuffer.lastOrNull()
+                val map = mapLibre
+                setFollowMode(false)
+                if (map != null && lastFix != null) {
+                    map.animateCamera(CameraUpdateFactory.newCameraPosition(
+                        CameraPosition.Builder()
+                            .target(LatLng(lastFix.lat, lastFix.lon))
+                            .bearing(0.0).zoom(map.cameraPosition.zoom).build()
+                    ), 400)
+                }
+            } else {
+                mapLibre?.animateCamera(
+                    CameraUpdateFactory.newCameraPosition(
+                        CameraPosition.Builder().bearing(0.0).build()
+                    ), 500
+                )
+            }
+        }
+
         binding.btnNavChipClose.setOnClickListener { cancelRoute() }
 
         // Banner GPS disattivato/permesso mancante: il tap fa la cosa giusta per il problema
@@ -2986,7 +3028,7 @@ class MapFragment : Fragment() {
         return ((rel + 22.5f) / 45f).toInt() % 8 * 45f
     }
 
-    private fun formatTurnAngle(deg: Float): String = "%.0f°".format(deg)
+    private fun formatTurnAngle(deg: Float): String = " %.0f°".format(deg)
 
     private fun getArrowDrawableForAngle(deg: Float): Int {
         return when (deg) {

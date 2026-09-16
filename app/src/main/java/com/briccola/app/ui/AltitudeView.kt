@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.View
+import com.briccola.app.engine.UiTuning
 import kotlin.math.min
 
 /**
@@ -62,7 +63,7 @@ class AltitudeView @JvmOverloads constructor(
         canvas.drawText(displayValue, cx, cy + size * 0.08f, textPaint)
         
         // Label "m"
-        labelPaint.textSize = size * 0.12f
-        canvas.drawText("metri", cx, cy + size * 0.22f, labelPaint)
+        labelPaint.textSize = size * 0.12f * UiTuning.gaugeLabelScale
+        canvas.drawText("metri", cx, cy + size * 0.25f, labelPaint)
     }
 }
