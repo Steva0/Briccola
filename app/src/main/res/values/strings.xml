@@ -89,4 +89,5 @@
     <string name="accessibility_compass">Bussola</string>
     <string name="accessibility_hdg_compass">Indicatore gradi e direzione</string>
     <string name="accessibility_rec_toggle">Registra traccia</string>
+    <string name="accessibility_slider_draft">Regola pescaggio</string>
 </resources>

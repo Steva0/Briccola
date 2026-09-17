@@ -54,7 +54,7 @@ object UiTuning {
     const val DEFAULT_SAVE_PLACE_TEXT_SCALE = 1.0f
     // Scala del pulsante Elimina, SEPARATA da savePlaceBtnScale (che riguarda Itinerari/Salva):
     // il pulsante Elimina è circolare (FAB) e spesso serve tararlo diverso dagli altri due.
-    const val DEFAULT_DELETE_PLACE_BTN_SCALE = 0.8f
+    const val DEFAULT_DELETE_PLACE_BTN_SCALE = 1.0f
     // Posizione verticale della barca sullo schermo in modalità Segui, come frazione dall'alto.
     // 0.58 significa il 42% dal basso dello schermo.
     const val DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION = 0.58f
