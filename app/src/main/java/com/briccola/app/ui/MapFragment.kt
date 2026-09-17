@@ -1725,8 +1725,7 @@ class MapFragment : Fragment() {
             b.cardRoutePlanning.visibility == View.VISIBLE ||
             b.cardSavePlace.visibility == View.VISIBLE ||
             b.cardSavedPlaces.visibility == View.VISIBLE ||
-            b.cardTidePanel.visibility == View.VISIBLE ||
-            pickingOrigin
+            b.cardTidePanel.visibility == View.VISIBLE
         } ?: false
 
     /** true se c'è già un popup/schermata di pianificazione aperta o una navigazione attiva:
