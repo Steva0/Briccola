@@ -1379,12 +1379,15 @@ class MapFragment : Fragment() {
                     }
 
                     // Bearing e Rotazione
+                    val speedKmH = speedMps * 3.6
                     val posA = LatLng(fixA.lat, fixA.lon)
                     val posB = LatLng(fixB.lat, fixB.lon)
-                    if (haversineLocal(posA, posB) >= CameraTuning.minBearingDisplacementM) {
-                        lastGoodBearing = bearingTo(posA, posB).toDouble()
+                    if (speedKmH >= 2.0) {
+                        if (haversineLocal(posA, posB) >= CameraTuning.minBearingDisplacementM) {
+                            lastGoodBearing = bearingTo(posA, posB).toDouble()
+                        }
+                        smoothedIconBearing = lerpBearing(smoothedIconBearing, lastGoodBearing, CameraTuning.iconBearingLerp)
                     }
-                    smoothedIconBearing = lerpBearing(smoothedIconBearing, lastGoodBearing, CameraTuning.iconBearingLerp)
                     val normalizedHdg = ((smoothedIconBearing % 360) + 360) % 360
                     _binding?.let { b ->
                         b.tvHdgDegrees.text = " %.0f°".format(normalizedHdg)
@@ -2017,8 +2020,20 @@ class MapFragment : Fragment() {
 
     private fun recalcPlanningRoute() {
         val dest = planningDest ?: return
-        val origin = planningOrigin ?: lastGpsLocation?.let { LatLng(it.latitude, it.longitude) } ?: run {
+        val origin = planningOrigin ?: lastGpsLocation?.let { gps ->
+            val gpsLatLng = LatLng(gps.latitude, gps.longitude)
+            val isOutside = !routingEngine.isInsideProject(gpsLatLng)
+            val distToCanal = routingEngine.distanceToNearestCanalMeters(gpsLatLng)
+            if (isOutside && distToCanal > 100.0) {
+                null
+            } else {
+                gpsLatLng
+            }
+        }
+        if (origin == null) {
             binding.tvRoutePlanningTime.text = "N/A"
+            binding.layoutRoutePlanningNormal.visibility = View.GONE
+            binding.layoutRoutePlanningOutsideArea.visibility = View.VISIBLE
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {

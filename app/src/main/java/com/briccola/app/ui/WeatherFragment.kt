@@ -23,8 +23,10 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import androidx.core.view.updateLayoutParams
 import android.view.ViewGroup.MarginLayoutParams
+import java.util.Calendar
 
 class WeatherFragment : Fragment() {
 
@@ -280,7 +282,7 @@ class WeatherFragment : Fragment() {
     private fun loadTide(dayStartMs: Long? = null) {
         viewLifecycleOwner.lifecycleScope.launch {
             val data = withContext(Dispatchers.IO) {
-                TideEngine.fetch(requireContext().applicationContext, dayStartMs)
+                TideEngine.fetch(requireContext().applicationContext, dayStartMs, fullDay = true)
             }
             if (_binding == null || data == null) return@launch
             binding.tideChart.setData(data)
