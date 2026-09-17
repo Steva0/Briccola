@@ -59,7 +59,7 @@
     <string name="privacy_read_more">Leggi l\'informativa completa</string>
     <string name="privacy_exit">Esci dall\'app</string>
     <string name="route_planning_outside_title">Fuori laguna</string>
-    <string name="route_planning_outside_desc">Il punto di partenza (la tua posizione attuale) non è dentro la laguna di Venezia. Per navigare davvero serve trovarsi in laguna, ma puoi comunque scegliere un altro punto di partenza per provare un percorso.</string>
+    <string name="route_planning_outside_desc">Ti trovi al di fuori della laguna di Venezia. Per avviare la navigazione è necessario essere in laguna, ma puoi selezionare un punto di partenza alternativo per calcolare un percorso.</string>
     <string name="route_planning_pick_origin">SCEGLI UN ALTRO PUNTO DI PARTENZA</string>
 
     <!-- Menu Feedback -->
