@@ -12,6 +12,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Rect
 import android.location.Location
 import android.location.LocationManager
 import android.media.AudioManager
@@ -30,6 +31,7 @@ import android.util.TypedValue
 import android.widget.Toast
 
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
@@ -46,6 +48,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import android.view.ViewGroup.MarginLayoutParams
+import android.widget.EditText
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
