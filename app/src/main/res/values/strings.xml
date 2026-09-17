@@ -84,4 +84,9 @@
     <string name="feedback_message_hint">Scrivi qui il tuo suggerimento, problema riscontrato o un\'idea per nuove funzionalità…</string>
     <string name="feedback_btn_send">Invia Feedback ✉️</string>
     <string name="feedback_empty_error">Inserisci un testo prima di inviare il feedback.</string>
+
+    <string name="accessibility_bathy_toggle">Layer fondali</string>
+    <string name="accessibility_compass">Bussola</string>
+    <string name="accessibility_hdg_compass">Indicatore gradi e direzione</string>
+    <string name="accessibility_rec_toggle">Registra traccia</string>
 </resources>

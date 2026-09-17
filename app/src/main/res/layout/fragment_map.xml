@@ -223,8 +223,9 @@
 
             <ImageButton
                 android:id="@+id/btn_saved_places_back"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:padding="12dp"
                 android:layout_alignParentEnd="true"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Indietro"
@@ -245,49 +246,49 @@
                 android:id="@+id/btn_filter_berth"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="0dp"
-                android:layout_height="44dp"
+                android:layout_height="48dp"
                 android:layout_columnWeight="1"
                 android:layout_margin="4dp"
                 android:text="⚓ Posti Barca"
                 android:textAllCaps="false"
                 android:textSize="13sp"
-                app:cornerRadius="22dp" />
+                app:cornerRadius="24dp" />
 
             <Button
                 android:id="@+id/btn_filter_favorite"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="0dp"
-                android:layout_height="44dp"
+                android:layout_height="48dp"
                 android:layout_columnWeight="1"
                 android:layout_margin="4dp"
                 android:text="♥ Preferiti"
                 android:textAllCaps="false"
                 android:textSize="13sp"
-                app:cornerRadius="22dp" />
+                app:cornerRadius="24dp" />
 
             <Button
                 android:id="@+id/btn_filter_special"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="0dp"
-                android:layout_height="44dp"
+                android:layout_height="48dp"
                 android:layout_columnWeight="1"
                 android:layout_margin="4dp"
                 android:text="🚩 Da visitare"
                 android:textAllCaps="false"
                 android:textSize="13sp"
-                app:cornerRadius="22dp" />
+                app:cornerRadius="24dp" />
 
             <Button
                 android:id="@+id/btn_filter_generic"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="0dp"
-                android:layout_height="44dp"
+                android:layout_height="48dp"
                 android:layout_columnWeight="1"
                 android:layout_margin="4dp"
                 android:text="📍 Altro"
                 android:textAllCaps="false"
                 android:textSize="13sp"
-                app:cornerRadius="22dp" />
+                app:cornerRadius="24dp" />
         </GridLayout>
 
         <View
@@ -405,8 +406,9 @@
 
                 <ImageButton
                     android:id="@+id/btn_place_detail_close"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Chiudi"
                     android:src="@android:drawable/ic_menu_close_clear_cancel"
@@ -492,8 +494,9 @@
 
                     <ImageButton
                         android:id="@+id/btn_route_planning_close"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:padding="12dp"
                         android:layout_alignParentEnd="true"
                         android:layout_centerVertical="true"
                         android:background="?attr/selectableItemBackgroundBorderless"
@@ -599,12 +602,12 @@
 
                     <ImageButton
                         android:id="@+id/btn_route_origin_clear"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:padding="12dp"
                         android:layout_marginStart="2dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="Torna alla posizione attuale"
-                        android:padding="6dp"
                         android:src="@android:drawable/ic_menu_close_clear_cancel"
                         android:visibility="gone"
                         app:tint="#666666" />
@@ -773,8 +776,9 @@
 
             <ImageButton
                 android:id="@+id/btn_nav_chip_close"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:padding="12dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Esci dalla navigazione"
                 android:src="@android:drawable/ic_menu_close_clear_cancel"
@@ -925,8 +929,9 @@
 
                 <ImageButton
                     android:id="@+id/btn_tide_panel_close"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
                     android:layout_alignParentEnd="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Chiudi"
@@ -952,6 +957,7 @@
         android:layout_marginEnd="12dp"
         android:clickable="true"
         android:focusable="true"
+        android:contentDescription="@string/accessibility_bathy_toggle"
         app:cardBackgroundColor="#CCFFFFFF"
         app:cardCornerRadius="45dp"
         app:cardElevation="4dp">
@@ -976,6 +982,9 @@
         android:layout_marginTop="160dp"
         android:layout_marginEnd="12dp"
         android:visibility="visible"
+        android:clickable="true"
+        android:focusable="true"
+        android:contentDescription="@string/accessibility_compass"
         app:cardBackgroundColor="#CC003366"
         app:cardCornerRadius="45dp"
         app:cardElevation="4dp">
@@ -1010,11 +1019,11 @@
         android:id="@+id/card_hdg_compass"
         android:layout_width="90dp"
         android:layout_height="90dp"
-        android:layout_gravity="top|end"
-        android:layout_marginTop="402dp"
-        android:layout_marginEnd="12dp"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="16dp"
         android:clickable="true"
         android:focusable="true"
+        android:contentDescription="@string/accessibility_hdg_compass"
         app:cardBackgroundColor="#E62F343F"
         app:cardCornerRadius="45dp"
         app:cardElevation="4dp">
@@ -1057,6 +1066,7 @@
         android:layout_marginEnd="12dp"
         android:clickable="true"
         android:focusable="true"
+        android:contentDescription="@string/accessibility_rec_toggle"
         app:cardBackgroundColor="#CCFFFFFF"
         app:cardCornerRadius="30dp"
         app:cardElevation="4dp">
@@ -1130,8 +1140,9 @@
 
                 <ImageButton
                     android:id="@+id/btn_save_place_close"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Chiudi"
                     android:src="@android:drawable/ic_menu_close_clear_cancel"

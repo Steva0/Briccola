@@ -60,14 +60,14 @@ object UiTuning {
     const val DEFAULT_FOLLOW_BOAT_SCREEN_Y_FRACTION = 0.58f
     // Colore delle briccole, regolabile da Dev Tools > Colori Mappa.
     val DEFAULT_BRICCOLE_COLOR: Int       = android.graphics.Color.parseColor("#003366")
-    const val DEFAULT_COMPASS_SCALE       = 0.5f
+    const val DEFAULT_COMPASS_SCALE       = 0.55f
     const val DEFAULT_COMPASS_OFFSET_Y    = 160f
-    const val DEFAULT_BATHY_BTN_SCALE     = 0.5f  // meta' della dimensione originale
+    const val DEFAULT_BATHY_BTN_SCALE     = 0.55f  // >= 48dp
     const val DEFAULT_BATHY_BTN_OFFSET_Y  = 100f
     const val DEFAULT_BATHY_OPTIONS_SCALE     = 0.7f
     const val DEFAULT_BATHY_OPTIONS_OFFSET_X  = 65f
     const val DEFAULT_SHALLOW_ALARM_OFFSET_Y  = 125f
-    const val DEFAULT_REC_BTN_SCALE           = 0.72f
+    const val DEFAULT_REC_BTN_SCALE           = 0.8f
     const val DEFAULT_REC_BTN_OFFSET_Y        = 237f
     const val DEFAULT_REC_BTN_OFFSET_X        = 26f
     const val DEFAULT_ACTIVE_TRACK_BANNER_OFFSET_Y = 120f
@@ -76,7 +76,7 @@ object UiTuning {
     const val DEFAULT_CLOSE_TRACK_BTN_OFFSET_X     = 0f
     const val DEFAULT_HDG_COMPASS_SCALE            = 0.66f
     const val DEFAULT_HDG_COMPASS_OFFSET_Y         = 402f
-    const val DEFAULT_HDG_COMPASS_OFFSET_X         = 254f
+    const val DEFAULT_HDG_COMPASS_OFFSET_X         = 12f
     const val DEFAULT_GAUGE_LABEL_SCALE            = 1.35f
 
     // Tachimetro e altimetro sono specchiati (stessa dimensione/posizione, solo lato opposto):

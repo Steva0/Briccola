@@ -209,7 +209,7 @@ override fun onCreateView(
             binding.tvTuneFollowBtnOffset.text = "Posizione pulsante Segui (Y): %.0f dp".format(UiTuning.followBtnOffsetYDp)
             binding.tvTuneFollowBtnOffsetX.text = "Posizione pulsante Segui (X): %.0f dp".format(UiTuning.followBtnOffsetXDp)
             binding.tvTuneFollowBtnScale.text = "Scala pulsante Segui: %.2fx".format(UiTuning.followBtnScale)
-            binding.tvTuneMapObjectScale.text  = "Scala oggetti mappa (icona barca): %.2fx".format(UiTuning.mapObjectScale)
+            binding.tvTuneMapObjectScale.text  = "Scala icona barca (freccia): %.2fx".format(UiTuning.mapObjectScale)
             binding.tvTuneHudOffset.text       = "Posizione HUD canale: %.0f dp".format(UiTuning.hudOffsetYDp)
             binding.tvTuneSavePlaceBtnScale.text = "Scala bottoni Salva: %.2fx".format(UiTuning.savePlaceBtnScale)
             binding.tvTuneDeletePlaceBtnScale.text = "Scala pulsante Elimina: %.2fx".format(UiTuning.deletePlaceBtnScale)

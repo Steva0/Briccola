@@ -618,12 +618,7 @@ class MapFragment : Fragment() {
             topMargin = effectiveStatusBarHeight + (UiTuning.compassOffsetYDp * density).toInt()
         }
 
-        binding.cardHdgCompass.scaleX = UiTuning.hdgCompassScale
-        binding.cardHdgCompass.scaleY = UiTuning.hdgCompassScale
-        binding.cardHdgCompass.updateLayoutParams<MarginLayoutParams> {
-            topMargin = effectiveStatusBarHeight + (UiTuning.hdgCompassOffsetYDp * density).toInt()
-            marginEnd = (UiTuning.hdgCompassOffsetXDp * density).toInt()
-        }
+
 
         binding.cardShallowAlarm.updateLayoutParams<MarginLayoutParams> {
             topMargin = effectiveStatusBarHeight + (UiTuning.shallowAlarmOffsetYDp * density).toInt()
@@ -692,6 +687,14 @@ class MapFragment : Fragment() {
         }
         binding.altitudeView.translationX = 0f
         binding.altitudeView.translationY = (UiTuning.gaugeOffsetYDp - UiTuning.gaugeStackOffsetDp) * density
+
+        binding.cardHdgCompass.scaleX = UiTuning.hdgCompassScale
+        binding.cardHdgCompass.scaleY = UiTuning.hdgCompassScale
+        binding.cardHdgCompass.updateLayoutParams<MarginLayoutParams> {
+            bottomMargin = bottomPadding
+        }
+        binding.cardHdgCompass.translationX = 0f
+        binding.cardHdgCompass.translationY = (UiTuning.gaugeOffsetYDp - (UiTuning.gaugeStackOffsetDp * 2)) * density
         
         binding.layoutCentra.scaleX = UiTuning.followBtnScale
         binding.layoutCentra.scaleY = UiTuning.followBtnScale
@@ -880,7 +883,8 @@ class MapFragment : Fragment() {
                 val hdg = if (fixBuffer.size > 1) smoothedIconBearing else actualCamBearing
                 val normalizedHdg = ((hdg % 360) + 360) % 360
                 _binding?.let { b ->
-                    b.cardCompass.visibility = View.VISIBLE
+                    val overlayOpen = isOtherOverlayOpen()
+                    b.cardCompass.visibility = if (!overlayOpen) View.VISIBLE else View.GONE
                     b.cardCompass.rotation = (-actualCamBearing).toFloat()
 
                     b.tvHdgDegrees.text = " %.0f°".format(normalizedHdg)
@@ -1043,7 +1047,7 @@ class MapFragment : Fragment() {
     private fun setupGpsLayer(style: Style) {
         // Nessuna posizione fittizia di default: l'icona barca non deve comparire finché non
         // arriva un fix vero (vedi bracketFixes/fixBuffer nel loop camera). Sorgente vuota finché
-        // onGpsFix/onSimFix non riempie il buffer.
+        // onGpsFix/onSimFix non riempie el buffer.
         style.addSource(GeoJsonSource(SOURCE_GPS, emptyFc()))
         style.addLayer(
             SymbolLayer(LAYER_GPS, SOURCE_GPS).withProperties(
@@ -1051,7 +1055,7 @@ class MapFragment : Fragment() {
                 iconRotate(get("bearing")),
                 iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
                 iconAllowOverlap(true), iconIgnorePlacement(true),
-                iconSize(1.4f)
+                iconSize(UiTuning.mapObjectScale)
             )
         )
     }
@@ -1324,6 +1328,8 @@ class MapFragment : Fragment() {
                     b.layoutTideTopActions.visibility = tideControlsVisible
                     b.cardTidePanel.visibility = if (!otherOverlayOpen && tidePanelOpen) View.VISIBLE else View.GONE
                     b.cardBathyToggle.visibility = if (otherOverlayOpen) View.GONE else View.VISIBLE
+                    b.cardRecToggle.visibility = if (otherOverlayOpen) View.GONE else View.VISIBLE
+                    b.cardCompass.visibility = if (otherOverlayOpen) View.GONE else View.VISIBLE
 
                     // Overlay Navigazione (se attiva)
                     if (activeRoute != null) {
