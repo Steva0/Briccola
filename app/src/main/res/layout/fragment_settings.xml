@@ -64,6 +64,7 @@
                             android:valueFrom="0.1"
                             android:valueTo="3.0"
                             android:stepSize="0.1"
+                            android:contentDescription="@string/settings_draft_label"
                             app:thumbColor="@color/marine_blue"
                             app:trackColorActive="@color/marine_blue" />
 

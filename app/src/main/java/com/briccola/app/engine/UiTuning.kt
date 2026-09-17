@@ -64,8 +64,8 @@ object UiTuning {
     const val DEFAULT_COMPASS_OFFSET_Y    = 160f
     const val DEFAULT_BATHY_BTN_SCALE     = 0.55f  // >= 48dp
     const val DEFAULT_BATHY_BTN_OFFSET_Y  = 100f
-    const val DEFAULT_BATHY_OPTIONS_SCALE     = 0.7f
-    const val DEFAULT_BATHY_OPTIONS_OFFSET_X  = 65f
+    const val DEFAULT_BATHY_OPTIONS_SCALE     = 0.8f  // >= 48dp
+    const val DEFAULT_BATHY_OPTIONS_OFFSET_X  = 74f
     const val DEFAULT_SHALLOW_ALARM_OFFSET_Y  = 125f
     const val DEFAULT_REC_BTN_SCALE           = 0.8f
     const val DEFAULT_REC_BTN_OFFSET_Y        = 237f
