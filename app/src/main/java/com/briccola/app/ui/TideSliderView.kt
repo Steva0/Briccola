@@ -94,9 +94,13 @@ class TideSliderView @JvmOverloads constructor(
         val endTime = data.curve.last().first
         val timeSpan = (endTime - startTime).toFloat()
         
-        // Trova min/max valore per scalare verticalmente
-        val minVal = -0.5 // fisso per coerenza visiva? o dinamico? Usiamo -50cm come base
-        val maxVal = 1.5  // e +150cm come tetto
+        // Trova min/max valore per scalare verticalmente in modo dinamico
+        val rawMin = data.curve.minOf { it.second }
+        val rawMax = data.curve.maxOf { it.second }
+        val span = (rawMax - rawMin).coerceAtLeast(0.1)
+        val margin = span * 0.25
+        val minVal = rawMin - margin
+        val maxVal = rawMax + margin
         val valSpan = (maxVal - minVal).toFloat()
 
         fun timeToX(t: Long): Float = (t - startTime) / timeSpan * w
