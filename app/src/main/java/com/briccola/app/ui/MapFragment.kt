@@ -2007,6 +2007,7 @@ class MapFragment : Fragment() {
         planningOrigin = pos
         planningOriginName = name
         hidePlacesList()
+        closeSavedPlacesScreen()
         hideKeyboard()
         binding.cardSearch.visibility = View.GONE
         binding.cardRoutePlanning.visibility = View.VISIBLE
