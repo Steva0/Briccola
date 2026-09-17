@@ -55,6 +55,7 @@ import com.briccola.app.engine.BathymetryEngine
 import com.briccola.app.engine.CameraTuning
 import com.briccola.app.engine.WeatherEngine
 import com.briccola.app.engine.GnssPositionProvider
+import com.briccola.app.engine.KeyboardUtils
 import com.briccola.app.engine.PerfMonitor
 import com.briccola.app.engine.PlaceType
 import com.briccola.app.engine.PlacesStore
@@ -516,6 +517,7 @@ class MapFragment : Fragment() {
 
     private var statusBarHeight = 0
     private var navBarHeight = 0
+    private var imeHeight = 0
 
     private val locationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -577,6 +579,7 @@ class MapFragment : Fragment() {
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             statusBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
             navBarHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars()).bottom
+            imeHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
             
             val density = resources.displayMetrics.density
             val extraMargin = (16 * density).toInt()
@@ -652,24 +655,26 @@ class MapFragment : Fragment() {
         binding.layoutTideTopActions.scaleX = UiTuning.bathyOptionsScale
         binding.layoutTideTopActions.scaleY = UiTuning.bathyOptionsScale
 
-        binding.cardTidePanel.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-            bottomMargin = navBarHeight + (12 * density).toInt()
+        val bottomMarginCards = maxOf(navBarHeight, imeHeight) + (12 * density).toInt()
+
+        binding.cardTidePanel.updateLayoutParams<MarginLayoutParams> {
+            bottomMargin = bottomMarginCards
         }
 
-        binding.cardPlaceDetail.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-            bottomMargin = navBarHeight + (12 * density).toInt()
+        binding.cardPlaceDetail.updateLayoutParams<MarginLayoutParams> {
+            bottomMargin = bottomMarginCards
         }
 
-        binding.cardRoutePlanning.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-            bottomMargin = navBarHeight + (12 * density).toInt()
+        binding.cardRoutePlanning.updateLayoutParams<MarginLayoutParams> {
+            bottomMargin = bottomMarginCards
         }
 
-        binding.cardSavePlace.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-            bottomMargin = navBarHeight + (12 * density).toInt()
+        binding.cardSavePlace.updateLayoutParams<MarginLayoutParams> {
+            bottomMargin = bottomMarginCards
         }
 
-        binding.cardSavedPlaces.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
-            bottomMargin = navBarHeight
+        binding.cardSavedPlaces.updateLayoutParams<MarginLayoutParams> {
+            bottomMargin = maxOf(navBarHeight, imeHeight)
         }
 
         val bottomPadding = navBarHeight + (16 * density).toInt()
@@ -737,6 +742,8 @@ class MapFragment : Fragment() {
             (style.getLayer("briccole-layer") as? CircleLayer)
                 ?.setProperties(circleColor(UiTuning.briccoleColor))
         }
+
+        KeyboardUtils.setupKeyboardDismissOnTouch(binding.root)
     }
 
     /**
@@ -1310,6 +1317,7 @@ class MapFragment : Fragment() {
                     val tidePanelOpen = b.cardTidePanel.visibility == View.VISIBLE
                     val overlayOpen = otherOverlayOpen || tidePanelOpen
                     val gpsActive = bracket != null
+                    b.cardSearch.visibility = if (isModalOverlayOpen() || activeRoute != null) View.GONE else View.VISIBLE
                     
                     // Strumenti principali (tachimetro, altimetro)
                     val instrumentsVisible = if (gpsActive && !overlayOpen) View.VISIBLE else View.GONE
@@ -1705,13 +1713,26 @@ class MapFragment : Fragment() {
             pickingOrigin
         } ?: false
 
-    private fun isAnyOverlayOpen(): Boolean =
-        isOtherOverlayOpen() || (_binding?.cardTidePanel?.visibility == View.VISIBLE)
+    private fun isModalOverlayOpen(): Boolean =
+        _binding?.let { b ->
+            b.cardPlaceDetail.visibility == View.VISIBLE ||
+            b.cardRoutePlanning.visibility == View.VISIBLE ||
+            b.cardSavePlace.visibility == View.VISIBLE ||
+            b.cardSavedPlaces.visibility == View.VISIBLE ||
+            b.cardTidePanel.visibility == View.VISIBLE ||
+            pickingOrigin
+        } ?: false
 
     /** true se c'è già un popup/schermata di pianificazione aperta o una navigazione attiva:
      *  in quel caso un nuovo tap lungo sulla mappa deve restare inerte finché non si chiude. */
     private fun isMapInteractionLocked(): Boolean =
-        activeRoute != null || isAnyOverlayOpen()
+        activeRoute != null ||
+        _binding?.let { b ->
+            b.cardPlaceDetail.visibility == View.VISIBLE ||
+            b.cardSavePlace.visibility == View.VISIBLE ||
+            b.cardRoutePlanning.visibility == View.VISIBLE ||
+            b.cardTidePanel.visibility == View.VISIBLE
+        } ?: false
 
     /** Chiude la schermata/overlay attualmente in primo piano, dal più "interno" al più
      *  "esterno" (dettaglio punto → salva punto → pianificazione percorso → luoghi salvati →
@@ -1838,8 +1859,9 @@ class MapFragment : Fragment() {
         binding.etSavePlaceNotes.setText(place.notes)
         updateSaveTypeButtons()
         binding.btnSavePlaceDelete.visibility = View.VISIBLE
-        binding.cardSearch.visibility = View.GONE
         binding.cardSavePlace.visibility = View.VISIBLE
+        binding.cardSavedPlaces.visibility = View.GONE
+        binding.cardSearch.visibility = View.GONE
         applySavePlaceValidity(place.toLatLng())
         mapLibre?.getStyle { style -> drawDestination(style, place.toLatLng()) }
         centerPointInUpperScreen(place.toLatLng())
@@ -1849,12 +1871,13 @@ class MapFragment : Fragment() {
         hideKeyboard()
         selectedPlacePos = null
         editingPlace = null
-        binding.cardSavePlace.visibility = View.GONE
         mapLibre?.getStyle { style -> (style.getSource(SOURCE_DEST) as? GeoJsonSource)?.setGeoJson(emptyFc()) }
         if (cameFromSavedPlacesList) {
             cameFromSavedPlacesList = false
             openSavedPlacesScreen()
+            binding.cardSavePlace.visibility = View.GONE
         } else {
+            binding.cardSavePlace.visibility = View.GONE
             binding.cardSearch.visibility = View.VISIBLE
         }
     }
@@ -2475,7 +2498,6 @@ class MapFragment : Fragment() {
                 titleColor = Color.parseColor("#222222"),
                 subtitleColor = Color.parseColor("#888888")
             ) {
-                closeSavedPlacesScreen()
                 editSavedPlace(place, fromSavedList = true)
             }
         }

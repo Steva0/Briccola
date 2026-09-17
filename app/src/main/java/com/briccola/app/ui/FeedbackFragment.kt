@@ -17,6 +17,7 @@ import androidx.fragment.app.Fragment
 import com.briccola.app.BuildConfig
 import com.briccola.app.R
 import com.briccola.app.databinding.FragmentFeedbackBinding
+import com.briccola.app.engine.KeyboardUtils
 import com.briccola.app.engine.ReviewManager
 
 class FeedbackFragment : Fragment() {
@@ -94,6 +95,8 @@ class FeedbackFragment : Fragment() {
 
             insets
         }
+
+        KeyboardUtils.setupKeyboardDismissOnTouch(binding.root)
     }
 
     private fun vPadding(statusBarHeight: Int) {

@@ -13,6 +13,7 @@ import androidx.core.content.FileProvider
 import com.briccola.app.R
 import com.briccola.app.databinding.DialogLogbookDetailBinding
 import com.briccola.app.engine.GpxParser
+import com.briccola.app.engine.KeyboardUtils
 import com.briccola.app.engine.SpeedUnit
 import com.briccola.app.engine.Track
 import com.briccola.app.engine.TrackRecorderEngine
@@ -160,6 +161,8 @@ class LogbookDetailBottomSheet(
             dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
             dialog.show()
         }
+
+        KeyboardUtils.setupKeyboardDismissOnTouch(binding.root)
     }
 
     override fun onDestroyView() {
