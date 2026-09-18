@@ -5,8 +5,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.maplibre.android.geometry.LatLng
+import java.io.File
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.channels.FileChannel
 
 /**
  * Motore ottimizzato per la lettura della batimetria.
@@ -45,9 +48,19 @@ class BathymetryEngine(private val context: Context) {
 
     private fun loadBinaryData() {
         try {
-            context.assets.open("bathymetry.bin").use { input ->
-                val bytes = input.readBytes()
-                bathyData = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+            val file = File(context.filesDir, "bathymetry.bin")
+            if (file.exists()) {
+                RandomAccessFile(file, "r").use { raf ->
+                    raf.channel.use { channel ->
+                        bathyData = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size())
+                            .order(ByteOrder.LITTLE_ENDIAN)
+                    }
+                }
+            } else {
+                context.assets.open("bathymetry.bin").use { input ->
+                    val bytes = input.readBytes()
+                    bathyData = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()

@@ -74,6 +74,7 @@ android {
     androidResources {
         noCompress += "db"
         noCompress += "mbtiles"
+        noCompress += "bin"
     }
 }
 

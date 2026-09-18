@@ -37,6 +37,9 @@ object LocalAssetInstaller {
                 for ((assetName, checkQuery) in DB_ASSETS) {
                     installOne(context, assetName, checkQuery, forceReinstall)
                 }
+
+                // 3. Copia bathymetry.bin se necessario (gestito via memory-mapping off-heap)
+                installBinaryAssetIfNeeded(context)
                 
                 updateInstalledVersionMarker(context)
             } catch (e: Exception) {
@@ -106,6 +109,19 @@ object LocalAssetInstaller {
             if (!isValidSqlite(dest, checkQuery)) {
                 dest.delete()
                 return
+            }
+        } catch (e: Exception) {
+            dest.delete()
+        }
+    }
+
+    private fun installBinaryAssetIfNeeded(context: Context) {
+        val dest = File(context.filesDir, "bathymetry.bin")
+        if (!assetExists(context, "bathymetry.bin")) return
+        try {
+            if (dest.exists() && dest.length() > 0) return
+            context.assets.open("bathymetry.bin").use { input ->
+                dest.outputStream().use { output -> input.copyTo(output, bufferSize = 1 shl 20) }
             }
         } catch (e: Exception) {
             dest.delete()
